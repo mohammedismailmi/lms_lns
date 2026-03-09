@@ -1,0 +1,11 @@
+{
+    "name": "lms-monorepo",
+    "version": "1.0.0",
+    "description": "Multi-tenant LMS Monorepo",
+    "scripts": {
+        "dev:api": "npm run dev --prefix api",
+        "dev:frontend": "npm run dev --prefix frontend",
+        "dev": "npm run dev:api & npm run dev:frontend",
+        "install:all": "npm install --prefix api && npm install --prefix frontend"
+    }
+}
