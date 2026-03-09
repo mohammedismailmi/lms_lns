@@ -1,27 +1,34 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 
-const TenantContext = createContext();
+const TenantContext = createContext({ tenantSlug: "dev" });
 
-export const TenantContextProvider = ({ children }) => {
-    const [tenantSlug, setTenantSlug] = useState("dev");
+export function TenantContextProvider({ children }) {
+  const [tenantSlug, setTenantSlug] = useState("dev");
 
-    useEffect(() => {
-        const hostname = window.location.hostname;
-        // Example: uni1.lms.com -> uni1
-        const parts = hostname.split(".");
-        if (parts.length > 2 && parts[0] !== "www") {
-            setTenantSlug(parts[0]);
-        } else {
-            setTenantSlug("dev");
-        }
-    }, []);
+  useEffect(() => {
+    const hostname = window.location.hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      setTenantSlug("dev");
+    } else {
+      // e.g. "uni1.lms.com" → "uni1"
+      const parts = hostname.split(".");
+      if (parts.length >= 3) {
+        setTenantSlug(parts[0]);
+      } else {
+        setTenantSlug("dev");
+      }
+    }
+  }, []);
 
-    return (
-        <TenantContext.Provider value={{ tenantSlug }}>
-            {children}
-        </TenantContext.Provider>
-    );
-};
+  return (
+    <TenantContext.Provider value={{ tenantSlug }}>
+      {children}
+    </TenantContext.Provider>
+  );
+}
 
-export const useTenant = () => useContext(TenantContext);
+export function useTenant() {
+  return useContext(TenantContext);
+}
+
 export default TenantContext;
