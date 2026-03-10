@@ -4,8 +4,8 @@ main = "src/index.ts"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "lms-db"
-database_id = "local-db-id"
+database_name = "lms-db-placeholder"
+database_id = "00000000-0000-0000-0000-000000000000" # TODO: replace with real ID
 
 [[kv_namespaces]]
 binding = "KV"
