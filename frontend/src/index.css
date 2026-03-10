@@ -1,1 +1,25 @@
 @import "tailwindcss";
+
+@theme {
+  --color-primary: #1B3A6B; /* Primary Blue */
+  --color-navy: #0F2040; /* Deep Navy */
+  --color-accent: #8B1A1A; /* Accent Red */
+  --color-success: #2D5A27; /* Forest Green */
+  --color-highlight: #C9A84C; /* Warm Yellow */
+  --color-surface: #F5F0E8; /* Off White */
+  --color-card: #EDE8DC; /* Parchment */
+  --color-ink: #1A1A1A; /* Dark Ink */
+  --color-muted: #6B6B6B; /* Muted Grey */
+  --color-border: #D4CFC6;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-surface);
+    color: var(--color-ink);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  }
+}

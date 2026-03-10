@@ -1,16 +1,5 @@
 import React from "react";
 
-<<<<<<< HEAD
-export default function Dashboard() {
-    const role = localStorage.getItem("role") || "learner";
-
-    return (
-        <div className="p-8">
-            <h1 className="text-2xl font-bold">Dashboard</h1>
-            <p className="mt-4 text-gray-700">
-                Welcome to your dashboard! You are logged in as a <span className="font-bold text-indigo-600 capitalize">{role}</span>.
-            </p>
-=======
 const roleMessages = {
     admin: "You have full access to manage the platform, users, and courses.",
     instructor: "You can create and manage your courses and track learner progress.",
@@ -39,7 +28,6 @@ export default function Dashboard() {
                 </p>
                 <p className="text-gray-600 text-lg">{message}</p>
             </div>
->>>>>>> 0445047e6fe2c2eda9dfbcf0e37f49c8eea14ade
         </div>
     );
 }
