@@ -5,6 +5,7 @@ import { requestSizeLimit } from './middleware/requestSize';
 import { tenantMiddleware } from './middleware/tenant';
 import healthRoute from './routes/health';
 import pingRoute from './routes/ping';
+import authRoute from './routes/auth';
 
 const app = new Hono<{ Bindings: Env; Variables: Variables }>();
 
@@ -16,6 +17,7 @@ app.use('*', tenantMiddleware);
 // Routes
 app.route('/health', healthRoute);
 app.route('/api/ping', pingRoute);
+app.route('/api/auth', authRoute);
 
 // 404 fallback
 app.notFound((c) => {
