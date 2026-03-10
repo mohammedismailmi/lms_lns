@@ -1,16 +1,16 @@
 import React from "react";
 import { Navigate, Outlet } from "react-router-dom";
 
+function getCookie(name) {
+    return document.cookie
+        .split("; ")
+        .some((row) => row.startsWith(`${name}=`));
+}
+
 export default function ProtectedRoute() {
-    const getCookie = (name) => {
-        const value = `; ${document.cookie}`;
-        const parts = value.split(`; ${name}=`);
-        if (parts.length === 2) return parts.pop().split(';').shift();
-    };
+    const isAuthenticated = getCookie("auth_token");
 
-    const token = getCookie("auth_token");
-
-    if (!token) {
+    if (!isAuthenticated) {
         return <Navigate to="/login" replace />;
     }
 
