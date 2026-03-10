@@ -1,98 +1,104 @@
-import React, { useState } from "react";
+import React from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { useNavigate } from "react-router-dom";
+
+const signUpSchema = z.object({
+    name: z.string().min(2, "Name must be at least 2 characters"),
+    email: z.string().email("Invalid email address"),
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+});
 
 export default function SignUp() {
     const navigate = useNavigate();
-    const [form, setForm] = useState({ name: "", email: "", password: "", confirm: "" });
+    const {
+        register,
+        handleSubmit,
+        formState: { errors },
+    } = useForm({
+        resolver: zodResolver(signUpSchema),
+    });
 
-    const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        // TODO: connect to registration API
-        console.log("Sign Up submitted", form);
+    const onSubmit = (data) => {
+        // TODO: connect to backend register API
+        console.log("Sign Up data:", data);
+        navigate("/login");
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-100 flex items-center justify-center">
-            <div className="bg-white shadow-xl rounded-2xl p-8 w-full max-w-md">
-                <h2 className="text-3xl font-bold text-indigo-700 mb-2 text-center">Create Account</h2>
-                <p className="text-center text-gray-400 text-sm mb-6">Join your learning platform</p>
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+            <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-slate-100">
+                <h2 className="text-3xl font-bold text-slate-800 mb-2 font-display uppercase tracking-tight">Create Account</h2>
+                <p className="text-sm text-slate-400 mb-8 font-medium">Join our learning community today.</p>
 
-                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                    <div className="flex flex-col gap-1">
-                        <label className="text-sm font-medium text-gray-600" htmlFor="name">Full Name</label>
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Full Name</label>
                         <input
-                            id="name"
-                            name="name"
-                            type="text"
-                            value={form.name}
-                            onChange={handleChange}
+                            {...register("name")}
+                            className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl focus:outline-none focus:ring-2 transition ${errors.name ? "border-red-500 focus:ring-red-100" : "border-slate-200 focus:ring-indigo-500"
+                                }`}
                             placeholder="Jane Doe"
-                            className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                            required
                         />
+                        {errors.name && <p className="text-red-500 text-[11px] mt-1 font-bold">{errors.name.message}</p>}
                     </div>
 
-                    <div className="flex flex-col gap-1">
-                        <label className="text-sm font-medium text-gray-600" htmlFor="signup-email">Email</label>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Email</label>
                         <input
-                            id="signup-email"
-                            name="email"
-                            type="email"
-                            value={form.email}
-                            onChange={handleChange}
-                            placeholder="you@example.com"
-                            className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                            required
+                            {...register("email")}
+                            className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl focus:outline-none focus:ring-2 transition ${errors.email ? "border-red-500 focus:ring-red-100" : "border-slate-200 focus:ring-indigo-500"
+                                }`}
+                            placeholder="jane@example.com"
                         />
+                        {errors.email && <p className="text-red-500 text-[11px] mt-1 font-bold">{errors.email.message}</p>}
                     </div>
 
-                    <div className="flex flex-col gap-1">
-                        <label className="text-sm font-medium text-gray-600" htmlFor="signup-password">Password</label>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Password</label>
                         <input
-                            id="signup-password"
-                            name="password"
                             type="password"
-                            value={form.password}
-                            onChange={handleChange}
-                            placeholder="Min. 8 characters"
-                            className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                            required
+                            {...register("password")}
+                            className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl focus:outline-none focus:ring-2 transition ${errors.password ? "border-red-500 focus:ring-red-100" : "border-slate-200 focus:ring-indigo-500"
+                                }`}
+                            placeholder="••••••••"
                         />
+                        {errors.password && <p className="text-red-500 text-[11px] mt-1 font-bold">{errors.password.message}</p>}
                     </div>
 
-                    <div className="flex flex-col gap-1">
-                        <label className="text-sm font-medium text-gray-600" htmlFor="confirm-password">Confirm Password</label>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Confirm Password</label>
                         <input
-                            id="confirm-password"
-                            name="confirm"
                             type="password"
-                            value={form.confirm}
-                            onChange={handleChange}
-                            placeholder="Re-enter password"
-                            className="border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                            required
+                            {...register("confirmPassword")}
+                            className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl focus:outline-none focus:ring-2 transition ${errors.confirmPassword ? "border-red-500 focus:ring-red-100" : "border-slate-200 focus:ring-indigo-500"
+                                }`}
+                            placeholder="••••••••"
                         />
+                        {errors.confirmPassword && (
+                            <p className="text-red-500 text-[11px] mt-1 font-bold">{errors.confirmPassword.message}</p>
+                        )}
                     </div>
 
                     <button
                         type="submit"
-                        className="mt-2 px-6 py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition-colors"
+                        className="w-full bg-slate-900 text-white font-bold py-3.5 rounded-xl hover:bg-black transition active:scale-[0.98] shadow-lg shadow-slate-200 mt-4 text-sm"
                     >
-                        Create Account
+                        Get Started
                     </button>
                 </form>
 
-                <p className="text-center text-sm text-gray-500 mt-5">
-                    Already have an account?{" "}
-                    <button
-                        onClick={() => navigate("/login")}
-                        className="text-indigo-600 font-medium hover:underline"
-                    >
-                        Sign In
-                    </button>
-                </p>
+                <div className="mt-8 pt-6 border-t border-slate-100 text-center">
+                    <p className="text-sm text-slate-500 font-medium italic">
+                        Already have an account?{" "}
+                        <button onClick={() => navigate("/login")} className="text-indigo-600 hover:underline font-bold not-italic">Sign In</button>
+                    </p>
+                </div>
             </div>
         </div>
     );
