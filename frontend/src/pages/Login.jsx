@@ -4,6 +4,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useNavigate } from "react-router-dom";
 
+import { useAuthStore } from "../store/authStore";
+import { users } from "../lib/mockData";
+
 const loginSchema = z.object({
     email: z.string().email("Invalid email address"),
     password: z.string().min(6, "Password must be at least 6 characters"),
@@ -11,6 +14,7 @@ const loginSchema = z.object({
 
 export default function Login() {
     const navigate = useNavigate();
+    const login = useAuthStore((state) => state.login);
     const {
         register,
         handleSubmit,
@@ -22,10 +26,24 @@ export default function Login() {
     const onSubmit = (data) => {
         // TODO: connect to backend auth API
         console.log("Login data:", data);
+
+        // Mock role logic for demo purposes:
+        let role = "learner";
+        if (data.email.includes("admin")) role = "admin";
+        else if (data.email.includes("instructor")) role = "instructor";
+
         // Mock login success:
         document.cookie = "auth_token=stub_token; path=/";
-        localStorage.setItem("role", "admin");
-        navigate("/dashboard");
+        localStorage.setItem("user_role", role);
+
+        // Find mock user and update store
+        const user = users.find(u => u.role === role) || users[0];
+        login({ ...user, email: data.email });
+
+        // Redirect based on role
+        if (role === 'admin') navigate("/dashboard/admin");
+        else if (role === 'instructor') navigate("/dashboard/instructor");
+        else navigate("/dashboard/learner");
     };
 
     return (
