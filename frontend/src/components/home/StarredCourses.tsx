@@ -1,15 +1,19 @@
 import React from 'react';
-import { courses } from '../../lib/mockData';
 import { useCourseStore } from '../../store/courseStore';
+import { useAuthStore } from '../../store/authStore';
 import CourseCard from './CourseCard';
 import { Star } from 'lucide-react';
 
 export default function StarredCourses() {
-    const { starred } = useCourseStore();
+    const { starred, getEnrolledCourses } = useCourseStore();
+    const { user } = useAuthStore();
 
-    if (starred.size === 0) return null;
+    if (!user || starred.size === 0) return null;
 
-    const starredList = courses.filter(c => starred.has(c.id));
+    const enrolled = getEnrolledCourses(user.id);
+    const starredList = enrolled.filter(c => starred.has(c.id));
+
+    if (starredList.length === 0) return null;
 
     return (
         <section className="mb-12">

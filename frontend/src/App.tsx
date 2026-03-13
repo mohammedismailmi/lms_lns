@@ -1,64 +1,108 @@
-import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { TenantContextProvider } from './context/TenantContext';
+import { useAuthStore } from './store/authStore';
+
 import Login from './pages/Login';
 import SignUp from './pages/SignUp';
 import ForgotPassword from './pages/ForgotPassword';
 import ProtectedRoute from './components/ProtectedRoute';
+import ToastProvider from './components/ui/ToastProvider';
 
 import Layout from './components/layout/Layout';
-import HomePage from './pages/HomePage';
+import LearnerHomePage from './pages/LearnerHomePage';
+import InstructorHomePage from './pages/InstructorHomePage';
 import AdminDashboard from './pages/AdminDashboard';
-import InstructorDashboard from './pages/InstructorDashboard';
-import LearnerDashboard from './pages/LearnerDashboard';
+import AdminUsersPage from './pages/AdminUsersPage';
+import AdminCoursesPage from './pages/AdminCoursesPage';
+import AdminAnalyticsPage from './pages/AdminAnalyticsPage';
+import TenantComingSoonPage from './pages/TenantComingSoonPage';
+
+import CoursePage from './pages/CoursePage';
+import QuizPage from './pages/QuizPage';
+import ExamPage from './pages/ExamPage';
+import CertificatePage from './pages/CertificatePage';
+
+import BlogLessonPage from './pages/BlogLessonPage';
+import FileLessonPage from './pages/FileLessonPage';
+import VideoLessonPage from './pages/VideoLessonPage';
+
 import Unauthorized from './pages/Unauthorized';
 
-// Placeholders until we build them
-const CoursePage = () => <div className="p-8 font-serif text-2xl">Course Page Placeholder</div>;
-const QuizPage = () => <div className="p-8 font-serif text-2xl">Quiz Page Placeholder</div>;
-const ExamPage = () => <div className="p-8 font-serif text-2xl">Exam Page Placeholder</div>;
-const CertificatePage = () => <div className="p-8 font-serif text-2xl">Certificate Page Placeholder</div>;
+import AdminCoursesOverviewPage from './pages/AdminCoursesOverviewPage';
+
+// Smart redirector for root `/` handling role-based routing
+const RoleRootRedirect = () => {
+    const { user, isAuthenticated } = useAuthStore();
+    if (!isAuthenticated || !user) return <Navigate to="/login" replace />;
+    if (user.role === 'admin') return <Navigate to="/courses" replace />;
+    if (user.role === 'instructor') return <Navigate to="/teaching" replace />;
+    return <Navigate to="/home" replace />; // learner fallback
+};
+
+// Smart redirector for `/courses` handling admin vs learner
+const CoursesRouteDirect = () => {
+    const { user } = useAuthStore();
+    if (user?.role === 'admin') return <AdminCoursesOverviewPage />;
+    return <Navigate to="/home" replace />;
+};
 
 export default function App() {
     return (
         <TenantContextProvider>
-            <Routes>
-                {/* Redirect root to login */}
-                <Route path="/" element={<Navigate to="/login" replace />} />
+            <ToastProvider>
+                <Routes>
+                    {/* Public Auth Routes */}
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/signup" element={<SignUp />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/unauthorized" element={<Unauthorized />} />
 
-                {/* Public Auth Routes */}
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<SignUp />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/unauthorized" element={<Unauthorized />} />
-
-                {/* Fullscreen Protected Routes outside Sidebar Layout */}
-                <Route element={<ProtectedRoute allowedRoles={['admin', 'instructor', 'learner']} />}>
-                    <Route path="/quiz/:id" element={<QuizPage />} />
-                    <Route path="/exam/:id" element={<ExamPage />} />
-                </Route>
-
-                {/* Protected App Routes enclosed in Custom Layout */}
-                <Route element={<Layout />}>
+                    {/* Fullscreen Protected Routes outside Sidebar Layout */}
                     <Route element={<ProtectedRoute allowedRoles={['admin', 'instructor', 'learner']} />}>
-                        <Route path="/dashboard/learner" element={<LearnerDashboard />} />
-                        <Route path="/courses" element={<HomePage />} />
-                        <Route path="/course/:courseId" element={<CoursePage />} />
-                        <Route path="/certificate/:courseId" element={<CertificatePage />} />
+                        <Route path="/quiz/:id" element={<QuizPage />} />
+                        <Route path="/exam/:id" element={<ExamPage />} />
                     </Route>
 
-                    <Route element={<ProtectedRoute allowedRoles={['admin', 'instructor']} />}>
-                        <Route path="/dashboard/instructor" element={<InstructorDashboard />} />
-                    </Route>
+                    {/* Protected App Routes enclosed in Custom Layout */}
+                    <Route element={<Layout />}>
+                        <Route path="/" element={<RoleRootRedirect />} />
+                        
+                        <Route element={<ProtectedRoute allowedRoles={['learner', 'admin']} />}>
+                            <Route path="/home" element={<LearnerHomePage />} />
+                        </Route>
 
-                    <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
-                        <Route path="/dashboard/admin" element={<AdminDashboard />} />
-                    </Route>
+                        <Route element={<ProtectedRoute allowedRoles={['instructor', 'admin']} />}>
+                            <Route path="/teaching" element={<InstructorHomePage />} />
+                            <Route path="/teaching/progress" element={<div className="p-8 font-serif text-2xl text-center mt-20">Coming Soon</div>} />
+                            <Route path="/teaching/announcements" element={<div className="p-8 font-serif text-2xl text-center mt-20">Coming Soon</div>} />
+                        </Route>
 
-                    {/* Fallback for generic dashboard/courses paths */}
-                    <Route path="/dashboard" element={<Navigate to="/dashboard/learner" replace />} />
-                </Route>
-            </Routes>
+                        <Route element={<ProtectedRoute allowedRoles={['admin', 'instructor', 'learner']} />}>
+                            <Route path="/course/:courseId" element={<CoursePage />} />
+                            <Route path="/certificate/:courseId" element={<CertificatePage />} />
+                            
+                            <Route path="/lesson/blog/:activityId" element={<BlogLessonPage />} />
+                            <Route path="/lesson/file/:activityId" element={<FileLessonPage />} />
+                            <Route path="/lesson/video/:activityId" element={<VideoLessonPage />} />
+                        </Route>
+
+                        <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+                            <Route path="/admin" element={<AdminDashboard />} />
+                            <Route path="/admin/users" element={<AdminUsersPage />} />
+                            <Route path="/admin/tenants" element={<TenantComingSoonPage />} />
+                            <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
+                        </Route>
+
+                        {/* Route accessible by admin, effectively disabled for learners via CoursesRouteDirect */}
+                        <Route element={<ProtectedRoute allowedRoles={['admin', 'instructor', 'learner']} />}>
+                            <Route path="/courses" element={<CoursesRouteDirect />} />
+                        </Route>
+
+                        <Route path="*" element={<Navigate to="/" replace />} />
+                    </Route>
+                </Routes>
+            </ToastProvider>
         </TenantContextProvider>
     );
 }

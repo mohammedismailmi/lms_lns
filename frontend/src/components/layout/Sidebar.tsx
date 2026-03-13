@@ -8,8 +8,9 @@ export default function Sidebar() {
     const { user } = useAuthStore();
 
     const navItems = [
-        { name: 'Home', path: '/', icon: Home, roles: ['admin', 'instructor', 'learner'] },
-        { name: 'My Courses', path: '/courses', icon: BookOpen, roles: ['instructor', 'learner'] },
+        { name: 'Dashboard', path: '/home', icon: Home, roles: ['learner'] },
+        { name: 'Dashboard', path: '/teaching', icon: Home, roles: ['instructor'] },
+        { name: 'Platform Catalog', path: '/courses', icon: BookOpen, roles: ['admin'] },
         { name: 'Certificates', path: '/certificates', icon: GraduationCap, roles: ['learner'] },
         { name: 'Admin Hub', path: '/admin', icon: Shield, roles: ['admin'] },
     ];

@@ -1,12 +1,18 @@
 import React from 'react';
-import { courses } from '../../lib/mockData';
+import { useCourseStore } from '../../store/courseStore';
+import { useAuthStore } from '../../store/authStore';
 import { useProgressStore } from '../../store/progressStore';
 import CourseCard from './CourseCard';
 
 export default function RecommendedCourses() {
     const { getCourseProgress } = useProgressStore();
+    const { getEnrolledCourses } = useCourseStore();
+    const { user } = useAuthStore();
 
-    const recommended = courses
+    if (!user) return null;
+    const enrolled = getEnrolledCourses(user.id);
+
+    const recommended = enrolled
         .map(course => {
             const allActivities = course.modules.flatMap(m => m.activities);
             const progress = getCourseProgress(course.id, allActivities);

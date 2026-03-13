@@ -88,6 +88,8 @@ export interface Course {
     category: 'AI/ML' | 'Science' | 'Arts' | 'Business' | 'Default';
     isCompleted: boolean;
     totalActivities: number;
+    description?: string;
+    thumbnailColor?: string;
     modules: Module[];
 }
 

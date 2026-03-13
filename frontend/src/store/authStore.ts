@@ -1,11 +1,15 @@
 import { create } from 'zustand';
-import { User, users } from '../lib/mockData';
+import { User, users as mockUsers, Role } from '../lib/mockData';
 
 interface AuthState {
     user: User | null;
     isAuthenticated: boolean;
+    usersList: User[];
     login: (user: User) => void;
     logout: () => void;
+    updateUserRole: (userId: string, role: Role) => void;
+    addUser: (user: User) => void;
+    removeUser: (userId: string) => void;
 }
 
 function getCookie(name: string) {
@@ -23,7 +27,7 @@ const getInitialUser = (): User | null => {
     if (!role) return null;
 
     // Find a mock user with this role
-    return users.find((u) => u.role === role) || users[0];
+    return mockUsers.find((u) => u.role === role) || mockUsers[0];
 };
 
 export const useAuthStore = create<AuthState>((set) => {
@@ -32,7 +36,10 @@ export const useAuthStore = create<AuthState>((set) => {
     return {
         user: initialUser,
         isAuthenticated: !!initialUser,
+        usersList: [...mockUsers],
         login: (user) => {
+            document.cookie = `auth_token=mock_token_${user.id}; path=/; max-age=86400`;
+            localStorage.setItem('user_role', user.role);
             set({ user, isAuthenticated: true });
         },
         logout: () => {
@@ -40,5 +47,14 @@ export const useAuthStore = create<AuthState>((set) => {
             localStorage.removeItem('user_role');
             set({ user: null, isAuthenticated: false });
         },
+        updateUserRole: (userId, role) => set(state => {
+            const updatedUsers = state.usersList.map(u => u.id === userId ? { ...u, role } : u);
+            return {
+                usersList: updatedUsers,
+                user: state.user?.id === userId ? { ...state.user, role } : state.user
+            };
+        }),
+        addUser: (user) => set(state => ({ usersList: [...state.usersList, user] })),
+        removeUser: (userId) => set(state => ({ usersList: state.usersList.filter(u => u.id !== userId) })),
     };
 });
