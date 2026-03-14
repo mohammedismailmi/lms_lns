@@ -14,17 +14,18 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
     const [title, setTitle] = useState('');
     const [duration, setDuration] = useState(10);
     const [url, setUrl] = useState('');
-    
+
     // For quizzes
     const [questions, setQuestions] = useState<any[]>([]);
 
     useEffect(() => {
         if (existingActivity) {
-            setType(existingActivity.type);
-            setTitle(existingActivity.title);
-            setDuration(existingActivity.durationMinutes);
-            setUrl(existingActivity.url || '');
-            setQuestions(existingActivity.questions || []);
+            const existing = existingActivity as any;
+            setType(existing.type);
+            setTitle(existing.title);
+            setDuration(existing.durationMinutes || 0);
+            setUrl(existing.url || existing.videoUrl || '');
+            setQuestions(existing.questions || []);
         } else {
             setType('video');
             setTitle('');
@@ -99,8 +100,8 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="md:col-span-2">
                             <label className="block text-sm font-bold text-navy mb-2 uppercase tracking-wider text-xs">Activity Type</label>
-                            <select 
-                                value={type} 
+                            <select
+                                value={type}
                                 onChange={e => setType(e.target.value as any)}
                                 className="w-full border-border border rounded-lg px-4 py-3 outline-none focus:ring-1 focus:ring-primary shadow-sm"
                             >
@@ -115,7 +116,7 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
 
                         <div className="md:col-span-2">
                             <label className="block text-sm font-bold text-navy mb-2 uppercase tracking-wider text-xs">Title</label>
-                            <input 
+                            <input
                                 value={title}
                                 onChange={e => setTitle(e.target.value)}
                                 className="w-full border-border border rounded-lg px-4 py-3 outline-none focus:ring-1 focus:ring-primary shadow-sm"
@@ -125,7 +126,7 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
 
                         <div>
                             <label className="block text-sm font-bold text-navy mb-2 uppercase tracking-wider text-xs">Estimated Duration (Mins)</label>
-                            <input 
+                            <input
                                 type="number"
                                 value={duration}
                                 onChange={e => setDuration(parseInt(e.target.value) || 0)}
@@ -136,7 +137,7 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
                         {(!isAssessment) && (
                             <div>
                                 <label className="block text-sm font-bold text-navy mb-2 uppercase tracking-wider text-xs">Target URL / Asset Link</label>
-                                <input 
+                                <input
                                     value={url}
                                     onChange={e => setUrl(e.target.value)}
                                     className="w-full border-border border rounded-lg px-4 py-3 outline-none focus:ring-1 focus:ring-primary shadow-sm"
@@ -151,7 +152,7 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
                         <div className="border-t border-border pt-6 mt-6">
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="text-lg font-serif font-bold text-navy">Question Builder</h3>
-                                <button 
+                                <button
                                     onClick={addQuestion}
                                     className="flex items-center gap-2 text-primary font-bold hover:bg-primary/5 px-3 py-1.5 rounded-lg transition-colors border border-primary/20"
                                 >
@@ -167,16 +168,16 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
                                 <div className="space-y-6">
                                     {questions.map((q, qIndex) => (
                                         <div key={q.id} className="p-5 border border-border rounded-xl bg-slate-50 relative">
-                                            <button 
+                                            <button
                                                 onClick={() => setQuestions(questions.filter((_, i) => i !== qIndex))}
                                                 className="absolute top-4 right-4 text-muted hover:text-accent p-1"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
-                                            
+
                                             <div className="mb-4 pr-8">
                                                 <label className="block text-sm font-bold text-navy mb-2 uppercase tracking-wider text-xs">Question {qIndex + 1}</label>
-                                                <input 
+                                                <input
                                                     value={q.text}
                                                     onChange={e => updateQuestionText(qIndex, e.target.value)}
                                                     className="w-full border-border border bg-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-primary"
@@ -187,14 +188,14 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
                                             <div className="space-y-3">
                                                 {q.options.map((opt: string, oIndex: number) => (
                                                     <div key={oIndex} className="flex items-center gap-3">
-                                                        <input 
-                                                            type="radio" 
-                                                            name={`correct-${q.id}`} 
+                                                        <input
+                                                            type="radio"
+                                                            name={`correct-${q.id}`}
                                                             checked={q.correctOptionIndex === oIndex}
                                                             onChange={() => setCorrectOption(qIndex, oIndex)}
-                                                            className="w-4 h-4 text-primary accent-primary cursor-pointer shrink-0" 
+                                                            className="w-4 h-4 text-primary accent-primary cursor-pointer shrink-0"
                                                         />
-                                                        <input 
+                                                        <input
                                                             value={opt}
                                                             onChange={e => updateOption(qIndex, oIndex, e.target.value)}
                                                             className="flex-1 border-border border bg-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-primary text-sm"

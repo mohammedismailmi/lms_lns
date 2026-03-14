@@ -1,15 +1,16 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
-import { Home, BookOpen, GraduationCap, Shield } from 'lucide-react';
+import { Home, BookOpen, GraduationCap, Shield, LayoutDashboard } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 export default function Sidebar() {
     const { user } = useAuthStore();
 
     const navItems = [
-        { name: 'Dashboard', path: '/home', icon: Home, roles: ['learner'] },
-        { name: 'Dashboard', path: '/teaching', icon: Home, roles: ['instructor'] },
+        { name: 'Home', path: '/home', icon: Home, roles: ['learner'] },
+        { name: 'Home', path: '/teaching', icon: Home, roles: ['instructor'] },
+        { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, roles: ['admin', 'instructor', 'learner'] },
         { name: 'Platform Catalog', path: '/courses', icon: BookOpen, roles: ['admin'] },
         { name: 'Certificates', path: '/certificates', icon: GraduationCap, roles: ['learner'] },
         { name: 'Admin Hub', path: '/admin', icon: Shield, roles: ['admin'] },

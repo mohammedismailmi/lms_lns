@@ -1,60 +1,104 @@
 import { create } from 'zustand';
 import { User, users as mockUsers, Role } from '../lib/mockData';
+import api from '../lib/api';
+import { useCourseStore } from './courseStore';
+import { useProgressStore } from './progressStore';
 
 interface AuthState {
     user: User | null;
     isAuthenticated: boolean;
+    isLoading: boolean;
     usersList: User[];
-    login: (user: User) => void;
-    logout: () => void;
+    login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+    logout: () => Promise<void>;
+    hydrate: () => Promise<void>;
     updateUserRole: (userId: string, role: Role) => void;
     addUser: (user: User) => void;
     removeUser: (userId: string) => void;
 }
 
-function getCookie(name: string) {
-    const value = `; ${document.cookie}`;
-    const parts = value.split(`; ${name}=`);
-    if (parts.length === 2) return parts.pop()?.split(';').shift();
-    return null;
-}
+export const useAuthStore = create<AuthState>((set) => ({
+    user: null,
+    isAuthenticated: false,
+    isLoading: true, // Start in loading state for hydration
+    usersList: [...mockUsers],
 
-const getInitialUser = (): User | null => {
-    const isAuthenticated = !!getCookie('auth_token');
-    if (!isAuthenticated) return null;
+    login: async (email, password) => {
+        try {
+            const response = await api.post('/api/auth/login', { email, password });
+            const data = response.data;
 
-    const role = localStorage.getItem('user_role');
-    if (!role) return null;
+            if (data.success && data.user) {
+                // Store minimal info in localStorage for router if needed, 
+                // but rely on D1 user object ultimately.
+                localStorage.setItem('user_role', data.user.role);
+                localStorage.setItem('user_name', data.user.name);
 
-    // Find a mock user with this role
-    return mockUsers.find((u) => u.role === role) || mockUsers[0];
-};
+                set({ user: data.user, isAuthenticated: true, isLoading: false });
 
-export const useAuthStore = create<AuthState>((set) => {
-    const initialUser = getInitialUser();
+                // Hydrate associated stores
+                useCourseStore.getState().hydrateEnrollments(data.user.id);
+                useProgressStore.getState().hydrateProgress();
 
-    return {
-        user: initialUser,
-        isAuthenticated: !!initialUser,
-        usersList: [...mockUsers],
-        login: (user) => {
-            document.cookie = `auth_token=mock_token_${user.id}; path=/; max-age=86400`;
-            localStorage.setItem('user_role', user.role);
-            set({ user, isAuthenticated: true });
-        },
-        logout: () => {
-            document.cookie = "auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-            localStorage.removeItem('user_role');
-            set({ user: null, isAuthenticated: false });
-        },
-        updateUserRole: (userId, role) => set(state => {
-            const updatedUsers = state.usersList.map(u => u.id === userId ? { ...u, role } : u);
+                return { success: true };
+            } else {
+                return { success: false, error: data.message || 'Login failed' };
+            }
+        } catch (err: any) {
+            console.error('Login error:', err);
             return {
-                usersList: updatedUsers,
-                user: state.user?.id === userId ? { ...state.user, role } : state.user
+                success: false,
+                error: err.response?.data?.message || 'Invalid credentials'
             };
-        }),
-        addUser: (user) => set(state => ({ usersList: [...state.usersList, user] })),
-        removeUser: (userId) => set(state => ({ usersList: state.usersList.filter(u => u.id !== userId) })),
-    };
-});
+        }
+    },
+
+    logout: async () => {
+        try {
+            await api.post('/api/auth/logout');
+        } catch (err) {
+            console.error('Logout error:', err);
+        } finally {
+            localStorage.removeItem('user_role');
+            localStorage.removeItem('user_name');
+            set({ user: null, isAuthenticated: false, isLoading: false });
+        }
+    },
+
+    hydrate: async () => {
+        try {
+            // Check session against D1 backend
+            const response = await api.get('/api/auth/me');
+
+            if (response.data.success && response.data.user) {
+                localStorage.setItem('user_role', response.data.user.role);
+                localStorage.setItem('user_name', response.data.user.name);
+                set({ user: response.data.user, isAuthenticated: true, isLoading: false });
+
+                // Hydrate associated stores
+                useCourseStore.getState().hydrateEnrollments(response.data.user.id);
+                useProgressStore.getState().hydrateProgress();
+            } else {
+                localStorage.removeItem('user_role');
+                localStorage.removeItem('user_name');
+                set({ user: null, isAuthenticated: false, isLoading: false });
+            }
+        } catch (err) {
+            console.error('Hydration error:', err);
+            localStorage.removeItem('user_role');
+            localStorage.removeItem('user_name');
+            set({ user: null, isAuthenticated: false, isLoading: false });
+        }
+    },
+
+    updateUserRole: (userId, role) => set(state => {
+        const updatedUsers = state.usersList.map(u => u.id === userId ? { ...u, role } : u);
+        return {
+            usersList: updatedUsers,
+            user: state.user?.id === userId ? { ...state.user, role } : state.user
+        };
+    }),
+
+    addUser: (user) => set(state => ({ usersList: [...state.usersList, user] })),
+    removeUser: (userId) => set(state => ({ usersList: state.usersList.filter(u => u.id !== userId) })),
+}));

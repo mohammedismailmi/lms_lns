@@ -23,7 +23,8 @@ export default function FileActivity({ activity }: Props) {
         }
     };
 
-    const handleOpen = () => {
+    const handleOpen = (e: React.MouseEvent) => {
+        e.stopPropagation(); // prevent triggering the CoursePage's card click
         markDone(activity.id);
         window.open(activity.fileUrl, '_blank');
     };

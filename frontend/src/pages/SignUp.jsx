@@ -1,8 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useNavigate } from "react-router-dom";
+
+import api from "../lib/api";
 
 const signUpSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters"),
@@ -16,6 +18,9 @@ const signUpSchema = z.object({
 
 export default function SignUp() {
     const navigate = useNavigate();
+    const [apiError, setApiError] = useState("");
+    const [apiSuccess, setApiSuccess] = useState("");
+
     const {
         register,
         handleSubmit,
@@ -24,10 +29,26 @@ export default function SignUp() {
         resolver: zodResolver(signUpSchema),
     });
 
-    const onSubmit = (data) => {
-        // TODO: connect to backend register API
-        console.log("Sign Up data:", data);
-        navigate("/login");
+    const onSubmit = async (data) => {
+        setApiError("");
+        setApiSuccess("");
+
+        try {
+            const response = await api.post('/api/auth/register', {
+                name: data.name,
+                email: data.email,
+                password: data.password,
+                tenant_id: "t1",
+                role: "learner"
+            });
+
+            if (response.data.success) {
+                setApiSuccess("Account created! Redirecting to sign in...");
+                setTimeout(() => navigate("/login"), 1500);
+            }
+        } catch (err) {
+            setApiError(err.response?.data?.message || "Failed to create account. Please try again.");
+        }
     };
 
     return (
@@ -91,6 +112,8 @@ export default function SignUp() {
                     >
                         Get Started
                     </button>
+                    {apiError && <p className="text-red-600 text-sm font-bold text-center mt-4">{apiError}</p>}
+                    {apiSuccess && <p className="text-green-600 text-sm font-bold text-center mt-4">{apiSuccess}</p>}
                 </form>
 
                 <div className="mt-8 pt-6 border-t border-slate-100 text-center">

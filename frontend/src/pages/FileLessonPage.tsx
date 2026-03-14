@@ -9,7 +9,7 @@ export default function FileLessonPage() {
     const { activityId } = useParams();
     const navigate = useNavigate();
     const { coursesList } = useCourseStore();
-    const { markActivityComplete, activityStatus } = useProgressStore();
+    const { markDone, activityStatus } = useProgressStore();
 
     let course: Course | null = null;
     let activity: Activity | null = null;
@@ -34,8 +34,8 @@ export default function FileLessonPage() {
         if (!activity || isCompleted) return;
         // Instantly mark files as completed when they open the page, or optionally tie to 'Download' button click.
         // Tying to load makes it simpler for immediate progression.
-        markActivityComplete(activity.id);
-    }, [activity, isCompleted, markActivityComplete]);
+        markDone(activity.id);
+    }, [activity, isCompleted, markDone]);
 
     if (!activity || !course) {
         return (
@@ -61,7 +61,7 @@ export default function FileLessonPage() {
                         <h1 className="font-serif font-bold text-navy text-lg leading-tight">{activity.title}</h1>
                     </div>
                 </div>
-                
+
                 {isCompleted && (
                     <span className="flex items-center gap-2 text-success font-bold text-sm bg-success/10 px-3 py-1.5 rounded-lg border border-success/20">
                         <CheckCircle2 className="w-4 h-4" /> Completed
@@ -70,10 +70,10 @@ export default function FileLessonPage() {
             </div>
 
             <div className="flex-1 max-w-5xl w-full mx-auto p-8 flex flex-col gap-8">
-                
+
                 <div className="bg-white rounded-2xl p-8 border border-border shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
                     <div className="absolute inset-0 opacity-5 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #0F2040 2px, transparent 2px)', backgroundSize: '24px 24px' }} />
-                    
+
                     <div className="flex items-center gap-6 relative z-10 w-full md:w-auto">
                         <div className="w-16 h-16 bg-highlight/20 text-highlight rounded-2xl flex items-center justify-center shrink-0 border border-highlight/30">
                             <FileText className="w-8 h-8" />
@@ -90,7 +90,7 @@ export default function FileLessonPage() {
                         </div>
                     </div>
 
-                    <a href={activity.url || "#"} download className="w-full md:w-auto px-8 py-3.5 bg-primary hover:bg-navy text-white font-bold rounded-xl transition-colors shadow-sm flex items-center justify-center gap-3 relative z-10 shrink-0">
+                    <a href={activity.fileUrl || "#"} download className="w-full md:w-auto px-8 py-3.5 bg-primary hover:bg-navy text-white font-bold rounded-xl transition-colors shadow-sm flex items-center justify-center gap-3 relative z-10 shrink-0">
                         <Download className="w-5 h-5 text-white/80" />
                         Download File
                     </a>

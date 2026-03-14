@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { LiveClassActivity as LiveType } from '../../lib/mockData';
 import { useAuthStore } from '../../store/authStore';
 import { useProgressStore } from '../../store/progressStore';
-import { Video, Calendar, Clock, Download, Upload, ExternalLink } from 'lucide-react';
+import { Video, Calendar, Clock, Download, Upload, ExternalLink, FileText } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 interface Props {

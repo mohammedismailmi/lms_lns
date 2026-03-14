@@ -12,7 +12,7 @@ export default function VideoLessonPage() {
     const navigate = useNavigate();
     const toast = useToast();
     const { coursesList } = useCourseStore();
-    const { markActivityComplete, activityStatus } = useProgressStore();
+    const { markDone, activityStatus } = useProgressStore();
 
     let course: Course | null = null;
     let activity: Activity | null = null;
@@ -38,7 +38,7 @@ export default function VideoLessonPage() {
     const [isPlaying, setIsPlaying] = useState(false);
     const [progress, setProgress] = useState(0); // 0 to 100
     const [isMuted, setIsMuted] = useState(false);
-    
+
     // Prevent seeking forward memory block
     const [maxProgressReached, setMaxProgressReached] = useState(0);
 
@@ -67,17 +67,17 @@ export default function VideoLessonPage() {
         if (!videoRef.current || !activity) return;
         const current = videoRef.current.currentTime;
         const total = videoRef.current.duration;
-        
+
         if (!total) return;
 
         const currentProgress = (current / total) * 100;
 
         // Prevent native or JS seeking forward if constraints bypass UI
         if (currentProgress > maxProgressReached + 5) { // 5% buffer for streaming skips
-             videoRef.current.currentTime = (maxProgressReached / 100) * total;
-             // Notify user
-             toast.info("Fast forwarding is disabled for this lecture.");
-             return;
+            videoRef.current.currentTime = (maxProgressReached / 100) * total;
+            // Notify user
+            toast.info("Fast forwarding is disabled for this lecture.");
+            return;
         }
 
         setProgress(currentProgress);
@@ -87,7 +87,7 @@ export default function VideoLessonPage() {
 
         // 80% completion requirement
         if (currentProgress >= 80 && !isCompleted) {
-            markActivityComplete(activity.id);
+            markDone(activity.id);
             setIsCompleted(true);
             toast.success("Lecture requirements met! Marked as complete.");
         }
@@ -98,10 +98,10 @@ export default function VideoLessonPage() {
         if (!videoRef.current) return;
         const rect = e.currentTarget.getBoundingClientRect();
         const percent = (e.clientX - rect.left) / rect.width;
-        
+
         if (percent * 100 > maxProgressReached) {
-             toast.info("Seeking forward is disabled.");
-             return;
+            toast.info("Seeking forward is disabled.");
+            return;
         }
 
         videoRef.current.currentTime = percent * videoRef.current.duration;
@@ -132,7 +132,7 @@ export default function VideoLessonPage() {
                         <h1 className="font-serif font-bold text-lg leading-tight truncate max-w-lg">{activity.title}</h1>
                     </div>
                 </div>
-                
+
                 {isCompleted ? (
                     <span className="flex items-center gap-2 text-success font-bold text-sm bg-success/10 px-3 py-1.5 rounded-lg border border-success/20">
                         <CheckCircle2 className="w-4 h-4" /> Completed
@@ -146,10 +146,10 @@ export default function VideoLessonPage() {
 
             {/* Video Canvas */}
             <div className="flex-1 bg-black relative flex items-center justify-center overflow-hidden">
-                <video 
+                <video
                     ref={videoRef}
                     className="w-full h-full object-contain pointer-events-none"
-                    src={activity.url || MOCK_VIDEO_URL}
+                    src={activity.videoUrl || MOCK_VIDEO_URL}
                     onTimeUpdate={handleTimeUpdate}
                     onEnded={() => setIsPlaying(false)}
                     controls={false} // completely disable native controls
@@ -157,7 +157,7 @@ export default function VideoLessonPage() {
 
                 {/* Big center play button when paused */}
                 {!isPlaying && (
-                    <button 
+                    <button
                         onClick={togglePlay}
                         className="absolute w-20 h-20 bg-primary/90 text-white rounded-full flex items-center justify-center hover:scale-110 transition-transform shadow-2xl backdrop-blur-md border-2 border-white/20 pl-2"
                     >
@@ -168,19 +168,19 @@ export default function VideoLessonPage() {
 
             {/* Custom Control Bar */}
             <div className="bg-navy shrink-0 px-6 py-4 border-t border-slate-800 text-white select-none">
-                
+
                 {/* Custom Timeline */}
-                <div 
+                <div
                     className="h-2.5 bg-slate-800 rounded-full mb-6 cursor-pointer relative overflow-hidden group border border-slate-700"
                     onClick={handleTimelineClick}
                 >
-                    <div 
-                        className="absolute left-0 top-0 bottom-0 bg-slate-600 transition-all pointer-events-none" 
-                        style={{ width: `${maxProgressReached}%` }} 
+                    <div
+                        className="absolute left-0 top-0 bottom-0 bg-slate-600 transition-all pointer-events-none"
+                        style={{ width: `${maxProgressReached}%` }}
                     />
-                    <div 
-                        className="absolute left-0 top-0 bottom-0 bg-primary transition-all pointer-events-none flex items-center justify-end" 
-                        style={{ width: `${progress}%` }} 
+                    <div
+                        className="absolute left-0 top-0 bottom-0 bg-primary transition-all pointer-events-none flex items-center justify-end"
+                        style={{ width: `${progress}%` }}
                     >
                     </div>
                 </div>
@@ -190,7 +190,7 @@ export default function VideoLessonPage() {
                         <button onClick={togglePlay} className="hover:text-primary transition-colors">
                             {isPlaying ? <Pause className="w-7 h-7" /> : <Play className="w-7 h-7" />}
                         </button>
-                        
+
                         <div className="flex items-center gap-4 border-l border-slate-700 pl-6">
                             <button onClick={toggleMute} className="hover:text-primary transition-colors">
                                 {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
@@ -198,8 +198,8 @@ export default function VideoLessonPage() {
                             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-800 px-2 py-1 rounded">1.0x Speed</span>
                         </div>
                     </div>
-                    
-                    <button 
+
+                    <button
                         onClick={() => navigate(`/course/${course?.id}`)}
                         className="px-5 py-2 font-bold text-sm text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg transition-colors border border-slate-700"
                     >

@@ -9,7 +9,7 @@ export default function BlogLessonPage() {
     const { activityId } = useParams();
     const navigate = useNavigate();
     const { coursesList } = useCourseStore();
-    const { markActivityComplete, activityStatus } = useProgressStore();
+    const { markDone, activityStatus } = useProgressStore();
 
     let course: Course | null = null;
     let activity: Activity | null = null;
@@ -33,10 +33,10 @@ export default function BlogLessonPage() {
 
     useEffect(() => {
         if (!activity || isCompleted) return;
-        
+
         const observer = new IntersectionObserver((entries) => {
             if (entries[0].isIntersecting) {
-                markActivityComplete(activity.id);
+                markDone(activity.id);
             }
         }, { threshold: 1.0 });
 
@@ -45,7 +45,7 @@ export default function BlogLessonPage() {
         }
 
         return () => observer.disconnect();
-    }, [activity, isCompleted, markActivityComplete]);
+    }, [activity, isCompleted, markDone]);
 
     if (!activity || !course) {
         return (
@@ -71,7 +71,7 @@ export default function BlogLessonPage() {
                         <h1 className="font-serif font-bold text-navy text-lg leading-tight">{activity.title}</h1>
                     </div>
                 </div>
-                
+
                 {isCompleted ? (
                     <span className="flex items-center gap-2 text-success font-bold text-sm bg-success/10 px-3 py-1.5 rounded-lg border border-success/20">
                         <CheckCircle2 className="w-4 h-4" /> Completed
@@ -88,12 +88,12 @@ export default function BlogLessonPage() {
                 <h1 className="text-4xl md:text-5xl font-serif font-bold text-navy mb-8 leading-tight">
                     {activity.title}
                 </h1>
-                
+
                 <div className="prose prose-lg prose-slate prose-headings:font-serif prose-headings:text-navy text-ink leading-relaxed">
                     <p className="lead text-xl text-slate-600 font-serif italic mb-8">
                         This is a placeholder article for {activity.title}. In a production system, this would be fetched from a rich text CMS or Markdown parser containing the full lecture notes.
                     </p>
-                    
+
                     <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent libero. Sed cursus ante dapibus diam. Sed nisi. Nulla quis sem at nibh elementum imperdiet. Duis sagittis ipsum. Praesent mauris. Fusce nec tellus sed augue semper porta. Mauris massa. Vestibulum lacinia arcu eget nulla.</p>
                     <p>Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Curabitur sodales ligula in libero.</p>
 
@@ -107,10 +107,10 @@ export default function BlogLessonPage() {
                     </div>
 
                     <p>Mauris ipsum. Nulla metus metus, ullamcorper vel, tincidunt sed, euismod in, nibh. Quisque volutpat condimentum velit. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos.</p>
-                    
+
                     {/* Artificially inflate height so scroll is required */}
                     <div className="h-96" />
-                    
+
                     <p>Nam sed tellus id magna elementum tincidunt. Donec sit amet nulla. Sed tristique arcu scelerisque tellus ultricies euismod.</p>
                 </div>
 
@@ -121,7 +121,7 @@ export default function BlogLessonPage() {
                     </div>
                     <h3 className="font-serif font-bold text-2xl text-navy mb-2">You've reached the end.</h3>
                     <p className="text-muted mb-8">This reading material has been automatically marked as complete.</p>
-                    <button 
+                    <button
                         onClick={() => navigate(`/course/${course?.id}`)}
                         className="px-8 py-3 bg-navy hover:bg-primary text-white font-bold rounded-xl transition-colors shadow-sm"
                     >

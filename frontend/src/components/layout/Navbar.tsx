@@ -1,10 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { Search, Bell, UserCircle, LogOut } from 'lucide-react';
 
 export default function Navbar() {
     const { user, logout } = useAuthStore();
     const [search, setSearch] = useState('');
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const closeTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+    const handleMouseEnter = () => {
+        if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+        setIsDropdownOpen(true);
+    };
+
+    const handleMouseLeave = () => {
+        closeTimerRef.current = setTimeout(() => {
+            setIsDropdownOpen(false);
+        }, 300);
+    };
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+        };
+    }, []);
 
     return (
         <nav className="bg-navy text-white h-16 flex items-center justify-between px-6 shadow-md z-50">
@@ -39,7 +59,11 @@ export default function Navbar() {
                     <span className="absolute top-0 right-0 w-2 h-2 bg-accent rounded-full border border-navy"></span>
                 </button>
 
-                <div className="flex items-center gap-3 border-l border-slate-700 pl-6 group relative">
+                <div
+                    className="flex items-center gap-3 border-l border-slate-700 pl-6 relative"
+                    onMouseEnter={handleMouseEnter}
+                    onMouseLeave={handleMouseLeave}
+                >
                     <div className="text-right">
                         <p className="text-sm font-medium">{user?.name}</p>
                         <p className="text-xs text-highlight capitalize">{user?.role}</p>
@@ -48,20 +72,22 @@ export default function Navbar() {
                         <UserCircle className="w-8 h-8 text-slate-300" />
                     </button>
 
-                    {/* User Dropdown (Hover based for now for simplicity, but could be click) */}
-                    <div className="absolute top-10 right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-border py-2 hidden group-hover:block transition-all">
-                        <div className="px-4 py-2 border-b border-border mb-2">
-                            <p className="text-sm font-bold text-ink truncate">{user?.email}</p>
-                            <p className="text-xs text-muted">Tenant: {user?.tenantId}</p>
+                    {/* User Dropdown */}
+                    {isDropdownOpen && (
+                        <div className="absolute top-10 right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-border py-2 z-[60]">
+                            <div className="px-4 py-2 border-b border-border mb-2">
+                                <p className="text-sm font-bold text-ink truncate">{user?.email}</p>
+                                <p className="text-xs text-muted">Tenant: {user?.tenantId}</p>
+                            </div>
+                            <button
+                                onClick={logout}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-accent hover:bg-slate-50 transition-colors text-left font-medium"
+                            >
+                                <LogOut className="w-4 h-4" />
+                                Sign Out
+                            </button>
                         </div>
-                        <button
-                            onClick={logout}
-                            className="w-full flex items-center gap-2 px-4 py-2 text-sm text-accent hover:bg-slate-50 transition-colors text-left font-medium"
-                        >
-                            <LogOut className="w-4 h-4" />
-                            Sign Out
-                        </button>
-                    </div>
+                    )}
                 </div>
             </div>
         </nav>

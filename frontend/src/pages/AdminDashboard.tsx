@@ -4,7 +4,7 @@ import { users, courses, tenants, User } from '../lib/mockData';
 import { useProgressStore } from '../store/progressStore';
 import { useCourseStore } from '../store/courseStore';
 import { Users, BookOpen, Building2, Award, Search, ShieldBan, ChevronDown } from 'lucide-react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 
 export default function AdminDashboard() {
     const { user } = useAuthStore();
@@ -30,10 +30,18 @@ export default function AdminDashboard() {
 
             {/* Stats Bar */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatCard title="Total Users" value={totalUsers} icon={<Users />} />
-                <StatCard title="Total Courses" value={totalCourses} icon={<BookOpen />} />
-                <StatCard title="Active Tenants" value={activeTenants} icon={<Building2 />} />
-                <StatCard title="Certified Courses" value={certifiedCourses} icon={<Award />} />
+                <Link to="/admin/users" className="block hover:scale-[1.02] transition-transform">
+                    <StatCard title="Total Users" value={totalUsers} icon={<Users />} />
+                </Link>
+                <Link to="/admin/courses" className="block hover:scale-[1.02] transition-transform">
+                    <StatCard title="Total Courses" value={totalCourses} icon={<BookOpen />} />
+                </Link>
+                <Link to="/admin/tenants" className="block hover:scale-[1.02] transition-transform">
+                    <StatCard title="Active Tenants" value={activeTenants} icon={<Building2 />} />
+                </Link>
+                <Link to="/admin/analytics" className="block hover:scale-[1.02] transition-transform">
+                    <StatCard title="Certified Courses" value={certifiedCourses} icon={<Award />} />
+                </Link>
             </div>
 
             {/* User Management */}

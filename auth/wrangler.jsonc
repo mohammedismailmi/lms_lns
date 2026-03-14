@@ -24,7 +24,10 @@
 			"database_name": "lms-db",
 			"database_id": "local-db-id"
 		}
-	]
+	],
+	"vars": {
+		"JWT_SECRET": "super-secret-local-jwt-key"
+	}
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement

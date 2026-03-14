@@ -1,0 +1,70 @@
+/* Custom styling to merge react-calendar with our Tailwind theme */
+.react-calendar-wrapper .react-calendar {
+    font-family: inherit;
+    border: none;
+    width: 100%;
+    background: transparent;
+}
+
+.react-calendar-wrapper .react-calendar__navigation button {
+    font-weight: bold;
+    color: #0F2040;
+    font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+    font-size: 1.1rem;
+    border-radius: 0.5rem;
+}
+
+.react-calendar-wrapper .react-calendar__navigation button:enabled:hover,
+.react-calendar-wrapper .react-calendar__navigation button:enabled:focus {
+    background-color: #F8FAFC;
+}
+
+.react-calendar-wrapper .react-calendar__month-view__weekdays {
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: #64748B;
+
+    abbr {
+        text-decoration: none;
+    }
+}
+
+.react-calendar-wrapper .react-calendar__tile {
+    padding: 0.75em 0.5em;
+    border-radius: 0.5rem;
+    font-weight: 500;
+    color: #334155;
+    transition: all 0.2s ease;
+}
+
+.react-calendar-wrapper .react-calendar__tile:enabled:hover,
+.react-calendar-wrapper .react-calendar__tile:enabled:focus {
+    background-color: #F1F5F9;
+    color: #0F2040;
+}
+
+.react-calendar-wrapper .react-calendar__tile--now {
+    background: #FFFBEB;
+    color: #D97706;
+    font-weight: bold;
+}
+
+.react-calendar-wrapper .react-calendar__tile--now:enabled:hover,
+.react-calendar-wrapper .react-calendar__tile--now:enabled:focus {
+    background: #FEF3C7;
+}
+
+.react-calendar-wrapper .react-calendar__tile--active {
+    background: #1D4ED8 !important;
+    color: white !important;
+    font-weight: bold;
+}
+
+.react-calendar-wrapper .react-calendar__month-view__days__day--neighboringMonth {
+    color: #CBD5E1;
+}
+
+.react-calendar-wrapper .has-assignments {
+    background-color: #F8FAFC;
+}

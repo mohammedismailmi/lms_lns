@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -15,6 +15,7 @@ const loginSchema = z.object({
 export default function Login() {
     const navigate = useNavigate();
     const login = useAuthStore((state) => state.login);
+    const [apiError, setApiError] = useState("");
     const {
         register,
         handleSubmit,
@@ -23,27 +24,21 @@ export default function Login() {
         resolver: zodResolver(loginSchema),
     });
 
-    const onSubmit = (data) => {
-        // TODO: connect to backend auth API
-        console.log("Login data:", data);
+    const onSubmit = async (data) => {
+        setApiError("");
+        const result = await login(data.email, data.password);
 
-        // Mock role logic for demo purposes:
-        let role = "learner";
-        if (data.email.includes("admin")) role = "admin";
-        else if (data.email.includes("instructor")) role = "instructor";
-
-        // Mock login success:
-        document.cookie = "auth_token=stub_token; path=/";
-        localStorage.setItem("user_role", role);
-
-        // Find mock user and update store
-        const user = users.find(u => u.role === role) || users[0];
-        login({ ...user, email: data.email });
-
-        // Redirect based on role
-        if (role === 'admin') navigate("/dashboard/admin");
-        else if (role === 'instructor') navigate("/dashboard/instructor");
-        else navigate("/dashboard/learner");
+        if (result.success) {
+            // Wait a tick for Zustand to settle the user object if necessary
+            setTimeout(() => {
+                const user = useAuthStore.getState().user;
+                if (user?.role === 'admin') navigate("/dashboard/admin");
+                else if (user?.role === 'instructor') navigate("/dashboard/instructor");
+                else navigate("/dashboard/learner");
+            }, 50);
+        } else {
+            setApiError(result.error || "Login failed. Please check your credentials.");
+        }
     };
 
     return (
@@ -91,6 +86,7 @@ export default function Login() {
                     >
                         Sign In
                     </button>
+                    {apiError && <p className="text-red-600 text-sm font-bold text-center mt-4">{apiError}</p>}
                 </form>
 
                 <div className="mt-8 text-center text-sm font-medium">

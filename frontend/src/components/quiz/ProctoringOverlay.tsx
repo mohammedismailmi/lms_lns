@@ -13,6 +13,7 @@ export default function ProctoringOverlay({ isProctored, onAutoSubmit }: Props) 
     const [showWarning, setShowWarning] = useState(false);
     const [countdown, setCountdown] = useState(5);
     const navigate = useNavigate();
+    const lastSwitchTime = React.useRef(0);
 
     useEffect(() => {
         if (!isProctored || isTerminated) return;
@@ -29,6 +30,10 @@ export default function ProctoringOverlay({ isProctored, onAutoSubmit }: Props) 
         };
 
         const triggerTabSwitch = () => {
+            const now = Date.now();
+            if (now - lastSwitchTime.current < 1500) return;
+            lastSwitchTime.current = now;
+
             incrementTabSwitch();
             setShowWarning(true);
             setCountdown(5);

@@ -45,7 +45,17 @@ export default function QuizShell({ isExam }: Props) {
     }, [activity?.id]);
 
     if (!activity || (activity.type !== 'quiz' && activity.type !== 'exam')) {
-        return <div className="p-8 font-serif text-2xl text-accent border border-accent bg-white min-h-screen text-center flex items-center justify-center">Assessment not found.</div>;
+        return (
+            <div className="p-8 font-serif text-2xl text-accent border border-accent bg-white min-h-screen text-center flex flex-col items-center justify-center gap-4">
+                <p>Quiz not found.</p>
+                <button
+                    onClick={() => navigate('/')}
+                    className="text-sm font-bold text-navy hover:underline"
+                >
+                    Go back home
+                </button>
+            </div>
+        );
     }
 
     const handleStart = () => {

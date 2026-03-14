@@ -10,6 +10,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ToastProvider from './components/ui/ToastProvider';
 
 import Layout from './components/layout/Layout';
+import Dashboard from './pages/Dashboard';
 import LearnerHomePage from './pages/LearnerHomePage';
 import InstructorHomePage from './pages/InstructorHomePage';
 import AdminDashboard from './pages/AdminDashboard';
@@ -48,6 +49,21 @@ const CoursesRouteDirect = () => {
 };
 
 export default function App() {
+    const { hydrate, isLoading } = useAuthStore();
+
+    useEffect(() => {
+        hydrate();
+    }, [hydrate]);
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center">
+                <div className="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4" />
+                <p className="text-slate-500 font-serif italic animate-pulse">Initializing academia platform...</p>
+            </div>
+        );
+    }
+
     return (
         <TenantContextProvider>
             <ToastProvider>
@@ -67,7 +83,7 @@ export default function App() {
                     {/* Protected App Routes enclosed in Custom Layout */}
                     <Route element={<Layout />}>
                         <Route path="/" element={<RoleRootRedirect />} />
-                        
+
                         <Route element={<ProtectedRoute allowedRoles={['learner', 'admin']} />}>
                             <Route path="/home" element={<LearnerHomePage />} />
                         </Route>
@@ -79,9 +95,11 @@ export default function App() {
                         </Route>
 
                         <Route element={<ProtectedRoute allowedRoles={['admin', 'instructor', 'learner']} />}>
+                            <Route path="/dashboard" element={<Dashboard />} />
+
                             <Route path="/course/:courseId" element={<CoursePage />} />
                             <Route path="/certificate/:courseId" element={<CertificatePage />} />
-                            
+
                             <Route path="/lesson/blog/:activityId" element={<BlogLessonPage />} />
                             <Route path="/lesson/file/:activityId" element={<FileLessonPage />} />
                             <Route path="/lesson/video/:activityId" element={<VideoLessonPage />} />

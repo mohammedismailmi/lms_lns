@@ -17,11 +17,12 @@ interface CourseState {
     getAllCourses: () => Course[];
     getEnrolledCourses: (userId: string) => Course[];
     getTeachingCourses: (facultyName: string) => Course[];
-    
+
     // Actions
-    enrollUser: (userId: string, courseId: string) => void;
+    enrollUser: (userId: string, courseId: string) => Promise<void>;
     unenrollUser: (userId: string, courseId: string) => void;
-    
+    hydrateEnrollments: (userId: string) => Promise<void>;
+
     addCourse: (course: Course) => void;
     updateCourse: (course: Course) => void;
     deleteCourse: (courseId: string) => void;
@@ -32,9 +33,11 @@ interface CourseState {
     deleteActivity: (courseId: string, moduleId: string, activityId: string) => void;
 }
 
-const initialEnrolled: Record<string, string[]> = { 
+const initialEnrolled: Record<string, string[]> = {
     'u3': ['c1', 'c2'] // Pre-enroll Arjun Mehta in some courses
 };
+
+import api from '../lib/api';
 
 export const useCourseStore = create<CourseState>((set, get) => ({
     starred: new Set<string>(),
@@ -70,16 +73,40 @@ export const useCourseStore = create<CourseState>((set, get) => ({
         return get().coursesList.filter(c => c.faculty === facultyName);
     },
 
-    enrollUser: (userId, courseId) => set(state => {
-        const userEnrollments = state.enrolledCourseIds[userId] || [];
-        if (userEnrollments.includes(courseId)) return state;
-        return {
-            enrolledCourseIds: {
-                ...state.enrolledCourseIds,
-                [userId]: [...userEnrollments, courseId]
+    hydrateEnrollments: async (userId) => {
+        try {
+            const res = await api.get('/api/enrollments/me');
+            if (res.data.success) {
+                const courseIds = res.data.enrollments.map((e: any) => e.course_id);
+                set(state => ({
+                    enrolledCourseIds: {
+                        ...state.enrolledCourseIds,
+                        [userId]: courseIds
+                    }
+                }));
             }
-        };
-    }),
+        } catch (err) {
+            console.error('Failed to hydrate enrollments:', err);
+        }
+    },
+
+    enrollUser: async (userId, courseId) => {
+        set((state) => {
+            const userEnrollments = state.enrolledCourseIds[userId] || [];
+            if (userEnrollments.includes(courseId)) return state;
+            return {
+                enrolledCourseIds: {
+                    ...state.enrolledCourseIds,
+                    [userId]: [...userEnrollments, courseId]
+                }
+            };
+        });
+        try {
+            await api.post('/api/enrollments', { course_id: courseId, tenant_id: 't1' });
+        } catch (err) {
+            console.error('Failed to sync enrollment:', err);
+        }
+    },
     unenrollUser: (userId, courseId) => set(state => {
         const userEnrollments = state.enrolledCourseIds[userId] || [];
         return {
@@ -91,11 +118,11 @@ export const useCourseStore = create<CourseState>((set, get) => ({
     }),
 
     addCourse: (course) => set(state => ({ coursesList: [...state.coursesList, course] })),
-    
+
     updateCourse: (updatedCourse) => set(state => ({
         coursesList: state.coursesList.map(c => c.id === updatedCourse.id ? updatedCourse : c)
     })),
-    
+
     deleteCourse: (courseId) => set(state => {
         // Also clean up enrollments and starred
         const newEnrolled = { ...state.enrolledCourseIds };

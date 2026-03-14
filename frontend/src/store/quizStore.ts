@@ -1,7 +1,8 @@
 import { create } from 'zustand';
+import api from '../lib/api';
 
 interface QuizState {
-    answers: Record<string, string>; // questionId -> optionText or index stringified
+    answers: Record<string, string>;
     markedForReview: Set<string>;
     tabSwitchCount: number;
     timeRemaining: number;
@@ -14,9 +15,10 @@ interface QuizState {
     tickTimer: () => void;
     setTimer: (seconds: number) => void;
     resetQuiz: () => void;
+    submitQuiz: (activityId: string) => Promise<{ success: boolean; score?: number }>;
 }
 
-export const useQuizStore = create<QuizState>((set) => ({
+export const useQuizStore = create<QuizState>((set, get) => ({
     answers: {},
     markedForReview: new Set<string>(),
     tabSwitchCount: 0,
@@ -59,4 +61,20 @@ export const useQuizStore = create<QuizState>((set) => ({
             timeRemaining: 0,
             isTerminated: false,
         }),
+
+    submitQuiz: async (activityId) => {
+        const { answers, tabSwitchCount } = get();
+        try {
+            const response = await api.post(`/api/activities/${activityId}/submit`, { answers, tabSwitchCount });
+            const data = response.data;
+            if (data.success) {
+                get().resetQuiz();
+                return { success: true, score: data.score };
+            }
+            return { success: false };
+        } catch (err) {
+            console.error('Quiz submission error:', err);
+            return { success: false };
+        }
+    },
 }));

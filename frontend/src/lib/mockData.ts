@@ -34,6 +34,7 @@ export interface FileActivity extends BaseActivity {
     fileName: string;
     fileSize: string;
     fileType: 'pdf' | 'doc' | 'ppt' | 'video' | 'image';
+    durationMinutes?: number;
 }
 
 export interface VideoActivity extends BaseActivity {
@@ -180,6 +181,7 @@ export const courses: Course[] = [
                         fileName: 'ML_Fundamentals_Syllabus.pdf',
                         fileSize: '1.2 MB',
                         fileType: 'pdf',
+                        durationMinutes: 15,
                     },
                     {
                         id: 'a3',
@@ -221,7 +223,7 @@ export const courses: Course[] = [
                         title: 'Midterm Examination',
                         type: 'exam',
                         duration: 60,
-                        questions: [...mockQuestions, ...mockQuestions], // doubled for exam length
+                        questions: [...mockQuestions, ...mockQuestions.map(q => ({ ...q, id: `${q.id}-2` }))], // doubled for exam length with unique IDs
                     },
                 ],
             },
@@ -287,6 +289,7 @@ export const courses: Course[] = [
                         fileUrl: '/ethics.pdf',
                         fileSize: '4.5 MB',
                         fileType: 'pdf',
+                        durationMinutes: 25,
                     },
                 ],
             },
