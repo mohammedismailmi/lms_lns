@@ -63,12 +63,22 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
         }));
 
         try {
-            await api.post(`/api/progress`, {
-                course_id: findCourseId(activityId),
+            const courseId = findCourseId(activityId);
+            const course = useCourseStore.getState().coursesList.find(c => c.id === courseId);
+            const totalActivities = course ? course.totalActivities : 1;
+
+            const res = await api.post(`/api/progress`, {
+                course_id: courseId,
                 lesson_id: activityId,
                 percent_complete: 100,
-                tenant_id: 't1'
+                tenant_id: 't1',
+                total_lessons: totalActivities
             });
+
+            if (res.data?.certificateGenerated) {
+                alert("🎉 Congratulations! You've earned a certificate for this course! Redirecting to your certificates...");
+                window.location.href = '/certificates';
+            }
         } catch (err) {
             console.error('Failed to sync completion:', err);
         }
@@ -106,14 +116,23 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
             return updates;
         });
 
-        // Simple debounce could be added here, but for stub we just fire
         try {
-            await api.post(`/api/progress`, {
-                course_id: findCourseId(activityId),
+            const courseId = findCourseId(activityId);
+            const course = useCourseStore.getState().coursesList.find(c => c.id === courseId);
+            const totalActivities = course ? course.totalActivities : 1;
+
+            const res = await api.post(`/api/progress`, {
+                course_id: courseId,
                 lesson_id: activityId,
                 percent_complete: percent,
-                tenant_id: 't1'
+                tenant_id: 't1',
+                total_lessons: totalActivities
             });
+
+            if (res.data?.certificateGenerated) {
+                alert("🎉 Congratulations! You've earned a certificate for this course! Redirecting to your certificates...");
+                window.location.href = '/certificates';
+            }
         } catch (err) {
             console.error('Failed to sync video progress:', err);
         }

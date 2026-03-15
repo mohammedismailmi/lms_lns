@@ -45,11 +45,7 @@ export default function CourseCard({ course }: Props) {
                     <Star className={cn('w-6 h-6 transition-transform hover:scale-110 active:scale-90', isStarred && 'fill-highlight text-highlight')} />
                 </button>
 
-                {showCertificateBadge && (
-                    <div className="absolute top-4 right-14 flex items-center gap-1 bg-highlight/10 text-highlight border border-highlight/30 px-2 py-1 rounded text-xs font-bold uppercase tracking-wider">
-                        <Award className="w-3 h-3" /> Certificate Target
-                    </div>
-                )}
+
 
                 <h3 className="text-xl font-serif font-bold text-navy pr-16 leading-tight mb-2">
                     {course.name}

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCourseStore } from '../../store/courseStore';
 import { Users, CheckCircle2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import api from '../../lib/api';
 
 interface Props {
     course: Course;
@@ -55,12 +56,25 @@ export default function InstructorCourseCard({ course }: Props) {
                         </div>
                     </div>
                     <div className="w-px h-8 bg-border" />
-                    <div className="flex-1 flex items-center gap-2">
-                        <CheckCircle2 className="w-5 h-5 text-success" />
-                        <div>
-                            <p className="text-xs text-muted font-medium uppercase tracking-wider">Avg. Done</p>
-                            <p className="text-lg font-bold text-navy font-serif leading-none">{mockCompletionRate}%</p>
-                        </div>
+                    <div className="flex-1 flex items-center">
+                        <button 
+                            onClick={async () => {
+                                try {
+                                    await api.put(`/api/courses/${course.id}`, { 
+                                        status: 'completed',
+                                        total_activities: course.totalActivities,
+                                        tenant_id: 't1' 
+                                    });
+                                    alert('Course marked as completed!');
+                                } catch (err) {
+                                    console.error('Failed to complete course:', err);
+                                    alert('Failed to complete course.');
+                                }
+                            }}
+                            className="bg-success/10 hover:bg-success/20 text-success text-sm font-bold py-2 px-3 rounded-lg transition-colors w-full border border-success/20"
+                        >
+                            Mark Completed
+                        </button>
                     </div>
                 </div>
 

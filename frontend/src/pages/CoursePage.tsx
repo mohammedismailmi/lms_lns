@@ -143,7 +143,7 @@ export default function CoursePage() {
                 <div className="bg-navy text-white px-10 py-12 border-b-4 border-highlight shadow-sm">
                     {certificateReady && (
                         <div className="mb-6 inline-flex bg-highlight text-navy px-4 py-2 rounded-lg font-bold items-center gap-2 shadow-lg animate-in slide-in-from-top cursor-pointer hover:bg-yellow-500 transition-colors"
-                            onClick={() => navigate(`/certificate/${course.id}`)}>
+                            onClick={() => navigate(`/certificates`)}>
                             <Award className="w-5 h-5" />
                             Certificate Available! Click to view.
                         </div>

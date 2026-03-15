@@ -22,7 +22,8 @@
 		{
 			"binding": "DB",
 			"database_name": "lms-db",
-			"database_id": "local-db-id"
+			"database_id": "local-db-id",
+			"migrations_dir": "migrations"
 		}
 	],
 	"vars": {

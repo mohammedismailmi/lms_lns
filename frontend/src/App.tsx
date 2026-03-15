@@ -98,7 +98,7 @@ export default function App() {
                             <Route path="/dashboard" element={<Dashboard />} />
 
                             <Route path="/course/:courseId" element={<CoursePage />} />
-                            <Route path="/certificate/:courseId" element={<CertificatePage />} />
+                            <Route path="/certificates" element={<CertificatePage />} />
 
                             <Route path="/lesson/blog/:activityId" element={<BlogLessonPage />} />
                             <Route path="/lesson/file/:activityId" element={<FileLessonPage />} />

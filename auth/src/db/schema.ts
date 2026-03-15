@@ -32,6 +32,16 @@ export const enrollments = sqliteTable('enrollments', {
     updated_at: integer('updated_at').notNull(),
 });
 
+export const courses = sqliteTable('courses', {
+    id: text('id').primaryKey(),
+    tenant_id: text('tenant_id').notNull().references(() => tenants.id),
+    title: text('title').notNull(),
+    description: text('description'),
+    status: text('status').notNull().default('draft'),
+    created_at: integer('created_at').notNull(),
+    updated_at: integer('updated_at').notNull(),
+});
+
 export const progress = sqliteTable('progress', {
     id: text('id').primaryKey(),
     user_id: text('user_id').notNull().references(() => users.id),
@@ -39,6 +49,16 @@ export const progress = sqliteTable('progress', {
     lesson_id: text('lesson_id').notNull(),
     percent_complete: integer('percent_complete').notNull(),
     tenant_id: text('tenant_id').notNull().references(() => tenants.id),
+    created_at: integer('created_at').notNull(),
+    updated_at: integer('updated_at').notNull(),
+});
+
+export const certificates = sqliteTable('certificates', {
+    id: text('id').primaryKey(),
+    tenant_id: text('tenant_id').notNull().references(() => tenants.id),
+    user_id: text('user_id').notNull().references(() => users.id),
+    course_id: text('course_id').notNull().references(() => courses.id),
+    issue_date: integer('issue_date').notNull(),
     created_at: integer('created_at').notNull(),
     updated_at: integer('updated_at').notNull(),
 });
