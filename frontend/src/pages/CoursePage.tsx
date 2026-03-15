@@ -218,8 +218,8 @@ export default function CoursePage() {
                                     <div key={activity.id} className="relative group/activity border border-transparent hover:border-border rounded-xl -ml-2 p-2 transition-all">
                                         
                                         {/* Activity Render Matrix block */}
-                                        <div onClick={() => !isInstructor && navigate(`/lesson/${activity.type}/${activity.id}`)}
-                                             className={cn("w-full transition-all", !isInstructor && "cursor-pointer hover:opacity-90")}>
+                                        <div onClick={() => !isInstructor && activity.type !== 'quiz' && activity.type !== 'exam' && navigate(`/lesson/${activity.type}/${activity.id}`)}
+                                             className={cn("w-full transition-all", !isInstructor && activity.type !== 'quiz' && activity.type !== 'exam' && "cursor-pointer hover:opacity-90")}>
                                             {activity.type === 'blog' && <BlogActivity activity={activity} />}
                                             {activity.type === 'file' && <FileActivity activity={activity} />}
                                             {activity.type === 'video' && <VideoActivity activity={activity} />}

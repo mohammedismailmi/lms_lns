@@ -49,10 +49,10 @@ export default function QuizShell({ isExam }: Props) {
             <div className="p-8 font-serif text-2xl text-accent border border-accent bg-white min-h-screen text-center flex flex-col items-center justify-center gap-4">
                 <p>Quiz not found.</p>
                 <button
-                    onClick={() => navigate('/')}
+                    onClick={() => navigate(-1)}
                     className="text-sm font-bold text-navy hover:underline"
                 >
-                    Go back home
+                    Go back
                 </button>
             </div>
         );
@@ -90,8 +90,19 @@ export default function QuizShell({ isExam }: Props) {
     };
 
     const handleFinalSubmit = () => {
+        // Fire-and-forget API call without touching quiz store state
+        // This avoids the race condition where resetQuiz() in submitQuiz
+        // would clear the state of the next quiz/exam that mounts
+        const currentAnswers = { ...useQuizStore.getState().answers };
+        const currentTabSwitchCount = useQuizStore.getState().tabSwitchCount;
+        import('../../lib/api').then(({ default: apiClient }) => {
+            apiClient.post(`/api/quizzes/${activity.id}/submit`, {
+                answers: currentAnswers,
+                tabSwitchCount: currentTabSwitchCount
+            }).catch(() => {});
+        });
         markDone(activity.id);
-        navigate(`/course/${course?.id}`);
+        navigate(`/course/${course?.id}`, { replace: true });
     };
 
     const currentQuestion = activity.questions[currentIndex];

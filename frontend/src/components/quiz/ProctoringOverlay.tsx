@@ -39,10 +39,14 @@ export default function ProctoringOverlay({ isProctored, onAutoSubmit }: Props) 
             setCountdown(5);
         };
 
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        window.addEventListener('blur', handleBlur);
+        // Delay listener registration so route-navigation blur doesn't trigger false violations
+        const mountDelay = setTimeout(() => {
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            window.addEventListener('blur', handleBlur);
+        }, 2000);
 
         return () => {
+            clearTimeout(mountDelay);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
             window.removeEventListener('blur', handleBlur);
         };

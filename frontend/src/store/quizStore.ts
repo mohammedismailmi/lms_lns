@@ -65,7 +65,7 @@ export const useQuizStore = create<QuizState>((set, get) => ({
     submitQuiz: async (activityId) => {
         const { answers, tabSwitchCount } = get();
         try {
-            const response = await api.post(`/api/activities/${activityId}/submit`, { answers, tabSwitchCount });
+            const response = await api.post(`/api/quizzes/${activityId}/submit`, { answers, tabSwitchCount });
             const data = response.data;
             if (data.success) {
                 get().resetQuiz();
