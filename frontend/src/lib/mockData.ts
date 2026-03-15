@@ -101,6 +101,7 @@ export interface Course {
 export const tenants: Tenant[] = [
     { id: 'uni1', name: 'Reva University', slug: 'reva' },
     { id: 'uni2', name: 'Christ University', slug: 'christ' },
+    { id: 't1', name: 'Test University', slug: 'test' },
 ];
 
 export const users: User[] = [

@@ -244,8 +244,8 @@ app.put('/api/courses/:id', async (c) => {
         
         if (body.status === 'completed') {
             await c.env.DB.prepare(
-                'UPDATE courses SET status = ?, updated_at = ? WHERE id = ?'
-            ).bind('completed', Math.floor(Date.now() / 1000), courseId).run();
+                'UPDATE courses SET status = ?, total_activities = ?, updated_at = ? WHERE id = ?'
+            ).bind('completed', body.total_activities || 0, Math.floor(Date.now() / 1000), courseId).run();
 
             // Retroactive Certificate Generation logic:
             // Since D1 lacks total lessons knowledge, the frontend provides exactly `total_lessons` here.

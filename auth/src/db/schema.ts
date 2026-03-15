@@ -38,6 +38,7 @@ export const courses = sqliteTable('courses', {
     title: text('title').notNull(),
     description: text('description'),
     status: text('status').notNull().default('draft'),
+    total_activities: integer('total_activities').notNull().default(0),
     created_at: integer('created_at').notNull(),
     updated_at: integer('updated_at').notNull(),
 });

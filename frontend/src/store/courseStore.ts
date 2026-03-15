@@ -53,12 +53,27 @@ export const useCourseStore = create<CourseState>((set, get) => ({
         }),
 
     instructorCompleted: new Set<string>(),
-    markCourseComplete: (courseId) =>
+    markCourseComplete: async (courseId) => {
         set((state) => {
             const newCompleted = new Set(state.instructorCompleted);
             newCompleted.add(courseId);
             return { instructorCompleted: newCompleted };
-        }),
+        });
+
+        // Sync with backend
+        try {
+            const course = get().coursesList.find(c => c.id === courseId);
+            if (course) {
+                await api.put(`/api/courses/${courseId}`, { 
+                    status: 'completed',
+                    total_activities: course.totalActivities,
+                    tenant_id: 't1' 
+                });
+            }
+        } catch (err) {
+            console.error('Failed to sync course completion:', err);
+        }
+    },
 
     coursesList: [...mockCourses],
     enrolledCourseIds: { ...initialEnrolled },
