@@ -9,7 +9,7 @@ interface AuthState {
     isAuthenticated: boolean;
     isLoading: boolean;
     usersList: User[];
-    login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+    login: (email: string, password: string, tenantId?: string) => Promise<{ success: boolean; error?: string }>;
     logout: () => Promise<void>;
     hydrate: () => Promise<void>;
     updateUserRole: (userId: string, role: Role) => void;
@@ -23,9 +23,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     isLoading: true, // Start in loading state for hydration
     usersList: [...mockUsers],
 
-    login: async (email, password) => {
+    login: async (email, password, tenantId) => {
         try {
-            const response = await api.post('/api/auth/login', { email, password });
+            const response = await api.post('/api/auth/login', { email, password, tenantId });
             const data = response.data;
 
             if (data.success && data.user) {

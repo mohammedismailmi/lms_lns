@@ -11,44 +11,42 @@ export default function VideoActivity({ activity }: Props) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const { updateVideoProgress, markDone, videoProgress, activityStatus } = useProgressStore();
 
-    const [furthestWatched, setFurthestWatched] = useState(0);
+    const furthestWatchedRef = useRef(0);
     const [percent, setPercent] = useState(videoProgress[activity.id] || 0);
     const [warning, setWarning] = useState('');
 
     const isCompleted = activityStatus[activity.id] === 'completed';
 
-    // Restore furthestWatched strictly visually from store on mount if we want to, 
-    // but standard requirement is tracking the local session or hydrating from backend.
-    // We'll trust the store's percent to set initial.
     useEffect(() => {
         if (activity.durationSeconds > 0) {
-            setFurthestWatched((percent / 100) * activity.durationSeconds);
+            furthestWatchedRef.current = (percent / 100) * activity.durationSeconds;
         }
-    }, []);
+    }, [activity.id]);
 
     const handleTimeUpdate = () => {
-        if (!videoRef.current) return;
+        if (!videoRef.current || activity.durationSeconds === 0) return;
         const current = videoRef.current.currentTime;
 
         // Only update deepest if we are actually progressing linearly
-        if (current > furthestWatched && current - furthestWatched < 2) {
-            const newFurthest = current;
-            setFurthestWatched(newFurthest);
+        if (current > furthestWatchedRef.current && current - furthestWatchedRef.current < 3) {
+            furthestWatchedRef.current = current;
 
-            const newPercent = Math.min(100, Math.round((newFurthest / activity.durationSeconds) * 100));
-            setPercent(newPercent);
-            updateVideoProgress(activity.id, newPercent);
+            const newPercent = Math.min(100, Math.round((furthestWatchedRef.current / activity.durationSeconds) * 100));
+            if (newPercent !== percent) {
+                setPercent(newPercent);
+                updateVideoProgress(activity.id, newPercent);
 
-            if (newPercent >= 80 && !isCompleted) {
-                markDone(activity.id);
+                if (newPercent >= 80 && !isCompleted) {
+                    markDone(activity.id);
+                }
             }
         }
     };
 
     const handleSeeking = () => {
         if (!videoRef.current) return;
-        if (videoRef.current.currentTime > furthestWatched) {
-            videoRef.current.currentTime = furthestWatched;
+        if (videoRef.current.currentTime > furthestWatchedRef.current + 1) {
+            videoRef.current.currentTime = furthestWatchedRef.current;
             setWarning('Skipping forward is disabled for this module.');
             setTimeout(() => setWarning(''), 3000);
         }

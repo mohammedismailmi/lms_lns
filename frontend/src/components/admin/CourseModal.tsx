@@ -12,8 +12,8 @@ import { Check } from 'lucide-react';
 const schema = z.object({
   name: z.string().min(1, 'Course Name is required'),
   section: z.string().min(1, 'Section is required'),
-  faculty: z.string().min(1, 'Faculty must be selected'),
   category: z.enum(['AI/ML', 'Science', 'Arts', 'Business', 'Default']),
+  instructorId: z.string().min(1, 'Instructor must be selected'),
   description: z.string().optional(),
   thumbnailColor: z.string().optional(),
 });
@@ -48,7 +48,7 @@ export default function CourseModal({ isOpen, onClose, existingCourse }: Props) 
     defaultValues: {
         name: existingCourse?.name || '',
         section: existingCourse?.section || '',
-        faculty: existingCourse?.faculty || '',
+        instructorId: (existingCourse as any)?.instructorId || '',
         category: existingCourse?.category || 'Default',
         description: existingCourse?.description || '',
     }
@@ -59,14 +59,14 @@ export default function CourseModal({ isOpen, onClose, existingCourse }: Props) 
         reset({
             name: existingCourse.name,
             section: existingCourse.section,
-            faculty: existingCourse.faculty,
+            instructorId: (existingCourse as any).instructorId || '',
             category: existingCourse.category,
             description: existingCourse.description || '',
             thumbnailColor: existingCourse.thumbnailColor || PALETTE[0]
         });
         setSelectedColor(existingCourse.thumbnailColor || PALETTE[0]);
     } else {
-        reset({ name: '', section: '', faculty: '', category: 'Default', description: '', thumbnailColor: PALETTE[0] });
+        reset({ name: '', section: '', instructorId: '', category: 'Default', description: '', thumbnailColor: PALETTE[0] });
         setSelectedColor(PALETTE[0]);
     }
   }, [existingCourse, isOpen, reset]);
@@ -83,31 +83,26 @@ export default function CourseModal({ isOpen, onClose, existingCourse }: Props) 
 
   if (!isOpen) return null;
 
-  const onSubmit = (data: FormData) => {
-    const facultyUser = usersList.find(u => u.name === data.faculty);
-    const facultyInitial = facultyUser ? facultyUser.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : '??';
-
-    if (existingCourse) {
-        updateCourse({
-            ...existingCourse,
-            ...data,
-            facultyInitial,
-            thumbnailColor: selectedColor,
-        } as Course);
-        toast.success('Course updated successfully');
-    } else {
-        addCourse({
-            id: 'c' + Math.random().toString(36).substring(2, 9),
-            ...data,
-            facultyInitial,
-            thumbnailColor: selectedColor,
-            isCompleted: false,
-            totalActivities: 0,
-            modules: []
-        } as Course);
-        toast.success('Course created successfully');
+  const onSubmit = async (data: FormData) => {
+    try {
+        if (existingCourse) {
+            await updateCourse({
+                ...existingCourse,
+                ...data,
+                thumbnailColor: selectedColor,
+            });
+            toast.success('Course updated successfully');
+        } else {
+            await addCourse({
+                ...data,
+                thumbnailColor: selectedColor,
+            });
+            toast.success('Course created successfully');
+        }
+        onClose();
+    } catch (err) {
+        toast.error('Failed to save course');
     }
-    onClose();
   };
 
   return (
@@ -158,17 +153,17 @@ export default function CourseModal({ isOpen, onClose, existingCourse }: Props) 
             </div>
 
             <div className="col-span-1 md:col-span-2">
-                <label className="block text-sm font-bold text-navy mb-1.5 uppercase tracking-wider text-xs">Assigned Faculty</label>
+                <label className="block text-sm font-bold text-navy mb-1.5 uppercase tracking-wider text-xs">Assigned Instructor</label>
                 <select 
-                {...register('faculty')} 
+                {...register('instructorId')} 
                 className="w-full bg-white border border-border rounded-lg px-4 py-2.5 focus:ring-1 focus:ring-primary outline-none transition-all shadow-sm"
                 >
                     <option value="">Select an instructor...</option>
                     {instructors.map(ins => (
-                        <option key={ins.id} value={ins.name}>{ins.name} ({ins.email})</option>
+                        <option key={ins.id} value={ins.id}>{ins.name} ({ins.email})</option>
                     ))}
                 </select>
-                {errors.faculty && <p className="text-accent text-xs mt-1.5 font-bold">{errors.faculty.message}</p>}
+                {errors.instructorId && <p className="text-accent text-xs mt-1.5 font-bold">{errors.instructorId.message}</p>}
             </div>
 
             <div className="col-span-1 md:col-span-2">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCourseStore } from '../store/courseStore';
 import { Search, Plus } from 'lucide-react';
 import AdminCourseCard from '../components/admin/AdminCourseCard';
@@ -6,7 +6,9 @@ import CourseModal from '../components/admin/CourseModal';
 import { Course } from '../lib/mockData';
 
 export default function AdminCoursesPage() {
-    const { getAllCourses } = useCourseStore();
+    const { getAllCourses, hydrateCourses } = useCourseStore();
+    
+    useEffect(() => { hydrateCourses(); }, []);
     
     const [searchQuery, setSearchQuery] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);

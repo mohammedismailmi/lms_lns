@@ -5,6 +5,7 @@ import { z } from "zod";
 import { useNavigate } from "react-router-dom";
 
 import api from "../lib/api";
+import TenantSelector from "../components/auth/TenantSelector";
 
 const signUpSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters"),
@@ -20,6 +21,9 @@ export default function SignUp() {
     const navigate = useNavigate();
     const [apiError, setApiError] = useState("");
     const [apiSuccess, setApiSuccess] = useState("");
+    const [selectedTenantId, setSelectedTenantId] = useState(null);
+    const [selectedTenantName, setSelectedTenantName] = useState("");
+    const [tenantError, setTenantError] = useState(null);
 
     const {
         register,
@@ -32,19 +36,25 @@ export default function SignUp() {
     const onSubmit = async (data) => {
         setApiError("");
         setApiSuccess("");
+        setTenantError(null);
+
+        if (!selectedTenantId) {
+            setTenantError("Please select your institution to register");
+            return;
+        }
 
         try {
             const response = await api.post('/api/auth/register', {
                 name: data.name,
                 email: data.email,
                 password: data.password,
-                tenant_id: "t1",
+                tenantId: selectedTenantId,
                 role: "learner"
             });
 
             if (response.data.success) {
                 setApiSuccess("Account created! Redirecting to sign in...");
-                setTimeout(() => navigate("/login"), 1500);
+                setTimeout(() => navigate("/login", { state: { tenantId: selectedTenantId } }), 1500);
             }
         } catch (err) {
             setApiError(err.response?.data?.message || "Failed to create account. Please try again.");
@@ -58,6 +68,25 @@ export default function SignUp() {
                 <p className="text-sm text-slate-400 mb-8 font-medium">Join our learning community today.</p>
 
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                    {/* Institution Selector */}
+                    <TenantSelector
+                        value={selectedTenantId}
+                        onChange={(id) => {
+                            setSelectedTenantId(id);
+                            setTenantError(null);
+                            // We don't have access to the tenant name here directly,
+                            // but we can derive it from TenantSelector's internal state.
+                            // For now, let's use a simple approach.
+                        }}
+                        error={tenantError}
+                    />
+
+                    {selectedTenantId && (
+                        <p className="text-xs text-indigo-600 font-medium bg-indigo-50 px-3 py-2 rounded-lg">
+                            ✓ You are registering as a student at the selected institution.
+                        </p>
+                    )}
+
                     <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Full Name</label>
                         <input

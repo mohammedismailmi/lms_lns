@@ -1,11 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 import { useAuthStore } from "../store/authStore";
-import { users } from "../lib/mockData";
+import TenantSelector from "../components/auth/TenantSelector";
 
 const loginSchema = z.object({
     email: z.string().email("Invalid email address"),
@@ -14,8 +14,19 @@ const loginSchema = z.object({
 
 export default function Login() {
     const navigate = useNavigate();
+    const location = useLocation();
     const login = useAuthStore((state) => state.login);
     const [apiError, setApiError] = useState("");
+    const [selectedTenantId, setSelectedTenantId] = useState(null);
+    const [tenantError, setTenantError] = useState(null);
+    const [isSuperAdminMode, setIsSuperAdminMode] = useState(false);
+
+    // Pre-select tenant from signup redirect
+    const preSelectedTenant = location.state?.tenantId;
+    useEffect(() => {
+        if (preSelectedTenant) setSelectedTenantId(preSelectedTenant);
+    }, [preSelectedTenant]);
+
     const {
         register,
         handleSubmit,
@@ -26,15 +37,26 @@ export default function Login() {
 
     const onSubmit = async (data) => {
         setApiError("");
-        const result = await login(data.email, data.password);
+        setTenantError(null);
+
+        if (!isSuperAdminMode && !selectedTenantId) {
+            setTenantError("Please select your institution");
+            return;
+        }
+
+        const result = await login(
+            data.email,
+            data.password,
+            isSuperAdminMode ? undefined : selectedTenantId
+        );
 
         if (result.success) {
-            // Wait a tick for Zustand to settle the user object if necessary
             setTimeout(() => {
                 const user = useAuthStore.getState().user;
-                if (user?.role === 'admin') navigate("/dashboard/admin");
-                else if (user?.role === 'instructor') navigate("/dashboard/instructor");
-                else navigate("/dashboard/learner");
+                if (user?.role === 'super_admin') navigate("/superadmin");
+                else if (user?.role === 'admin') navigate("/courses");
+                else if (user?.role === 'instructor') navigate("/teaching");
+                else navigate("/home");
             }, 50);
         } else {
             setApiError(result.error || "Login failed. Please check your credentials.");
@@ -44,10 +66,28 @@ export default function Login() {
     return (
         <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
             <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-slate-100">
-                <h2 className="text-3xl font-bold text-slate-800 mb-2">Sign In</h2>
-                <p className="text-sm text-slate-500 mb-8 font-medium italic">Welcome back! Please enter your details.</p>
+                <h2 className="text-3xl font-bold text-slate-800 mb-2">
+                    {isSuperAdminMode ? "Platform Admin" : "Sign In"}
+                </h2>
+                <p className="text-sm text-slate-500 mb-8 font-medium italic">
+                    {isSuperAdminMode
+                        ? "Sign in to the platform management console."
+                        : "Welcome back! Please enter your details."}
+                </p>
 
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+                    {/* Tenant Selector — hidden in super admin mode */}
+                    {!isSuperAdminMode && (
+                        <TenantSelector
+                            value={selectedTenantId}
+                            onChange={(id) => {
+                                setSelectedTenantId(id);
+                                setTenantError(null);
+                            }}
+                            error={tenantError}
+                        />
+                    )}
+
                     <div>
                         <label className="block text-sm font-semibold text-slate-700 mb-1">Email</label>
                         <input
@@ -96,6 +136,23 @@ export default function Login() {
                         className="ml-2 text-indigo-600 hover:underline font-bold"
                     >
                         Create Account
+                    </button>
+                </div>
+
+                {/* Super Admin Toggle */}
+                <div className="mt-4 text-center">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setIsSuperAdminMode(!isSuperAdminMode);
+                            setApiError("");
+                            setTenantError(null);
+                        }}
+                        className="text-[11px] text-slate-400 hover:text-slate-600 transition font-medium"
+                    >
+                        {isSuperAdminMode
+                            ? "← Back to regular sign in"
+                            : "Platform administrator? Sign in here"}
                     </button>
                 </div>
             </div>

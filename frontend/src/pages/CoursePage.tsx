@@ -14,6 +14,7 @@ import FileActivity from '../components/course/FileActivity';
 import VideoActivity from '../components/course/VideoActivity';
 import LiveClassActivity from '../components/course/LiveClassActivity';
 import AssessmentActivity from '../components/course/AssessmentActivity';
+import SubmissionActivity from '../components/course/SubmissionActivity';
 import ActivityModal from '../components/course/ActivityModal';
 
 import { Users, Plus, LayoutList, Award, BookOpen, Clock, Lock, Edit2, Trash2, CheckCircle } from 'lucide-react';
@@ -74,15 +75,26 @@ export default function CoursePage() {
         toast.success('Module created successfully.');
     };
 
-    const handleSaveActivity = (activity: Activity) => {
+    const handleSaveActivity = async (activity: Activity) => {
         if (!modalState.moduleId) return;
-        if (modalState.activity) {
-            updateActivity(course.id, modalState.moduleId, activity);
-            toast.success('Activity updated!');
-        } else {
-            addActivity(course.id, modalState.moduleId, activity);
-            toast.success('Activity added successfully!');
+        try {
+            if (modalState.activity) {
+                await updateActivity(course.id, modalState.moduleId, activity);
+                toast.success('Activity updated!');
+            } else {
+                await addActivity(course.id, modalState.moduleId, activity);
+                toast.success('Activity added successfully!');
+                // Instant UI update callback
+                onActivityCreated(activity);
+            }
+        } catch (err) {
+            toast.error('Failed to save activity');
         }
+    };
+
+    const onActivityCreated = (activity: Activity) => {
+        console.log('Activity created:', activity.title);
+        // Additional instant logic if needed
     };
 
     if (!isEnrolled) {
@@ -225,6 +237,7 @@ export default function CoursePage() {
                                             {activity.type === 'video' && <VideoActivity activity={activity} />}
                                             {activity.type === 'live_class' && <LiveClassActivity activity={activity} />}
                                             {(activity.type === 'quiz' || activity.type === 'exam') && <AssessmentActivity activity={activity} />}
+                                            {activity.type === 'submission' && <SubmissionActivity activity={activity} />}
                                         </div>
 
                                         {isInstructor && (

@@ -13,7 +13,7 @@ import Layout from './components/layout/Layout';
 import Dashboard from './pages/Dashboard';
 import LearnerHomePage from './pages/LearnerHomePage';
 import InstructorHomePage from './pages/InstructorHomePage';
-import AdminDashboard from './pages/AdminDashboard';
+import AdminDashboard from './pages/AdminDashboard'; // .tsx with real API data
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminCoursesPage from './pages/AdminCoursesPage';
 import AdminAnalyticsPage from './pages/AdminAnalyticsPage';
@@ -31,11 +31,13 @@ import VideoLessonPage from './pages/VideoLessonPage';
 import Unauthorized from './pages/Unauthorized';
 
 import AdminCoursesOverviewPage from './pages/AdminCoursesOverviewPage';
+import SuperAdminDashboard from './pages/SuperAdminDashboard';
 
 // Smart redirector for root `/` handling role-based routing
 const RoleRootRedirect = () => {
     const { user, isAuthenticated } = useAuthStore();
     if (!isAuthenticated || !user) return <Navigate to="/login" replace />;
+    if (user.role === 'super_admin') return <Navigate to="/superadmin" replace />;
     if (user.role === 'admin') return <Navigate to="/courses" replace />;
     if (user.role === 'instructor') return <Navigate to="/teaching" replace />;
     return <Navigate to="/home" replace />; // learner fallback
@@ -78,6 +80,11 @@ export default function App() {
                     <Route element={<ProtectedRoute allowedRoles={['admin', 'instructor', 'learner']} />}>
                         <Route path="/quiz/:id" element={<QuizPage />} />
                         <Route path="/exam/:id" element={<ExamPage />} />
+                    </Route>
+
+                    {/* Super Admin Route — standalone, no sidebar */}
+                    <Route element={<ProtectedRoute allowedRoles={['super_admin']} />}>
+                        <Route path="/superadmin" element={<SuperAdminDashboard />} />
                     </Route>
 
                     {/* Protected App Routes enclosed in Custom Layout */}

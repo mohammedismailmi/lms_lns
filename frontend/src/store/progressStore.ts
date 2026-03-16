@@ -71,7 +71,6 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
                 course_id: courseId,
                 lesson_id: activityId,
                 percent_complete: 100,
-                tenant_id: 't1',
                 total_lessons: totalActivities
             });
 
@@ -96,7 +95,6 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
                 course_id: findCourseId(activityId),
                 lesson_id: activityId,
                 percent_complete: 1,
-                tenant_id: 't1'
             });
         } catch (err) {
             console.error('Failed to sync progress:', err);
@@ -125,7 +123,6 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
                 course_id: courseId,
                 lesson_id: activityId,
                 percent_complete: percent,
-                tenant_id: 't1',
                 total_lessons: totalActivities
             });
 

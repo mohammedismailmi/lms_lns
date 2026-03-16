@@ -3,6 +3,7 @@ import { Outlet, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
+import AIChatWidget from '../ai/AIChatWidget';
 
 export default function Layout() {
     const { isAuthenticated } = useAuthStore();
@@ -20,6 +21,7 @@ export default function Layout() {
                     <Outlet />
                 </main>
             </div>
+            <AIChatWidget />
         </div>
     );
 }

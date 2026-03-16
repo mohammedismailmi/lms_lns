@@ -14,17 +14,4 @@ export const api = axios.create({
     }
 });
 
-// Interceptor to auto-attach tenant slug from domain (if applicable)
-api.interceptors.request.use((config) => {
-    const hostname = window.location.hostname;
-    let tenantSlug = 'reva'; // Default for local dev
-
-    if (hostname.includes('.') && !hostname.includes('localhost') && !hostname.match(/\d+\.\d+\.\d+\.\d+/)) {
-        tenantSlug = hostname.split('.')[0];
-    }
-
-    config.headers['x-tenant-slug'] = tenantSlug;
-    return config;
-});
-
 export default api;
