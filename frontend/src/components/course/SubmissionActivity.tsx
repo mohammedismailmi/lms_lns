@@ -10,6 +10,7 @@ interface Props {
         id: string;
         title: string;
         content?: string;
+        dueAt?: string;
     };
 }
 
@@ -21,6 +22,8 @@ export default function SubmissionActivity({ activity }: Props) {
     const [submitted, setSubmitted] = useState(activityStatus[activity.id] === 'completed');
     const [submissions, setSubmissions] = useState<any[]>([]);
     const [loadingSubmissions, setLoadingSubmissions] = useState(false);
+    const [mySubmission, setMySubmission] = useState<any>(null);
+    const [loadingMySub, setLoadingMySub] = useState(false);
     const toast = useToast();
 
     const isInstructor = user?.role === 'admin' || user?.role === 'instructor';
@@ -32,6 +35,12 @@ export default function SubmissionActivity({ activity }: Props) {
                 .then(res => setSubmissions(res.data.submissions || []))
                 .catch(() => toast.error('Failed to load submissions'))
                 .finally(() => setLoadingSubmissions(false));
+        } else {
+            setLoadingMySub(true);
+            api.get(`/api/activities/${activity.id}/my-submission`)
+                .then(res => setMySubmission(res.data.submission))
+                .catch(() => console.error('Failed to load my submission'))
+                .finally(() => setLoadingMySub(false));
         }
     }, [activity.id, isInstructor]);
 
@@ -39,13 +48,16 @@ export default function SubmissionActivity({ activity }: Props) {
         if (!file) return;
         setUploading(true);
         try {
-            const res = await api.post(`/api/activities/${activity.id}/submit`, {
-                fileName: file.name,
-                fileUrl: `https://storage.lms.com/submissions/${activity.id}/${file.name}`
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            const res = await api.post(`/api/activities/${activity.id}/submit`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
             });
 
             if (res.data.success) {
                 setSubmitted(true);
+                setMySubmission(res.data.submission);
                 markDone(activity.id);
                 toast.success('Assignment submitted successfully!');
             }
@@ -66,6 +78,8 @@ export default function SubmissionActivity({ activity }: Props) {
         }
     };
 
+    const isPastDue = activity.dueAt && new Date() > new Date(activity.dueAt);
+
     if (isInstructor) {
         return (
             <div className="bg-white rounded-xl shadow-sm border border-border p-6">
@@ -79,6 +93,20 @@ export default function SubmissionActivity({ activity }: Props) {
                 </div>
 
                 <div className="space-y-4">
+                    <div className="flex justify-between items-center bg-slate-50 p-4 rounded-xl border border-slate-100 mb-6">
+                        <div>
+                            <p className="text-[10px] text-muted uppercase tracking-widest font-bold mb-1">Assignment Deadline</p>
+                            <p className="text-sm font-bold text-navy flex items-center gap-2">
+                                <Clock className="w-4 h-4 text-primary" />
+                                {activity.dueAt ? new Date(activity.dueAt).toLocaleString() : 'No deadline'}
+                            </p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-[10px] text-muted uppercase tracking-widest font-bold mb-1">Total Submissions</p>
+                            <p className="text-lg font-bold text-primary">{submissions.length}</p>
+                        </div>
+                    </div>
+
                     <h3 className="font-bold text-navy uppercase text-xs tracking-widest">Student Submissions</h3>
                     {loadingSubmissions ? (
                         <div className="py-12 text-center text-muted animate-pulse">Loading submissions...</div>
@@ -89,12 +117,17 @@ export default function SubmissionActivity({ activity }: Props) {
                             {submissions.map(sub => (
                                 <div key={sub.id} className="py-4 flex items-center justify-between gap-4">
                                     <div>
-                                        <p className="font-bold text-navy">{sub.user_name}</p>
-                                        <p className="text-xs text-muted">Submitted on {new Date(sub.created_at * 1000).toLocaleDateString()}</p>
-                                        <a href={sub.file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline font-bold mt-1 inline-block">View File</a>
+                                        <div className="flex items-center gap-2">
+                                            <p className="font-bold text-navy">{sub.studentName}</p>
+                                            {sub.isLate === 1 && (
+                                                <span className="px-2 py-0.5 bg-accent/10 text-accent text-[10px] font-bold uppercase rounded-full border border-accent/20">LATE</span>
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-muted">Submitted on {new Date(sub.submittedAt).toLocaleString()}</p>
+                                        <a href={sub.fileUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline font-bold mt-1 inline-block">Download Submission</a>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        {sub.status === 'graded' ? (
+                                        {sub.grade ? (
                                             <div className="text-right">
                                                 <p className="text-sm font-bold text-success">Grade: {sub.grade}</p>
                                                 <p className="text-[10px] text-muted italic">"{sub.feedback}"</p>
@@ -104,7 +137,7 @@ export default function SubmissionActivity({ activity }: Props) {
                                                 <input id={`grade-${sub.id}`} placeholder="Grade" className="w-16 px-2 py-1 text-sm border border-border rounded-lg" />
                                                 <button onClick={() => {
                                                     const grade = (document.getElementById(`grade-${sub.id}`) as HTMLInputElement).value;
-                                                    handleGrade(sub.id, grade, 'Good work.');
+                                                    handleGrade(sub.id, grade, 'Graded by system.');
                                                 }} className="px-3 py-1 bg-primary text-white text-xs font-bold rounded-lg transition-colors hover:bg-navy">Grade</button>
                                             </div>
                                         )}
@@ -120,11 +153,21 @@ export default function SubmissionActivity({ activity }: Props) {
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-border p-6" id={`activity-${activity.id}`}>
-            <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-primary rounded-lg text-white">
-                    <FileText className="w-6 h-6" />
+            <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary rounded-lg text-white">
+                        <FileText className="w-6 h-6" />
+                    </div>
+                    <h2 className="text-2xl font-serif font-bold text-navy">{activity.title}</h2>
                 </div>
-                <h2 className="text-2xl font-serif font-bold text-navy">{activity.title}</h2>
+                {activity.dueAt && (
+                    <div className={`px-4 py-2 rounded-xl border flex flex-col items-end ${isPastDue ? 'bg-accent/5 border-accent/20' : 'bg-slate-50 border-slate-100'}`}>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted">Deadline</span>
+                        <span className={`text-sm font-bold ${isPastDue ? 'text-accent' : 'text-navy'}`}>
+                            {new Date(activity.dueAt).toLocaleString()}
+                        </span>
+                    </div>
+                )}
             </div>
 
             <div className="bg-surface rounded-xl p-6 border border-slate-200 mb-6">
@@ -137,16 +180,38 @@ export default function SubmissionActivity({ activity }: Props) {
                 </p>
             </div>
 
-            {submitted ? (
+            {submitted || mySubmission ? (
                 <div className="bg-success/5 border border-success/20 rounded-xl p-8 text-center animate-in zoom-in-95">
                     <div className="w-16 h-16 bg-success rounded-full flex items-center justify-center mx-auto mb-4">
                         <CheckCircle className="w-8 h-8 text-white" />
                     </div>
                     <h3 className="text-xl font-serif font-bold text-navy mb-2">Assignment Submitted</h3>
-                    <p className="text-muted text-sm mb-6">Your submission has been recorded and is traceably stored. A faculty member will review and grade it shortly.</p>
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-success/30 rounded-full text-success text-xs font-bold uppercase tracking-widest">
-                        Status: Pending Review
+                    <p className="text-muted text-sm mb-6">
+                        Submitted: {new Date(mySubmission?.submittedAt || Date.now()).toLocaleString()}
+                        {mySubmission?.dueAt && new Date(mySubmission.submittedAt) > new Date(mySubmission.dueAt) && (
+                            <span className="text-accent font-bold ml-2">(Late)</span>
+                        )}
+                    </p>
+                    
+                    {mySubmission?.grade ? (
+                        <div className="bg-white p-4 rounded-xl border border-success/20 shadow-sm inline-block">
+                            <p className="text-xs text-muted uppercase tracking-widest font-bold mb-1">Your Grade</p>
+                            <p className="text-2xl font-serif font-bold text-success capitalize">{mySubmission.grade}</p>
+                            {mySubmission.feedback && <p className="text-sm text-muted italic mt-2">"{mySubmission.feedback}"</p>}
+                        </div>
+                    ) : (
+                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-success/30 rounded-full text-success text-xs font-bold uppercase tracking-widest">
+                            Status: Pending Review
+                        </div>
+                    )}
+                </div>
+            ) : isPastDue ? (
+                <div className="bg-accent/5 border border-accent/20 rounded-xl p-8 text-center">
+                    <div className="w-16 h-16 bg-accent rounded-full flex items-center justify-center mx-auto mb-4">
+                        <Clock className="w-8 h-8 text-white" />
                     </div>
+                    <h3 className="text-xl font-serif font-bold text-navy mb-2">Deadline Passed</h3>
+                    <p className="text-muted text-sm mb-0">The submission window for this assignment has closed.</p>
                 </div>
             ) : (
                 <div className="space-y-6">
@@ -163,7 +228,7 @@ export default function SubmissionActivity({ activity }: Props) {
                         <p className="font-bold text-navy mb-1">
                             {file ? file.name : 'Click or drag file to upload'}
                         </p>
-                        <p className="text-xs text-muted uppercase tracking-widest font-medium">PDF, DOCX, ZIP (MAX 25MB)</p>
+                        <p className="text-xs text-muted uppercase tracking-widest font-medium">PDF, DOCX, ZIP (MAX 50MB)</p>
                     </div>
 
                     <button

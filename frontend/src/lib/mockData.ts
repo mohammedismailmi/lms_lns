@@ -14,7 +14,7 @@ export interface User {
     tenantId: string;
 }
 
-export type ActivityType = 'blog' | 'video' | 'file' | 'quiz' | 'exam' | 'live_class';
+export type ActivityType = 'blog' | 'video' | 'file' | 'quiz' | 'exam' | 'live_class' | 'submission';
 
 export interface BaseActivity {
     id: string;
@@ -65,12 +65,18 @@ export interface LiveClassActivity extends BaseActivity {
     instructorName: string;
 }
 
+export interface SubmissionActivity extends BaseActivity {
+    type: 'submission';
+    dueAt?: string;
+}
+
 export type Activity =
     | BlogActivity
     | FileActivity
     | VideoActivity
     | AssessmentActivity
-    | LiveClassActivity;
+    | LiveClassActivity
+    | SubmissionActivity;
 
 export interface Module {
     id: string;

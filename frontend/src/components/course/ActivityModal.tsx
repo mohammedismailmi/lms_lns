@@ -14,6 +14,7 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
     const [title, setTitle] = useState('');
     const [duration, setDuration] = useState(10);
     const [url, setUrl] = useState('');
+    const [dueAt, setDueAt] = useState<string | undefined>();
 
     // For quizzes
     const [questions, setQuestions] = useState<any[]>([]);
@@ -26,12 +27,14 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
             setDuration(existing.durationMinutes || 0);
             setUrl(existing.url || existing.videoUrl || '');
             setQuestions(existing.questions || []);
+            setDueAt(existing.dueAt);
         } else {
             setType('video');
             setTitle('');
             setDuration(10);
             setUrl('');
             setQuestions([]);
+            setDueAt(undefined);
         }
     }, [existingActivity, isOpen]);
 
@@ -77,6 +80,9 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
         if (type === 'quiz' || type === 'exam') {
             newActivity.questions = questions;
         }
+        if (type === 'submission') {
+            newActivity.dueAt = dueAt;
+        }
 
         onSave(newActivity);
         onClose();
@@ -111,6 +117,7 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
                                 <option value="quiz">Quiz</option>
                                 <option value="exam">Final Exam</option>
                                 <option value="live_class">Live Class</option>
+                                <option value="submission">Assignment / Submission</option>
                             </select>
                         </div>
 
@@ -143,6 +150,19 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
                                     className="w-full border-border border rounded-lg px-4 py-3 outline-none focus:ring-1 focus:ring-primary shadow-sm"
                                     placeholder="https://"
                                 />
+                            </div>
+                        )}
+
+                        {type === 'submission' && (
+                            <div className="md:col-span-2">
+                                <label className="block text-sm font-bold text-navy mb-2 uppercase tracking-wider text-xs">Due Date & Time</label>
+                                <input
+                                    type="datetime-local"
+                                    value={dueAt ? new Date(dueAt).toISOString().slice(0, 16) : ''}
+                                    onChange={e => setDueAt(e.target.value ? new Date(e.target.value).toISOString() : undefined)}
+                                    className="w-full border-border border rounded-lg px-4 py-3 outline-none focus:ring-1 focus:ring-primary shadow-sm"
+                                />
+                                <p className="text-[10px] text-muted mt-1 italic">Students cannot submit files after this deadline.</p>
                             </div>
                         )}
                     </div>

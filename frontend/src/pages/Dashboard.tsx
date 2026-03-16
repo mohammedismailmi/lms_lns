@@ -1,9 +1,7 @@
-import React, { useState } from 'react';
-import Calendar from 'react-calendar';
-import 'react-calendar/dist/Calendar.css';
-import { Calendar as CalendarIcon, Clock, Users, Video } from 'lucide-react';
+import React from 'react';
+import { Clock, Users, Video } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import { cn } from '../lib/utils';
+import CalendarWidget from '../components/calendar/CalendarWidget';
 
 // Tailwind overrides for react-calendar
 import './Dashboard.css';
@@ -35,28 +33,8 @@ const mockEvents = [
     }
 ];
 
-const mockAssignments: Record<string, string[]> = {
-    '2026-03-16': ['React Hooks Quiz', 'Submit Project Proposal'],
-    '2026-03-20': ['Midterm Exam: Ethics'],
-    '2026-03-25': ['Peer Review Deadline']
-};
-
 export default function Dashboard() {
     const { user } = useAuthStore();
-    const [date, setDate] = useState<Date>(new Date());
-
-    // Format date for looking up mock assignments natively (YYYY-MM-DD)
-    // Be careful with timezones, using local string
-    const formatDate = (val: Date) => {
-        const d = new Date(val);
-        const month = '' + (d.getMonth() + 1);
-        const day = '' + d.getDate();
-        const year = d.getFullYear();
-        return [year, month.padStart(2, '0'), day.padStart(2, '0')].join('-');
-    };
-
-    const selectedDateStr = formatDate(date as Date);
-    const dayAssignments = mockAssignments[selectedDateStr] || [];
 
     return (
         <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -104,61 +82,7 @@ export default function Dashboard() {
 
                 {/* Column 2: Calendar */}
                 <div className="space-y-6">
-                    <div className="bg-white rounded-2xl shadow-sm border border-border p-6">
-                        <h2 className="text-xl font-serif font-bold text-navy mb-6 flex items-center gap-2">
-                            <CalendarIcon className="w-5 h-5 text-primary" />
-                            Academic Calendar
-                        </h2>
-
-                        <div className="react-calendar-wrapper">
-                            <Calendar
-                                onChange={(val) => setDate(val as Date)}
-                                value={date}
-                                className="border-none w-full font-sans"
-                                tileClassName={({ date, view }) => {
-                                    if (view === 'month') {
-                                        const dateStr = formatDate(date);
-                                        if (mockAssignments[dateStr]) {
-                                            return 'has-assignments';
-                                        }
-                                    }
-                                    return null;
-                                }}
-                                tileContent={({ date, view }) => {
-                                    if (view === 'month') {
-                                        const dateStr = formatDate(date);
-                                        if (mockAssignments[dateStr]) {
-                                            return <div className="mx-auto mt-1 w-1.5 h-1.5 bg-accent rounded-full"></div>;
-                                        }
-                                    }
-                                    return null;
-                                }}
-                            />
-                        </div>
-
-                        {/* Selected Date Assignments Popup/List */}
-                        <div className="mt-8 pt-6 border-t border-border">
-                            <h3 className="font-bold text-navy mb-4 flex items-center justify-between">
-                                Tasks for {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                <span className={cn("text-xs px-2 py-1 rounded-full", dayAssignments.length > 0 ? "bg-accent/10 text-accent" : "bg-slate-100 text-slate-500")}>
-                                    {dayAssignments.length} due
-                                </span>
-                            </h3>
-
-                            {dayAssignments.length > 0 ? (
-                                <ul className="space-y-3">
-                                    {dayAssignments.map((task: string, idx: number) => (
-                                        <li key={idx} className="flex items-start gap-3 text-sm font-medium text-slate-700 bg-surface p-3 rounded-lg border border-border">
-                                            <div className="mt-0.5 w-2 h-2 rounded-full bg-accent shrink-0" />
-                                            {task}
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <p className="text-sm text-muted font-medium italic text-center py-4">No tasks due on this date.</p>
-                            )}
-                        </div>
-                    </div>
+                    <CalendarWidget />
                 </div>
             </div>
         </div>
