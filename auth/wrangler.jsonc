@@ -28,7 +28,7 @@
     ],
     "vars": {
         "JWT_SECRET": "super-secret-local-jwt-key",
-        "GROQ_API_KEY": "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"
+        "GROQ_API_KEY": "api in whatsapp"
     }
     /**
      * Smart Placement
