@@ -1,0 +1,122 @@
+
+ ⛅️ wrangler 4.71.0 (update available 4.73.0)
+─────────────────────────────────────────────
+Your Worker has access to the following bindings:
+Binding                                            Resource                  Mode
+env.DB (lms-db)                                    D1 Database               local
+env.JWT_SECRET ("super-secret-local-jwt-key")      Environment Variable      local
+
+❓ Your types might be out of date. Re-run `wrangler types` to ensure your types are correct.
+⎔ Starting local server...
+[wrangler:info] Ready on http://localhost:8787
+[wrangler:info] POST /api/auth/register 200 OK (78ms)
+⎔ Reloading local server...
+⎔ Local server updated and ready
+[wrangler:info] OPTIONS /api/auth/register 204 No Content (6ms)
+⎔ Reloading local server...
+⎔ Local server updated and ready
+Your Worker has access to the following bindings:
+Binding                                             Resource                  Mode
+env.DB (lms-db)                                     D1 Database               local
+env.JWT_SECRET ("super-secret-local-jwt-key")       Environment Variable      local
+env.CORS_ORIGIN ("http://localhost:5173")           Environment Variable      local
+
+❓ Your types might be out of date. Re-run `wrangler types` to ensure your types are correct.
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+Your Worker has access to the following bindings:
+Binding                                             Resource                  Mode
+env.TENANTS_KV (local-tenant-kv)                    KV Namespace              local
+env.DB (lms-db)                                     D1 Database               local
+env.JWT_SECRET ("super-secret-local-jwt-key")       Environment Variable      local
+env.CORS_ORIGIN ("http://localhost:5173")           Environment Variable      local
+
+❓ Your types might be out of date. Re-run `wrangler types` to ensure your types are correct.
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+Your Worker has access to the following bindings:
+Binding                                            Resource                  Mode
+env.DB (lms-db)                                    D1 Database               local
+env.JWT_SECRET ("super-secret-local-jwt-key")      Environment Variable      local
+
+❓ Your types might be out of date. Re-run `wrangler types` to ensure your types are correct.
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+Your Worker has access to the following bindings:
+Binding                                            Resource                  Mode
+env.DB (lms-db)                                    D1 Database               local
+env.JWT_SECRET ("super-secret-local-jwt-key")      Environment Variable      local
+
+❓ Your types might be out of date. Re-run `wrangler types` to ensure your types are correct.
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mBuild failed with 1 error:[0m
+
+  [31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mUnexpected "}"[0m
+  
+      src/index.ts:315:0:
+  [37m      315 │ [32m}[37m);
+            ╵ [32m^[0m
+  
+  
+
+
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+⎔ Reloading local server...
+⎔ Local server updated and ready
+🪵  Logs were written to "/Users/mi/Library/Preferences/.wrangler/logs/wrangler-2026-03-14_10-29-25_899.log"

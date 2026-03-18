@@ -17,7 +17,7 @@ export const users = sqliteTable('users', {
     name: text('name').notNull(),
     email: text('email').notNull(),
     password_hash: text('password').notNull(),
-    role: text('role', { enum: ['admin', 'instructor', 'learner', 'super_admin'] })
+    role: text('role', { enum: ['super_admin', 'admin', 'instructor', 'learner'] })
         .notNull()
         .default('learner'),
     created_at: integer('created_at').notNull(),
@@ -36,11 +36,12 @@ export const enrollments = sqliteTable('enrollments', {
 export const courses = sqliteTable('courses', {
     id: text('id').primaryKey(),
     tenant_id: text('tenant_id').notNull().references(() => tenants.id),
-    instructor_id: text('instructor_id'),
     title: text('title').notNull(),
     description: text('description'),
     status: text('status').notNull().default('draft'),
     total_activities: integer('total_activities').notNull().default(0),
+    instructor_id: text('instructor_id'),
+    faculty_name: text('faculty_name'),
     created_at: integer('created_at').notNull(),
     updated_at: integer('updated_at').notNull(),
 });
@@ -66,49 +67,51 @@ export const certificates = sqliteTable('certificates', {
     updated_at: integer('updated_at').notNull(),
 });
 
-export const modules = sqliteTable('modules', {
+export const submissions = sqliteTable('submissions', {
     id: text('id').primaryKey(),
-    courseId: text('course_id').notNull().references(() => courses.id),
-    title: text('title').notNull(),
-    orderIndex: integer('order_index').notNull().default(0),
-    tenantId: text('tenant_id').notNull().references(() => tenants.id),
+    tenant_id: text('tenant_id').notNull().references(() => tenants.id),
+    activity_id: text('activity_id').notNull(),
+    user_id: text('user_id').notNull().references(() => users.id),
+    file_url: text('file_url').notNull(),
+    file_name: text('file_name').notNull(),
+    status: text('status', { enum: ['pending', 'graded'] }).notNull().default('pending'),
+    grade: integer('grade'),
+    feedback: text('feedback'),
     created_at: integer('created_at').notNull(),
     updated_at: integer('updated_at').notNull(),
 });
 
-export const activities = sqliteTable('activities', {
+export const modules = sqliteTable('sections', {
     id: text('id').primaryKey(),
-    moduleId: text('module_id').notNull(),
-    courseId: text('course_id').references(() => courses.id),
-    tenantId: text('tenant_id').references(() => tenants.id),
+    tenant_id: text('tenant_id').notNull().references(() => tenants.id),
+    course_id: text('course_id').notNull().references(() => courses.id),
     title: text('title').notNull(),
-    type: text('type', { enum: ['blog', 'video', 'file', 'quiz', 'exam', 'live_class', 'submission'] }).notNull(),
-    content: text('content'),
-    fileUrl: text('file_url'),
-    videoUrl: text('video_url'),
-    duration: integer('duration'),
-    scheduledAt: text('scheduled_at'),
-    meetLink: text('meet_link'),
-    dueAt: text('due_at'),
-    order: integer('order').notNull().default(0),
-    createdAt: integer('created_at').notNull(),
-    updatedAt: integer('updated_at').notNull(),
+    order_index: integer('order_index').notNull(),
+    created_at: integer('created_at').notNull(),
+    updated_at: integer('updated_at').notNull(),
 });
 
-export const submissions = sqliteTable('submissions', {
+export const activities = sqliteTable('lessons', {
     id: text('id').primaryKey(),
-    activityId: text('activity_id').notNull().references(() => activities.id),
-    userId: text('user_id').notNull().references(() => users.id),
-    courseId: text('course_id').notNull().references(() => courses.id),
-    tenantId: text('tenant_id').notNull().references(() => tenants.id),
-    fileUrl: text('file_url').notNull(),
-    fileName: text('file_name'),
-    fileType: text('file_type'),
-    fileSize: integer('file_size'),
-    submittedAt: text('submitted_at').notNull(),
-    dueAt: text('due_at'),
-    grade: text('grade'),
-    feedback: text('feedback'),
-    gradedAt: text('graded_at'),
-    gradedBy: text('graded_by').references(() => users.id),
+    section_id: text('section_id').notNull().references(() => modules.id),
+    course_id: text('course_id').notNull().references(() => courses.id),
+    title: text('title').notNull(),
+    content: text('content'),
+    order_index: integer('order_index').notNull(),
+    type: text('type', { enum: ['video', 'blog', 'file', 'quiz', 'exam', 'live_class', 'submission'] }).notNull().default('blog'),
+    scheduled_at: text('scheduled_at'),
+    duration_minutes: integer('duration_minutes').default(0),
+    created_at: integer('created_at').notNull(),
+    updated_at: integer('updated_at').notNull(),
+});
+
+export const liveSessions = sqliteTable('live_sessions', {
+    id: text('id').primaryKey(),
+    activity_id: text('activity_id').notNull().references(() => activities.id),
+    meet_link: text('meet_link'),
+    start_time: integer('start_time'),
+    end_time: integer('end_time'),
+    ended_at: integer('ended_at'),
+    created_at: integer('created_at').notNull(),
+    updated_at: integer('updated_at').notNull(),
 });

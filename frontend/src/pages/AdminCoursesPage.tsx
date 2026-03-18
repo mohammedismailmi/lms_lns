@@ -3,6 +3,7 @@ import { useCourseStore } from '../store/courseStore';
 import { Search, Plus } from 'lucide-react';
 import AdminCourseCard from '../components/admin/AdminCourseCard';
 import CourseModal from '../components/admin/CourseModal';
+import AssignInstructorModal from '../components/admin/AssignInstructorModal';
 import { Course } from '../lib/mockData';
 
 export default function AdminCoursesPage() {
@@ -12,7 +13,9 @@ export default function AdminCoursesPage() {
     
     const [searchQuery, setSearchQuery] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
     const [editingCourse, setEditingCourse] = useState<Course | undefined>(undefined);
+    const [assigningCourse, setAssigningCourse] = useState<Course | undefined>(undefined);
 
     const allCourses = getAllCourses();
     const filteredCourses = allCourses.filter(c => 
@@ -29,6 +32,11 @@ export default function AdminCoursesPage() {
     const openEdit = (course: Course) => {
         setEditingCourse(course);
         setIsModalOpen(true);
+    };
+
+    const openAssign = (course: Course) => {
+        setAssigningCourse(course);
+        setIsAssignModalOpen(true);
     };
 
     return (
@@ -77,6 +85,7 @@ export default function AdminCoursesPage() {
                             key={course.id} 
                             course={course} 
                             onEdit={openEdit}
+                            onAssign={openAssign}
                         />
                     ))}
                 </div>
@@ -87,6 +96,16 @@ export default function AdminCoursesPage() {
                 onClose={() => setIsModalOpen(false)} 
                 existingCourse={editingCourse}
             />
+
+            {assigningCourse && (
+                <AssignInstructorModal
+                    isOpen={isAssignModalOpen}
+                    onClose={() => setIsAssignModalOpen(false)}
+                    courseId={assigningCourse.id}
+                    courseName={assigningCourse.name}
+                    currentInstructorId={assigningCourse.instructorId}
+                />
+            )}
 
         </div>
     );

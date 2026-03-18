@@ -1,0 +1,37 @@
+
+> lms-monorepo@1.0.0 dev
+> npm run dev:auth & npm run dev:frontend
+
+
+> lms-monorepo@1.0.0 dev:auth
+> npm run dev --prefix auth
+
+
+> lms-monorepo@1.0.0 dev:frontend
+> npm run dev --prefix frontend
+
+
+> auth@0.0.0 dev
+> wrangler dev
+
+
+> frontend@0.0.0 dev
+> vite
+
+
+  VITE v7.3.1  ready in 226 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+  ➜  press h + enter to show help
+
+ ⛅️ wrangler 4.71.0 (update available 4.73.0)
+─────────────────────────────────────────────
+Your Worker has access to the following bindings:
+Binding                                            Resource                  Mode
+env.DB (lms-db)                                    D1 Database               local
+env.JWT_SECRET ("super-secret-local-jwt-key")      Environment Variable      local
+
+❓ Your types might be out of date. Re-run `wrangler types` to ensure your types are correct.
+⎔ Starting local server...
+[wrangler:info] Ready on http://localhost:8787

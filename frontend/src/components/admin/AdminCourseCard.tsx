@@ -2,16 +2,17 @@ import React, { useState } from 'react';
 import { Course } from '../../lib/mockData';
 import { useNavigate } from 'react-router-dom';
 import { useCourseStore } from '../../store/courseStore';
-import { Edit2, Settings, Trash2 } from 'lucide-react';
+import { Edit2, Settings, Trash2, UserPlus } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useToast } from '../../lib/useToast';
 
 interface Props {
     course: Course;
     onEdit: (course: Course) => void;
+    onAssign: (course: Course) => void;
 }
 
-export default function AdminCourseCard({ course, onEdit }: Props) {
+export default function AdminCourseCard({ course, onEdit, onAssign }: Props) {
     const navigate = useNavigate();
     const { deleteCourse } = useCourseStore();
     const toast = useToast();
@@ -96,6 +97,13 @@ export default function AdminCourseCard({ course, onEdit }: Props) {
                             className="bg-surface hover:bg-accent/10 hover:text-accent hover:border-accent/30 text-muted font-bold py-2.5 px-3 rounded-xl transition-colors border border-border"
                         >
                             <Trash2 className="w-4 h-4" />
+                        </button>
+                        <button 
+                            onClick={() => onAssign(course)}
+                            className="bg-surface hover:bg-primary/10 hover:text-primary hover:border-primary/30 text-muted font-bold py-2.5 px-3 rounded-xl transition-colors border border-border"
+                            title="Assign Instructor"
+                        >
+                            <UserPlus className="w-4 h-4" />
                         </button>
                         <button 
                             onClick={() => navigate(`/course/${course.id}`)}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import InstructorCourseCard from '../components/home/InstructorCourseCard';
 import { useCourseStore } from '../store/courseStore';
 import { useAuthStore } from '../store/authStore';
@@ -7,8 +7,12 @@ import { Users, BellRing } from 'lucide-react';
 
 export default function InstructorHomePage() {
     const { user } = useAuthStore();
-    const { getTeachingCourses } = useCourseStore();
+    const { getTeachingCourses, hydrateCourses } = useCourseStore();
     
+    useEffect(() => {
+        hydrateCourses();
+    }, [hydrateCourses]);
+
     if (!user) return null;
     
     const teachingCourses = getTeachingCourses(user.name);

@@ -27,7 +27,7 @@ export default function AdminUsersPage() {
 
     const fetchUsers = async () => {
         try {
-            const res = await api.get('/api/admin/tenant-users');
+            const res = await api.get('/api/admin/users');
             if (res.data.success) setUsers(res.data.users);
         } catch (err: any) {
             setError(err.message || 'Failed to load users');

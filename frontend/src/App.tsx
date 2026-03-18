@@ -38,7 +38,7 @@ const RoleRootRedirect = () => {
     const { user, isAuthenticated } = useAuthStore();
     if (!isAuthenticated || !user) return <Navigate to="/login" replace />;
     if (user.role === 'super_admin') return <Navigate to="/superadmin" replace />;
-    if (user.role === 'admin') return <Navigate to="/courses" replace />;
+    if (user.role === 'admin') return <Navigate to="/admin" replace />;
     if (user.role === 'instructor') return <Navigate to="/teaching" replace />;
     return <Navigate to="/home" replace />; // learner fallback
 };
@@ -46,7 +46,7 @@ const RoleRootRedirect = () => {
 // Smart redirector for `/courses` handling admin vs learner
 const CoursesRouteDirect = () => {
     const { user } = useAuthStore();
-    if (user?.role === 'admin') return <AdminCoursesOverviewPage />;
+    if (user?.role === 'admin') return <AdminCoursesPage />;
     return <Navigate to="/home" replace />;
 };
 
@@ -115,6 +115,7 @@ export default function App() {
                         <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
                             <Route path="/admin" element={<AdminDashboard />} />
                             <Route path="/admin/users" element={<AdminUsersPage />} />
+                            <Route path="/admin/courses" element={<AdminCoursesPage />} />
                             <Route path="/admin/tenants" element={<TenantComingSoonPage />} />
                             <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
                         </Route>

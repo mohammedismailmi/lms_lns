@@ -50,8 +50,8 @@ export default function AdminDashboard() {
 
     useEffect(() => {
         Promise.all([
-            api.get('/api/admin/tenant-stats'),
-            api.get('/api/admin/tenant-users'),
+            api.get('/api/admin/stats'),
+            api.get('/api/admin/users'),
             api.get('/api/courses'),
             api.get('/api/admin/upcoming-sessions'),
         ]).then(([statsRes, usersRes, coursesRes, sessionsRes]) => {
