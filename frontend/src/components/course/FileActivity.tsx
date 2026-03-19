@@ -13,12 +13,16 @@ export default function FileActivity({ activity }: Props) {
     const isCompleted = activityStatus[activity.id] === 'completed';
 
     const getFileIcon = () => {
-        switch (activity.fileType) {
-            case 'pdf': return <FileText className="w-8 h-8 text-accent" />;
-            case 'doc': return <FileIcon className="w-8 h-8 text-primary" />;
-            case 'ppt': return <FileIcon className="w-8 h-8 text-highlight" />;
-            case 'image': return <Image className="w-8 h-8 text-success" />;
-            case 'video': return <FileVideo className="w-8 h-8 text-navy" />;
+        switch (activity.fileType as string) {
+            case 'application/pdf': return <FileText className="w-8 h-8 text-accent" />;
+            case 'application/msword':
+            case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': return <FileIcon className="w-8 h-8 text-primary" />;
+            case 'application/vnd.ms-powerpoint':
+            case 'application/vnd.openxmlformats-officedocument.presentationml.presentation': return <FileIcon className="w-8 h-8 text-highlight" />;
+            case 'image/jpeg':
+            case 'image/png': return <Image className="w-8 h-8 text-success" />;
+            case 'video/mp4':
+            case 'video/webm': return <FileVideo className="w-8 h-8 text-navy" />;
             default: return <FileIcon className="w-8 h-8 text-muted" />;
         }
     };
@@ -29,6 +33,23 @@ export default function FileActivity({ activity }: Props) {
         window.open(activity.fileUrl, '_blank');
     };
 
+    const fileTypeConfig: Record<string, {label: string, color: string, bg: string}> = {
+      'application/pdf':    { label: 'PDF',   color: '#8B1A1A', bg: '#FEF2F2' },
+      'video/mp4':          { label: 'Video', color: '#1B3A6B', bg: '#EFF6FF' },
+      'video/webm':         { label: 'Video', color: '#1B3A6B', bg: '#EFF6FF' },
+      'application/msword': { label: 'Word',  color: '#1B3A6B', bg: '#EFF6FF' },
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+                            { label: 'Word',  color: '#1B3A6B', bg: '#EFF6FF' },
+      'application/vnd.ms-powerpoint':
+                            { label: 'PPT',   color: '#C9A84C', bg: '#FEF9EC' },
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation':
+                            { label: 'PPT',   color: '#C9A84C', bg: '#FEF9EC' },
+      'image/jpeg':         { label: 'Image', color: '#2D5A27', bg: '#F0FDF4' },
+      'image/png':          { label: 'Image', color: '#2D5A27', bg: '#F0FDF4' },
+    };
+
+    const config = fileTypeConfig[activity.fileType || ''] ?? { label: 'FILE', color: '#6B6B6B', bg: '#F5F0E8' };
+
     return (
         <div className="bg-white rounded-xl shadow-sm border border-border p-6 flex flex-col md:flex-row items-center justify-between gap-6" id={`activity-${activity.id}`}>
             <div className="flex items-center gap-5">
@@ -37,8 +58,13 @@ export default function FileActivity({ activity }: Props) {
                 </div>
                 <div>
                     <h3 className="text-xl font-serif font-bold text-navy mb-1">{activity.title}</h3>
-                    <div className="flex items-center gap-3 text-sm font-medium text-muted">
-                        <span className="uppercase tracking-wider">{activity.fileType}</span>
+                    <div className="flex items-center gap-3 text-sm font-medium text-muted mt-2">
+                        <span
+                          className="text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wider"
+                          style={{ color: config.color, backgroundColor: config.bg }}
+                        >
+                          {config.label}
+                        </span>
                         <span>•</span>
                         <span>{activity.fileSize}</span>
                         <span>•</span>

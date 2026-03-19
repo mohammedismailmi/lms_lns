@@ -3,6 +3,7 @@ import { useAuthStore } from '../store/authStore';
 import { Users, BookOpen, Building2, Award, Search, ShieldBan, ChevronDown, Loader2 } from 'lucide-react';
 import { Navigate, Link } from 'react-router-dom';
 import api from '../lib/api';
+import CalendarWidget from '../components/dashboard/CalendarWidget';
 
 interface Stats {
     totalUsers: number;
@@ -99,7 +100,7 @@ export default function AdminDashboard() {
         );
     }
 
-    const filteredUsers = users.filter(u => u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase()));
+    const filteredUsers = users.filter(u => (u.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || (u.email || '').toLowerCase().includes(searchTerm.toLowerCase()));
 
     return (
         <div className="p-8 max-w-[1600px] mx-auto space-y-10 font-sans pb-24">
@@ -116,6 +117,8 @@ export default function AdminDashboard() {
                 <StatCard title="Enrollments" value={stats?.totalEnrollments || 0} icon={<Building2 />} />
                 <StatCard title="Certificates" value={stats?.certificatesIssued || 0} icon={<Award />} />
             </div>
+
+            <CalendarWidget />
 
             {/* Upcoming Sessions */}
             <section className="bg-white rounded-xl shadow-sm border border-border overflow-hidden">

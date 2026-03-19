@@ -3,6 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { courses } from '../../lib/mockData';
 import { useQuizStore } from '../../store/quizStore';
 import { useProgressStore } from '../../store/progressStore';
+import { useAuthStore } from '../../store/authStore';
+import api from '../../lib/api';
+import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import QuizResults from './QuizResults';
 
 import ProctoringOverlay from './ProctoringOverlay';
 import QuizTimer from './QuizTimer';
@@ -27,6 +31,11 @@ export default function QuizShell({ isExam }: Props) {
     const [readOnlyMode, setReadOnlyMode] = useState(false);
     const [computedScore, setComputedScore] = useState<number | null>(null);
 
+    const { user } = useAuthStore();
+    const isInstructor = user?.role === 'admin' || user?.role === 'instructor';
+    const [existingResult, setExistingResult] = useState<any>(null);
+    const [loadingResult, setLoadingResult] = useState(false);
+
     // Find the activity in mockData
     const course = courses.find(c => c.modules.some(m => m.activities.some(a => a.id === id)));
     const activity: any = course?.modules.flatMap(m => m.activities).find(a => a.id === id);
@@ -35,25 +44,88 @@ export default function QuizShell({ isExam }: Props) {
         if (!activity) return;
         resetQuiz();
         setTimer(activity.duration * 60);
-        // Mark first question visited
         if (activity.questions.length > 0) {
             setVisitedSet(new Set([activity.questions[0].id]));
         }
 
-        // Cleanup on unmount
+        if (!isInstructor) {
+            setLoadingResult(true);
+            api.get(`/api/quizzes/${activity.id}/my-result`).then(res => {
+                if (res.data.success && res.data.result) {
+                    setExistingResult(res.data.result);
+                }
+            }).finally(() => setLoadingResult(false));
+        }
+
         return () => resetQuiz();
-    }, [activity?.id]);
+    }, [activity?.id, isInstructor]);
 
     if (!activity || (activity.type !== 'quiz' && activity.type !== 'exam')) {
         return (
             <div className="p-8 font-serif text-2xl text-accent border border-accent bg-white min-h-screen text-center flex flex-col items-center justify-center gap-4">
                 <p>Quiz not found.</p>
-                <button
-                    onClick={() => navigate(-1)}
-                    className="text-sm font-bold text-navy hover:underline"
-                >
-                    Go back
-                </button>
+                <button onClick={() => navigate(-1)} className="text-sm font-bold text-navy hover:underline">Go back</button>
+            </div>
+        );
+    }
+
+    if (isInstructor) {
+        return (
+            <div className="min-h-screen bg-surface flex flex-col pt-8">
+                <div className="px-6 mb-4">
+                    <button onClick={() => navigate(-1)} className="text-sm font-bold text-navy hover:underline">← Back to Course</button>
+                </div>
+                <QuizResults activityId={activity.id} title={activity.title} />
+            </div>
+        );
+    }
+
+    if (loadingResult) {
+        return <div className="min-h-screen bg-surface flex items-center justify-center p-6 text-muted font-bold animate-pulse">Loading assessment...</div>;
+    }
+
+    if (existingResult) {
+        return (
+            <div className="min-h-screen bg-surface flex items-center justify-center p-6">
+                <div className="bg-white max-w-2xl w-full rounded-2xl shadow-xl border border-border p-12 text-center">
+                    <h1 className="text-4xl font-serif font-bold text-navy mb-4">{activity.title}</h1>
+                    
+                    {existingResult.isPublished ? (
+                        <div className="bg-success/5 border border-success/20 p-8 rounded-xl mb-8">
+                            <CheckCircle2 className="w-16 h-16 text-success mx-auto mb-4" />
+                            <h2 className="text-xl font-bold text-navy mb-2">Assessment Graded</h2>
+                            <p className="text-sm text-muted mb-6">Submitted on {new Date(existingResult.submittedAt).toLocaleString()}</p>
+                            
+                            <div className="inline-block bg-white px-8 py-4 rounded-xl shadow-sm border border-border mb-4">
+                                <p className="text-xs uppercase tracking-widest text-muted font-bold mb-1">Final Score</p>
+                                <p className="text-4xl font-serif font-bold text-primary">
+                                    {existingResult.modifiedScore ?? existingResult.score} <span className="text-2xl text-slate-300">/ {existingResult.maxScore}</span>
+                                </p>
+                            </div>
+                            
+                            {existingResult.instructorNote && (
+                                <div className="mt-6 text-left bg-slate-50 p-4 rounded-lg border border-slate-200">
+                                    <p className="text-xs font-bold uppercase text-navy mb-1 tracking-wider">Instructor Note:</p>
+                                    <p className="text-sm text-ink">{existingResult.instructorNote}</p>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="bg-highlight/5 border border-highlight/20 p-8 rounded-xl mb-8">
+                            <AlertCircle className="w-16 h-16 text-highlight-foreground mx-auto mb-4" />
+                            <h2 className="text-xl font-bold text-navy mb-2">Submitted Successfully</h2>
+                            <p className="text-sm text-muted">Your attempt has been recorded and is pending instructor review.</p>
+                            <p className="text-xs text-muted mt-2">Submitted on {new Date(existingResult.submittedAt).toLocaleString()}</p>
+                        </div>
+                    )}
+
+                    <button
+                        onClick={() => navigate(`/course/${course?.id}`)}
+                        className="px-8 py-3 rounded-xl font-bold text-navy bg-slate-100 hover:bg-slate-200 transition-colors"
+                    >
+                        Back to Course
+                    </button>
+                </div>
             </div>
         );
     }

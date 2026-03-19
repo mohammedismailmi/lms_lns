@@ -14,7 +14,12 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
     const [title, setTitle] = useState('');
     const [duration, setDuration] = useState(10);
     const [url, setUrl] = useState('');
+    const [fileName, setFileName] = useState('');
+    const [fileType, setFileType] = useState('');
+    const [fileSize, setFileSize] = useState(0);
     const [dueAt, setDueAt] = useState<string | undefined>();
+    const [uploadingFile, setUploadingFile] = useState(false);
+    const [uploadError, setUploadError] = useState('');
 
     // For quizzes
     const [questions, setQuestions] = useState<any[]>([]);
@@ -28,6 +33,9 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
             setUrl(existing.url || existing.videoUrl || '');
             setQuestions(existing.questions || []);
             setDueAt(existing.dueAt);
+            setFileName(existing.fileName || '');
+            setFileType(existing.fileType || '');
+            setFileSize(existing.fileSize || 0);
         } else {
             setType('video');
             setTitle('');
@@ -35,6 +43,9 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
             setUrl('');
             setQuestions([]);
             setDueAt(undefined);
+            setFileName('');
+            setFileType('');
+            setFileSize(0);
         }
     }, [existingActivity, isOpen]);
 
@@ -82,6 +93,11 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
         }
         if (type === 'submission') {
             newActivity.dueAt = dueAt;
+        }
+        if (type === 'file') {
+            newActivity.fileName = fileName;
+            newActivity.fileType = fileType;
+            newActivity.fileSize = fileSize;
         }
 
         onSave(newActivity);
@@ -141,7 +157,7 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
                             />
                         </div>
 
-                        {(!isAssessment) && (
+                        {(!isAssessment && type !== 'file') && (
                             <div>
                                 <label className="block text-sm font-bold text-navy mb-2 uppercase tracking-wider text-xs">Target URL / Asset Link</label>
                                 <input
@@ -149,6 +165,63 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
                                     onChange={e => setUrl(e.target.value)}
                                     className="w-full border-border border rounded-lg px-4 py-3 outline-none focus:ring-1 focus:ring-primary shadow-sm"
                                     placeholder="https://"
+                                />
+                            </div>
+                        )}
+
+                        {type === 'file' && (
+                            <div className="md:col-span-2 space-y-3 p-4 border border-border rounded-xl bg-slate-50">
+                                <div>
+                                    <label className="block text-xs font-semibold text-navy uppercase tracking-wide mb-2">
+                                        Upload File
+                                    </label>
+                                    <input
+                                        type="file"
+                                        accept=".pdf,.doc,.docx,.ppt,.pptx,.mp4,.webm,.jpg,.jpeg,.png,.gif,.txt,.zip"
+                                        onChange={async (e) => {
+                                            const file = e.target.files?.[0];
+                                            if (!file) return;
+                                            setUploadingFile(true);
+                                            setUploadError('');
+                                            try {
+                                                const fd = new FormData();
+                                                fd.append('file', file);
+                                                const res = await fetch(`${(import.meta as any).env.VITE_API_URL || ''}/api/upload/lesson-file`, {
+                                                    method: 'POST',
+                                                    credentials: 'include',
+                                                    body: fd,
+                                                });
+                                                const data = await res.json();
+                                                if (!res.ok) throw new Error(data.error || 'Upload failed');
+                                                setUrl(data.fileUrl);
+                                                setFileName(data.fileName);
+                                                setFileType(data.fileType);
+                                                setFileSize(data.fileSize);
+                                            } catch (err: any) {
+                                                setUploadError(err.message || 'Upload failed');
+                                            } finally {
+                                                setUploadingFile(false);
+                                            }
+                                        }}
+                                        className="block w-full text-sm text-ink border border-border rounded-md px-3 py-2 cursor-pointer bg-white file:mr-3 file:py-1.5 file:px-4 file:rounded file:border-0 file:text-xs file:font-medium file:bg-primary file:text-white hover:file:bg-navy transition-colors"
+                                    />
+                                    {uploadingFile && <p className="text-xs text-muted mt-2 font-medium">Uploading...</p>}
+                                    {uploadError && <p className="text-xs text-accent mt-2 font-bold">{uploadError}</p>}
+                                    {fileName && !uploadingFile && (
+                                        <p className="text-xs text-success mt-2 font-bold">✓ {fileName}</p>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-4 my-2">
+                                    <div className="flex-1 border-t border-border"></div>
+                                    <span className="text-xs text-muted font-bold uppercase">Or paste URL</span>
+                                    <div className="flex-1 border-t border-border"></div>
+                                </div>
+                                <input
+                                    type="url"
+                                    placeholder="https://example.com/file.pdf"
+                                    value={url ?? ''}
+                                    onChange={e => setUrl(e.target.value)}
+                                    className="w-full border-border border rounded-lg px-4 py-3 outline-none focus:ring-1 focus:ring-primary shadow-sm"
                                 />
                             </div>
                         )}

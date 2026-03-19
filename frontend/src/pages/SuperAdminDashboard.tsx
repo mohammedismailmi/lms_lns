@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import api from '../lib/api';
 import { Building2, Users, BookOpen, Plus, X, Shield, Search, ChevronDown } from 'lucide-react';
+import Navbar from '../components/layout/Navbar';
 
 interface TenantRow {
     id: string;
@@ -42,11 +43,11 @@ export default function SuperAdminDashboard() {
         setLoading(true);
         try {
             const [statsRes, tenantsRes, usersRes] = await Promise.all([
-                api.get('/api/admin/stats'),
-                api.get('/api/admin/tenants'),
-                api.get('/api/admin/users'),
+                api.get('/api/superadmin/stats'),
+                api.get('/api/superadmin/tenants'),
+                api.get('/api/superadmin/users'),
             ]);
-            if (statsRes.data.success) setStats(statsRes.data.stats);
+            if (statsRes.data.success) setStats(statsRes.data);
             if (tenantsRes.data.success) setTenants(tenantsRes.data.tenants);
             if (usersRes.data.success) setAllUsers(usersRes.data.users);
         } catch (err) {
@@ -128,6 +129,7 @@ export default function SuperAdminDashboard() {
 
     return (
         <div className="min-h-screen bg-slate-50">
+            <Navbar />
             {/* Header */}
             <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white px-8 py-8">
                 <div className="max-w-7xl mx-auto">

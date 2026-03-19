@@ -7,16 +7,21 @@ import { sign, verify } from 'hono/jwt';
 import bcrypt from 'bcryptjs';
 import { eq, and, ne, sql, gt, isNull, inArray } from 'drizzle-orm';
 import { getDb } from './db';
-import { users, tenants, enrollments, courses, progress, certificates, submissions, modules, activities, liveSessions } from './db/schema';
+import { users, tenants, enrollments, courses, progress, certificates, submissions, modules, activities, liveSessions, quizAttempts, userEvents } from './db/schema';
 import { Context, Next } from 'hono';
 
 type Bindings = {
 	DB: D1Database;
 	JWT_SECRET: string;
 	GROQ_API_KEY?: string;
+	R2: R2Bucket;
 };
 
-const app = new Hono<{ Bindings: Bindings }>();
+type Variables = {
+	user: any;
+};
+
+const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
 
 app.use('*', cors({
 	origin: 'http://localhost:5173',
@@ -108,16 +113,36 @@ app.post('/api/auth/register', zValidator('json', registerSchema), async (c) => 
 app.post('/api/auth/login', zValidator('json', loginSchema), async (c) => {
 	const body = c.req.valid('json');
 	const db = getDb(c.env);
-	let user: any = null;
 
-	if (body.email === 'superadmin@lms.com' || !body.tenantId) {
-		user = await db.select().from(users).where(and(eq(users.email, body.email), eq(users.role, 'super_admin'))).get();
-		if (!user && !body.tenantId) return c.json({ success: false, message: 'Please select an institution.' }, 400);
+	// ── Super admin bypass — no tenantId required ──────────────────
+	if (!body.tenantId) {
+		const superAdmin = await db.select()
+			.from(users)
+			.where(and(
+				eq(users.email, body.email),
+				eq(users.role, 'super_admin')
+			))
+			.get();
+
+		if (!superAdmin) {
+			return c.json({ success: false, message: 'Tenant is required for non-admin users.' }, 400);
+		}
+
+		const match = await bcrypt.compare(body.password, superAdmin.password_hash);
+		if (!match) return c.json({ success: false, message: 'Invalid credentials.' }, 401);
+
+		const payload = { userId: superAdmin.id, email: superAdmin.email, role: superAdmin.role, tenant_id: 'system', exp: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60 };
+		const token = await sign(payload, c.env.JWT_SECRET);
+		setCookie(c, 'auth_token', token, { path: '/', httpOnly: true, secure: true, sameSite: 'None', maxAge: 7 * 24 * 60 * 60 });
+
+		return c.json({ 
+			success: true, 
+			user: { id: superAdmin.id, name: superAdmin.name, email: superAdmin.email, role: superAdmin.role, tenantId: 'system' } 
+		});
 	}
 
-	if (!user && body.tenantId) {
-		user = await db.select().from(users).where(and(eq(users.email, body.email), eq(users.tenant_id, body.tenantId))).get();
-	}
+	// ── Normal user login continues below ─────────────────────────
+	const user = await db.select().from(users).where(and(eq(users.email, body.email), eq(users.tenant_id, body.tenantId))).get();
 
 	if (!user) return c.json({ success: false, message: 'Invalid credentials' }, 401);
 	const isMatch = await bcrypt.compare(body.password, user.password_hash);
@@ -342,7 +367,7 @@ app.put('/api/admin/users/:userId/role', requireRole('admin'), async (c) => {
 // =============================
 
 app.get('/api/courses/:id', jwtMiddleware, async (c) => {
-	const id = c.req.param('id');
+	const id = c.req.param('id') as string;
 	const db = getDb(c.env);
 	try {
 		const course = await db.select().from(courses).where(eq(courses.id, id)).get();
@@ -356,15 +381,29 @@ app.get('/api/courses/:id', jwtMiddleware, async (c) => {
 			allActivities = await db.select().from(activities).where(inArray(activities.section_id, moduleIds)).orderBy(activities.order_index);
 		}
 
+		// Attach active meetLink for live classes
+		const activeLiveSessions = await db.select().from(liveSessions).where(isNull(liveSessions.ended_at)).all();
+		const finalActivities = allActivities.map(a => {
+			const s = activeLiveSessions.find(ls => ls.activity_id === a.id);
+			return { ...a, meetLink: s?.meet_link };
+		});
+
 		const resultModules = courseModules.map(m => ({
 			...m,
-			activities: allActivities.filter(a => a.section_id === m.id)
+			order: m.order_index,
+			activities: finalActivities.filter(a => a.section_id === m.id).map(a => ({
+				...a,
+				order: a.order_index,
+			}))
 		}));
 
 		return c.json({
 			success: true,
 			course: {
 				...course,
+				name: course.title,
+				faculty: course.faculty_name || 'Unassigned',
+				facultyInitial: (course.faculty_name || '??').split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase(),
 				modules: resultModules
 			}
 		});
@@ -372,6 +411,85 @@ app.get('/api/courses/:id', jwtMiddleware, async (c) => {
 		return c.json({ success: false, message: err.message }, 500);
 	}
 });
+
+app.put('/api/courses/:courseId', jwtMiddleware, requireRole('instructor', 'admin', 'super_admin'), async (c) => {
+	const { courseId } = c.req.param();
+	const user = c.get('user');
+	const body = await c.req.json();
+	const db = getDb(c.env);
+
+	const schema = z.object({
+		title: z.string().min(1).optional(),
+		section: z.string().optional(),
+		category: z.string().optional(),
+		description: z.string().optional(),
+		thumbnailColor: z.string().optional(),
+		instructor_id: z.string().optional(),
+		facultyName: z.string().optional(),
+	});
+
+	const parsed = schema.safeParse(body);
+	if (!parsed.success) {
+		return c.json({ success: false, error: parsed.error.flatten() }, 400);
+	}
+
+	try {
+		const existing = await db.select()
+			.from(courses)
+			.where(and(
+				eq(courses.id, courseId),
+				eq(courses.tenant_id, user.tenant_id)
+			))
+			.get();
+
+		if (!existing) return c.json({ success: false, error: 'Course not found' }, 404);
+
+		if (parsed.data.instructor_id) {
+			const instructor = await db.select()
+				.from(users)
+				.where(and(
+					eq(users.id, parsed.data.instructor_id),
+					eq(users.tenant_id, user.tenant_id),
+					eq(users.role, 'instructor')
+				))
+				.get();
+
+			if (!instructor) {
+				return c.json({ success: false, error: 'Instructor not found in this tenant' }, 404);
+			}
+
+			parsed.data.facultyName = instructor.name;
+		}
+
+		const updateData: Record<string, unknown> = {};
+		if (parsed.data.title !== undefined) updateData.title = parsed.data.title;
+		if (parsed.data.section !== undefined) updateData.section = parsed.data.section;
+		if (parsed.data.category !== undefined) updateData.category = parsed.data.category;
+		if (parsed.data.description !== undefined) updateData.description = parsed.data.description;
+		if (parsed.data.thumbnailColor !== undefined) updateData.thumbnail_color = parsed.data.thumbnailColor;
+		if (parsed.data.instructor_id !== undefined) updateData.instructor_id = parsed.data.instructor_id;
+		if (parsed.data.facultyName !== undefined) updateData.faculty_name = parsed.data.facultyName;
+		updateData.updated_at = Math.floor(Date.now() / 1000);
+
+		await db.update(courses)
+			.set(updateData)
+			.where(and(
+				eq(courses.id, courseId),
+				eq(courses.tenant_id, user.tenant_id)
+			));
+
+		const updated = await db.select()
+			.from(courses)
+			.where(eq(courses.id, courseId))
+			.get();
+
+		return c.json({ success: true, course: updated });
+	} catch (err: any) {
+		console.error('PUT /api/courses/:courseId error:', err);
+		return c.json({ success: false, error: String(err) }, 500);
+	}
+});
+
 
 app.post('/api/courses/:courseId/activities', requireRole('instructor', 'admin'), async (c) => {
 	const { courseId } = c.req.param();
@@ -423,6 +541,41 @@ app.get('/api/admin/instructors', requireRole('admin', 'super_admin'), async (c)
 	}
 });
 
+app.post('/api/upload/lesson-file', jwtMiddleware, requireRole('instructor', 'admin'), async (c) => {
+	const user = c.get('user');
+	const formData = await c.req.formData();
+	const file = formData.get('file') as File;
+
+	if (!file) return c.json({ error: 'No file provided' }, 400);
+	if (file.size > 100 * 1024 * 1024) return c.json({ error: 'Max file size is 100MB' }, 413);
+
+	try {
+		const key = `lessons/${user.tenant_id}/${crypto.randomUUID()}-${file.name}`;
+		await c.env.R2.put(key, file.stream(), {
+			httpMetadata: { contentType: file.type }
+		});
+		return c.json({
+			fileUrl:  `/api/files/${key}`,
+			fileName: file.name,
+			fileType: file.type,
+			fileSize: file.size,
+		});
+	} catch (err) {
+		return c.json({ error: String(err) }, 500);
+	}
+});
+
+app.get('/api/files/*', async (c) => {
+	const path = c.req.path.replace('/api/files/', '');
+	const object = await c.env.R2.get(path);
+	if (!object) return c.json({ error: 'Not found' }, 404);
+	
+	const headers = new Headers();
+	object.writeHttpMetadata(headers);
+	headers.set('etag', object.httpEtag);
+	return new Response(object.body, { headers });
+});
+
 app.post('/api/admin/courses/:courseId/assign-instructor', requireRole('admin', 'super_admin'), async (c) => {
 	const { courseId } = c.req.param();
 	const user = c.get('user');
@@ -448,6 +601,523 @@ app.post('/api/admin/courses/:courseId/assign-instructor', requireRole('admin', 
 	} catch (err: any) {
 		return c.json({ success: false, message: err.message }, 500);
 	}
+});
+
+app.post('/api/activities/:activityId/submit', jwtMiddleware, requireRole('learner'), async (c) => {
+	const activityId = c.req.param('activityId') as string;
+	const user = c.get('user');
+	const formData = await c.req.formData();
+	const file = formData.get('file') as File;
+	if (!file) return c.json({ success: false, error: 'No file' }, 400);
+
+	const db = getDb(c.env);
+	try {
+			const key = `submissions/${user.tenant_id}/${activityId}/${crypto.randomUUID()}-${file.name}`;
+			await c.env.R2.put(key, file.stream(), {
+					httpMetadata: { contentType: file.type }
+			});
+
+			const fileUrl = `/api/files/${key}`;
+			const now = Math.floor(Date.now() / 1000);
+
+			const subId = crypto.randomUUID();
+			await db.insert(submissions).values({
+					id: subId,
+					tenant_id: user.tenant_id,
+					activity_id: activityId,
+					user_id: user.userId,
+					file_url: fileUrl,
+					file_name: file.name,
+					status: 'pending',
+					created_at: now,
+					updated_at: now,
+			} as any);
+
+			const newSub = await db.select().from(submissions).where(eq(submissions.id, subId)).get();
+			return c.json({ success: true, submission: { ...newSub, submittedAt: newSub?.created_at ? newSub.created_at * 1000 : Date.now() } });
+	} catch (err: any) {
+			return c.json({ success: false, error: err.message }, 500);
+	}
+});
+
+app.get('/api/activities/:activityId/submissions', jwtMiddleware, requireRole('instructor', 'admin'), async (c) => {
+	const activityId = c.req.param('activityId') as string;
+	const user = c.get('user');
+	const db = getDb(c.env);
+	try {
+			const subs = await db.select({
+					id: submissions.id,
+					studentName: users.name,
+					fileUrl: submissions.file_url,
+					fileName: submissions.file_name,
+					submittedAt: submissions.created_at,
+					grade: submissions.grade,
+					feedback: submissions.feedback,
+					status: submissions.status,
+			}).from(submissions)
+				.innerJoin(users, eq(submissions.user_id, users.id))
+				.where(and(eq(submissions.activity_id, activityId), eq(submissions.tenant_id, user.tenant_id)));
+
+			return c.json({ 
+					success: true, 
+					submissions: subs.map(s => ({
+							...s,
+							submittedAt: s.submittedAt * 1000,
+							isLate: 0 
+					}))
+			});
+	} catch (err: any) {
+			return c.json({ success: false, error: err.message }, 500);
+	}
+});
+
+app.get('/api/activities/:activityId/my-submission', jwtMiddleware, requireRole('learner'), async (c) => {
+	const activityId = c.req.param('activityId') as string;
+	const user = c.get('user');
+	const db = getDb(c.env);
+	try {
+			const sub = await db.select().from(submissions)
+					.where(and(eq(submissions.activity_id, activityId), eq(submissions.user_id, user.userId))).get();
+			if (!sub) return c.json({ success: false });
+			return c.json({ 
+					success: true, 
+					submission: {
+							...sub,
+							submittedAt: sub.created_at * 1000
+					}
+			});
+	} catch (err: any) {
+			return c.json({ success: false, error: err.message }, 500);
+	}
+});
+
+app.put('/api/submissions/:subId/grade', jwtMiddleware, requireRole('instructor', 'admin'), async (c) => {
+	const subId = c.req.param('subId') as string;
+	const user = c.get('user');
+	const body = await c.req.json();
+	const db = getDb(c.env);
+	try {
+			await db.update(submissions)
+					.set({ 
+							grade: typeof body.grade === 'string' ? parseFloat(body.grade) : body.grade, 
+							feedback: body.feedback,
+							status: 'graded',
+							updated_at: Math.floor(Date.now() / 1000)
+					})
+					.where(and(eq(submissions.id, subId), eq(submissions.tenant_id, user.tenant_id)));
+			return c.json({ success: true });
+	} catch (err: any) {
+			return c.json({ success: false, error: err.message }, 500);
+	}
+});
+
+app.post('/api/live-sessions/create', jwtMiddleware, requireRole('instructor', 'admin'), async (c) => {
+	const user = c.get('user');
+	const body = await c.req.json();
+	const db = getDb(c.env);
+
+	if (!body.activityId) return c.json({ success: false, error: 'Activity ID required' }, 400);
+
+	try {
+			const existing = await db.select().from(liveSessions)
+					.where(and(eq(liveSessions.activity_id, body.activityId), isNull(liveSessions.ended_at)))
+					.get();
+
+			if (existing) return c.json({ success: true, session: existing });
+
+			const sessionId = crypto.randomUUID();
+			const now = Math.floor(Date.now() / 1000);
+			const randomCode = () => Math.random().toString(36).substring(2, 5);
+			const mockLink = `https://meet.google.com/${randomCode()}-${randomCode()}-${randomCode()}`;
+
+			await db.insert(liveSessions).values({
+					id: sessionId,
+					activity_id: body.activityId,
+					meet_link: mockLink,
+					start_time: now,
+					created_at: now,
+					updated_at: now,
+			});
+
+			const session = await db.select().from(liveSessions).where(eq(liveSessions.id, sessionId)).get();
+			return c.json({ success: true, session });
+	} catch (err: any) {
+			return c.json({ success: false, error: err.message }, 500);
+	}
+});
+
+app.post('/api/quizzes/:quizId/submit', jwtMiddleware, requireRole('learner'), async (c) => {
+	const quizId = c.req.param('quizId') as string;
+	const user = c.get('user');
+	const body = await c.req.json();
+	const db = getDb(c.env);
+	
+	const existing = await db.select().from(quizAttempts).where(and(eq(quizAttempts.activity_id, quizId), eq(quizAttempts.user_id, user.userId))).get();
+	if (existing) return c.json({ success: true, attempt: existing });
+
+	const activity = await db.select().from(activities).where(eq(activities.id, quizId)).get();
+	if (!activity) return c.json({ success: false, error: 'Quiz not found' }, 404);
+
+	let maxScore = 0;
+	let score = 0;
+	
+	try {
+			const contentStr = activity.content || '{}';
+			const parsed = JSON.parse(contentStr);
+			const questions = Array.isArray(parsed) ? parsed : (parsed.questions || []);
+			
+			maxScore = questions.length;
+			questions.forEach((q: any) => {
+					const correctStr = q.options[q.correctAnswerIndex];
+					if (body.answers && body.answers[q.id] === correctStr) {
+							score++;
+					}
+			});
+	} catch {}
+
+	const now = Math.floor(Date.now() / 1000);
+	const attemptId = crypto.randomUUID();
+
+	await db.insert(quizAttempts).values({
+			id: attemptId,
+			tenant_id: user.tenant_id,
+			activity_id: quizId,
+			user_id: user.userId,
+			score,
+			max_score: maxScore,
+			answers_json: JSON.stringify(body.answers || {}),
+			is_published: 0,
+			created_at: now,
+			updated_at: now,
+	});
+
+	return c.json({ success: true, score, maxScore });
+});
+
+app.get('/api/quizzes/:quizId/attempts', jwtMiddleware, requireRole('instructor', 'admin'), async (c) => {
+	const quizId = c.req.param('quizId') as string;
+	const user = c.get('user');
+	const db = getDb(c.env);
+
+	try {
+			const attempts = await db.select({
+					id: quizAttempts.id,
+					studentName: users.name,
+					score: quizAttempts.score,
+					maxScore: quizAttempts.max_score,
+					modifiedScore: quizAttempts.modified_score,
+					instructorNote: quizAttempts.instructor_note,
+					isPublished: quizAttempts.is_published,
+					submittedAt: quizAttempts.created_at,
+			}).from(quizAttempts)
+			.innerJoin(users, eq(quizAttempts.user_id, users.id))
+			.where(and(eq(quizAttempts.activity_id, quizId), eq(quizAttempts.tenant_id, user.tenant_id)));
+
+			return c.json({ success: true, attempts });
+	} catch(err: any) {
+			return c.json({ success: false, error: err.message }, 500);
+	}
+});
+
+app.get('/api/quiz-attempts/:attemptId/answers', jwtMiddleware, requireRole('instructor', 'admin'), async (c) => {
+	const attemptId = c.req.param('attemptId') as string;
+	const user = c.get('user');
+	const db = getDb(c.env);
+	
+	const attempt = await db.select().from(quizAttempts).where(and(eq(quizAttempts.id, attemptId), eq(quizAttempts.tenant_id, user.tenant_id))).get();
+	if (!attempt) return c.json({ success: false, error: 'Not found' }, 404);
+
+	return c.json({ success: true, answers: JSON.parse(attempt.answers_json) });
+});
+
+app.put('/api/quiz-attempts/:attemptId/score', jwtMiddleware, requireRole('instructor', 'admin'), async (c) => {
+	const attemptId = c.req.param('attemptId') as string;
+	const user = c.get('user');
+	const body = await c.req.json();
+	const db = getDb(c.env);
+	
+	await db.update(quizAttempts)
+			.set({
+					modified_score: body.modifiedScore,
+					instructor_note: body.instructorNote,
+					updated_at: Math.floor(Date.now() / 1000)
+			})
+			.where(and(eq(quizAttempts.id, attemptId), eq(quizAttempts.tenant_id, user.tenant_id)));
+	
+	return c.json({ success: true });
+});
+
+app.post('/api/quiz-attempts/:attemptId/publish', jwtMiddleware, requireRole('instructor', 'admin'), async (c) => {
+	const attemptId = c.req.param('attemptId') as string;
+	const user = c.get('user');
+	const db = getDb(c.env);
+	
+	await db.update(quizAttempts)
+			.set({ is_published: 1, updated_at: Math.floor(Date.now() / 1000) })
+			.where(and(eq(quizAttempts.id, attemptId), eq(quizAttempts.tenant_id, user.tenant_id)));
+	
+	return c.json({ success: true });
+});
+
+app.post('/api/quizzes/:quizId/publish-all', jwtMiddleware, requireRole('instructor', 'admin'), async (c) => {
+	const quizId = c.req.param('quizId') as string;
+	const user = c.get('user');
+	const db = getDb(c.env);
+	
+	await db.update(quizAttempts)
+			.set({ is_published: 1, updated_at: Math.floor(Date.now() / 1000) })
+			.where(and(eq(quizAttempts.activity_id, quizId), eq(quizAttempts.tenant_id, user.tenant_id)));
+	
+	return c.json({ success: true });
+});
+
+app.get('/api/quizzes/:quizId/my-result', jwtMiddleware, requireRole('learner'), async (c) => {
+	const quizId = c.req.param('quizId') as string;
+	const user = c.get('user');
+	const db = getDb(c.env);
+	
+	const attempt = await db.select().from(quizAttempts)
+			.where(and(eq(quizAttempts.activity_id, quizId), eq(quizAttempts.user_id, user.userId)))
+			.get();
+
+	if (!attempt) return c.json({ success: true, result: null });
+	
+	return c.json({ 
+			success: true, 
+			result: {
+					score: attempt.score,
+					maxScore: attempt.max_score,
+					modifiedScore: attempt.modified_score,
+					instructorNote: attempt.instructor_note,
+					isPublished: attempt.is_published === 1,
+					submittedAt: attempt.created_at * 1000
+			}
+	});
+});
+
+app.get('/api/user-events', jwtMiddleware, async (c) => {
+	const user = c.get('user');
+	const db = getDb(c.env);
+	try {
+			const events = await db.select().from(userEvents)
+					.where(and(eq(userEvents.user_id, user.userId), eq(userEvents.tenant_id, user.tenant_id)))
+					.orderBy(userEvents.date_time);
+			return c.json({ success: true, events });
+	} catch (err: any) {
+			return c.json({ success: false, error: err.message }, 500);
+	}
+});
+
+app.post('/api/user-events', jwtMiddleware, async (c) => {
+	const user = c.get('user');
+	const body = await c.req.json();
+	const db = getDb(c.env);
+	
+	if (!body.title || !body.dateTime) return c.json({ success: false, error: 'Missing title or dateTime' }, 400);
+
+	const eventId = crypto.randomUUID();
+	const now = Math.floor(Date.now() / 1000);
+
+	try {
+			await db.insert(userEvents).values({
+					id: eventId,
+					tenant_id: user.tenant_id,
+					user_id: user.userId,
+					title: body.title,
+					date_time: body.dateTime,
+					created_at: now,
+			});
+			const newEvent = await db.select().from(userEvents).where(eq(userEvents.id, eventId)).get();
+			return c.json({ success: true, event: newEvent });
+	} catch (err: any) {
+			return c.json({ success: false, error: err.message }, 500);
+	}
+});
+
+app.delete('/api/user-events/:eventId', jwtMiddleware, async (c) => {
+	const eventId = c.req.param('eventId') as string;
+	const user = c.get('user');
+	const db = getDb(c.env);
+	
+	try {
+			await db.delete(userEvents)
+					.where(and(eq(userEvents.id, eventId), eq(userEvents.user_id, user.userId), eq(userEvents.tenant_id, user.tenant_id)));
+			return c.json({ success: true });
+	} catch (err: any) {
+			return c.json({ success: false, error: err.message }, 500);
+	}
+});
+
+app.get('/api/profile', jwtMiddleware, async (c) => {
+	const user = c.get('user');
+	const db = getDb(c.env);
+	try {
+			const profile = await db.select().from(users).where(eq(users.id, user.userId)).get();
+			if (!profile) return c.json({ success: false, error: 'User not found' }, 404);
+			
+			const { password_hash, ...safeProfile } = profile;
+			return c.json({ success: true, profile: safeProfile });
+	} catch (err: any) {
+			return c.json({ success: false, error: err.message }, 500);
+	}
+});
+
+app.put('/api/profile', jwtMiddleware, async (c) => {
+	const user = c.get('user');
+	const body = await c.req.json();
+	const db = getDb(c.env);
+	try {
+			await db.update(users)
+					.set({
+							name: body.name,
+							bio: body.bio,
+							phone: body.phone,
+							location: body.location,
+							website: body.website,
+							linkedin: body.linkedin,
+							github: body.github,
+							updated_at: Math.floor(Date.now() / 1000)
+					} as any)
+					.where(eq(users.id, user.userId));
+			return c.json({ success: true });
+	} catch (err: any) {
+			return c.json({ success: false, error: err.message }, 500);
+	}
+});
+
+app.post('/api/profile/avatar', jwtMiddleware, async (c) => {
+	const user = c.get('user');
+	const formData = await c.req.formData();
+	const file = formData.get('file') as File;
+	if (!file) return c.json({ success: false, error: 'No file' }, 400);
+
+	const db = getDb(c.env);
+	try {
+			const key = `avatars/${user.userId}/${crypto.randomUUID()}-${file.name}`;
+			await c.env.R2.put(key, file.stream(), {
+					httpMetadata: { contentType: file.type }
+			});
+
+			const avatarUrl = `/api/files/${key}`;
+			await db.update(users)
+					.set({ avatar_url: avatarUrl, updated_at: Math.floor(Date.now() / 1000) } as any)
+					.where(eq(users.id, user.userId));
+
+			return c.json({ success: true, avatarUrl });
+	} catch (err: any) {
+			return c.json({ success: false, error: err.message }, 500);
+	}
+});
+
+app.post('/api/courses', jwtMiddleware, requireRole('instructor', 'admin', 'super_admin'), async (c) => {
+  const user = c.get('user');
+  const body = await c.req.json();
+  const db = getDb(c.env);
+
+  const schema = z.object({
+    name:        z.string().optional(),
+    title:       z.string().optional(),
+    section:     z.string().optional(),
+    category:    z.string().optional(),
+    description: z.string().optional(),
+		thumbnailColor: z.string().optional(),
+		instructorId: z.string().optional(),
+  });
+
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) {
+    console.error('POST /api/courses validation failed:', parsed.error.flatten());
+    return c.json({ success: false, error: parsed.error.flatten() }, 400);
+  }
+
+  const courseTitle = parsed.data.title || parsed.data.name;
+  if (!courseTitle || courseTitle.trim().length === 0) {
+    return c.json({ success: false, error: 'Course name/title is required' }, 400);
+  }
+
+  try {
+    const id = crypto.randomUUID();
+    await db.insert(courses).values({
+      id,
+      tenant_id:    user.tenant_id,
+      title:        courseTitle,
+      section:     parsed.data.section ?? '',
+      category:    parsed.data.category ?? 'Default',
+			thumbnail_color: parsed.data.thumbnailColor ?? null,
+      description: parsed.data.description ?? null,
+      faculty_name: user.name,
+      instructor_id: parsed.data.instructorId ?? user.userId,
+      created_at:   Math.floor(Date.now() / 1000),
+      updated_at:   Math.floor(Date.now() / 1000),
+      status:       'draft'
+    });
+    return c.json({ success: true, course: { id, name: parsed.data.name } }, 201);
+  } catch (err) {
+    console.error('POST /api/courses insert failed:', err);
+    return c.json({ success: false, error: String(err) }, 500);
+  }
+});
+
+app.get('/api/superadmin/stats', jwtMiddleware, requireRole('super_admin'), async (c) => {
+  const db = getDb(c.env);
+  try {
+    const tenantsList = await db.select().from(tenants).all();
+    const usersList = await db.select().from(users).where(sql`role != 'super_admin'`).all();
+    const coursesList = await db.select().from(courses).all();
+    
+    return c.json({
+      success: true,
+      totalTenants: tenantsList.length,
+      totalUsers:   usersList.length,
+      totalCourses: coursesList.length,
+    });
+  } catch (err) {
+    return c.json({ success: false, error: String(err) }, 500);
+  }
+});
+
+app.get('/api/superadmin/tenants', jwtMiddleware, requireRole('super_admin'), async (c) => {
+  const db = getDb(c.env);
+  try {
+    const tenantList = await db.select({
+      id:      tenants.id,
+      name:    tenants.name,
+      slug:    tenants.slug,
+      logo_url: tenants.logo_url,
+      user_count: sql<number>`(SELECT COUNT(*) FROM users WHERE users.tenant_id = tenants.id AND users.role != 'super_admin')`,
+      course_count: sql<number>`(SELECT COUNT(*) FROM courses WHERE courses.tenant_id = tenants.id)`,
+      admin_email: sql<string>`(SELECT email FROM users WHERE users.tenant_id = tenants.id AND users.role = 'admin' LIMIT 1)`,
+    })
+    .from(tenants)
+    .where(sql`${tenants.id} != 'system'`)
+    .orderBy(tenants.name);
+
+    return c.json({ success: true, tenants: tenantList });
+  } catch (err) {
+    return c.json({ success: false, error: String(err) }, 500);
+  }
+});
+
+app.get('/api/superadmin/users', jwtMiddleware, requireRole('super_admin'), async (c) => {
+  const db = getDb(c.env);
+  try {
+    const userList = await db.select({
+      id:        users.id,
+      name:      users.name,
+      email:     users.email,
+      role:      users.role,
+      tenant_id:  users.tenant_id,
+      tenant_name: sql<string>`(SELECT name FROM tenants WHERE tenants.id = users.tenant_id)`,
+      created_at: users.created_at,
+    })
+    .from(users)
+    .where(sql`${users.role} != 'super_admin'`)
+    .orderBy(users.created_at);
+
+    return c.json({ success: true, users: userList });
+  } catch (err) {
+    return c.json({ success: false, error: String(err) }, 500);
+  }
 });
 
 export default app;

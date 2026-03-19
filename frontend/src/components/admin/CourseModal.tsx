@@ -8,6 +8,8 @@ import { useToast } from '../../lib/useToast';
 import { Course } from '../../lib/mockData';
 import { cn } from '../../lib/utils';
 import { Check } from 'lucide-react';
+import api from '../../lib/api';
+
 
 const schema = z.object({
   name: z.string().min(1, 'Course Name is required'),
@@ -37,11 +39,19 @@ const PALETTE = [
 
 export default function CourseModal({ isOpen, onClose, existingCourse }: Props) {
   const { addCourse, updateCourse } = useCourseStore();
-  const { usersList } = useAuthStore();
   const toast = useToast();
   const [selectedColor, setSelectedColor] = useState(existingCourse?.thumbnailColor || PALETTE[0]);
+  const [instructors, setInstructors] = useState<{id:string, name:string, email:string}[]>([]);
 
-  const instructors = usersList.filter(u => u.role === 'instructor');
+  useEffect(() => {
+    if (isOpen) {
+      api.get('/api/admin/instructors').then(res => {
+        if (res.data.success) {
+          setInstructors(res.data.instructors);
+        }
+      }).catch(err => console.error(err));
+    }
+  }, [isOpen]);
 
   const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm<FormData>({
     resolver: zodResolver(schema),

@@ -1,4 +1,5 @@
 import React from 'react';
+import CalendarWidget from '../components/dashboard/CalendarWidget';
 
 export default function InstructorDashboard() {
     return (
@@ -6,6 +7,7 @@ export default function InstructorDashboard() {
             <h1 className="text-3xl font-bold text-slate-800 mb-8">Instructor Dashboard</h1>
 
             <div className="space-y-8">
+                <CalendarWidget />
                 <section>
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-xl font-bold text-slate-700">My Courses</h2>

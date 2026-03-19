@@ -141,12 +141,13 @@ export const useCourseStore = create<CourseState>((set, get) => ({
                 const courses = res.data.courses.map((c: any) => ({
                     id: c.id,
                     name: c.title,
-                    description: c.description,
-                    section: 'Platform Course',
-                    faculty: c.instructor_name || 'Unassigned',
-                    facultyInitial: (c.instructor_name || '??').split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase(),
+                    description: c.description || '',
+                    section: c.section || 'Platform Course',
+                    faculty: c.faculty_name || c.instructor_name || 'Unassigned',
+                    facultyInitial: (c.faculty_name || c.instructor_name || '??').split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase(),
                     instructorId: c.instructor_id,
                     category: c.category || 'Default',
+                    thumbnailColor: c.thumbnail_color || '#1B3A6B',
                     isCompleted: c.status === 'completed',
                     totalActivities: c.total_activities,
                     modules: []
@@ -160,10 +161,12 @@ export const useCourseStore = create<CourseState>((set, get) => ({
 
     addCourse: async (courseData) => {
         try {
-            const res = await api.post('/api/admin/courses', {
+            const res = await api.post('/api/courses', {
                 title: courseData.name,
                 description: courseData.description,
                 category: courseData.category,
+                section: courseData.section,
+                thumbnailColor: courseData.thumbnailColor,
                 instructorId: courseData.instructorId
             });
             if (res.data.success) {
@@ -179,6 +182,9 @@ export const useCourseStore = create<CourseState>((set, get) => ({
             await api.put(`/api/courses/${updatedCourse.id}`, {
                 title: updatedCourse.name,
                 description: updatedCourse.description,
+                category: updatedCourse.category,
+                section: updatedCourse.section,
+                thumbnailColor: updatedCourse.thumbnailColor,
                 status: updatedCourse.isCompleted ? 'completed' : 'draft',
                 instructor_id: (updatedCourse as any).instructorId
             });
@@ -221,12 +227,13 @@ export const useCourseStore = create<CourseState>((set, get) => ({
                 const normalized: any = {
                     id: c.id,
                     name: c.title,
-                    description: c.description,
-                    section: 'Platform Course',
-                    faculty: c.instructor_name || 'Unassigned',
-                    facultyInitial: (c.instructor_name || '??').split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase(),
+                    description: c.description || '',
+                    section: c.section || 'Platform Course',
+                    faculty: c.faculty_name || c.instructor_name || 'Unassigned',
+                    facultyInitial: (c.faculty_name || c.instructor_name || '??').split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase(),
                     instructorId: c.instructor_id,
                     category: c.category || 'Default',
+                    thumbnailColor: c.thumbnail_color || '#1B3A6B',
                     isCompleted: c.status === 'completed',
                     totalActivities: c.total_activities,
                     modules: (c.modules || []).map((m: any) => ({

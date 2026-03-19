@@ -18,6 +18,7 @@ import AdminUsersPage from './pages/AdminUsersPage';
 import AdminCoursesPage from './pages/AdminCoursesPage';
 import AdminAnalyticsPage from './pages/AdminAnalyticsPage';
 import TenantComingSoonPage from './pages/TenantComingSoonPage';
+import ProfilePage from './pages/ProfilePage';
 
 import CoursePage from './pages/CoursePage';
 import QuizPage from './pages/QuizPage';
@@ -101,8 +102,9 @@ export default function App() {
                             <Route path="/teaching/announcements" element={<div className="p-8 font-serif text-2xl text-center mt-20">Coming Soon</div>} />
                         </Route>
 
-                        <Route element={<ProtectedRoute allowedRoles={['admin', 'instructor', 'learner']} />}>
+                        <Route element={<ProtectedRoute allowedRoles={['admin', 'instructor', 'learner', 'super_admin']} />}>
                             <Route path="/dashboard" element={<Dashboard />} />
+                            <Route path="/profile" element={<ProfilePage />} />
 
                             <Route path="/course/:courseId" element={<CoursePage />} />
                             <Route path="/certificates" element={<CertificatePage />} />

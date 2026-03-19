@@ -20,6 +20,13 @@ export const users = sqliteTable('users', {
     role: text('role', { enum: ['super_admin', 'admin', 'instructor', 'learner'] })
         .notNull()
         .default('learner'),
+    avatar_url: text('avatar_url'),
+    bio: text('bio'),
+    phone: text('phone'),
+    location: text('location'),
+    website: text('website'),
+    linkedin: text('linkedin'),
+    github: text('github'),
     created_at: integer('created_at').notNull(),
     updated_at: integer('updated_at').notNull(),
 });
@@ -37,7 +44,10 @@ export const courses = sqliteTable('courses', {
     id: text('id').primaryKey(),
     tenant_id: text('tenant_id').notNull().references(() => tenants.id),
     title: text('title').notNull(),
+    section: text('section'),
+    category: text('category'),
     description: text('description'),
+    thumbnail_color: text('thumbnail_color'),
     status: text('status').notNull().default('draft'),
     total_activities: integer('total_activities').notNull().default(0),
     instructor_id: text('instructor_id'),
@@ -114,4 +124,28 @@ export const liveSessions = sqliteTable('live_sessions', {
     ended_at: integer('ended_at'),
     created_at: integer('created_at').notNull(),
     updated_at: integer('updated_at').notNull(),
+});
+
+export const quizAttempts = sqliteTable('quiz_attempts', {
+    id: text('id').primaryKey(),
+    tenant_id: text('tenant_id').notNull().references(() => tenants.id),
+    activity_id: text('activity_id').notNull().references(() => activities.id),
+    user_id: text('user_id').notNull().references(() => users.id),
+    score: integer('score').notNull(),
+    max_score: integer('max_score').notNull(),
+    answers_json: text('answers_json').notNull(),
+    is_published: integer('is_published').notNull().default(0),
+    modified_score: integer('modified_score'),
+    instructor_note: text('instructor_note'),
+    created_at: integer('created_at').notNull(),
+    updated_at: integer('updated_at').notNull(),
+});
+
+export const userEvents = sqliteTable('user_events', {
+    id: text('id').primaryKey(),
+    tenant_id: text('tenant_id').notNull().references(() => tenants.id),
+    user_id: text('user_id').notNull().references(() => users.id),
+    title: text('title').notNull(),
+    date_time: integer('date_time').notNull(),
+    created_at: integer('created_at').notNull(),
 });

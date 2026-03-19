@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuthStore } from '../../store/authStore';
-import { Search, Bell, UserCircle, LogOut } from 'lucide-react';
+import { Search, Bell, UserCircle, LogOut, Settings } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function Navbar() {
     const { user, logout } = useAuthStore();
+    const navigate = useNavigate();
     const [search, setSearch] = useState('');
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const closeTimerRef = useRef<ReturnType<typeof setTimeout>>(null);
@@ -79,6 +81,13 @@ export default function Navbar() {
                                 <p className="text-sm font-bold text-ink truncate">{user?.email}</p>
                                 <p className="text-xs text-muted">Tenant: {user?.tenantId}</p>
                             </div>
+                            <button
+                                onClick={() => navigate('/profile')}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-navy hover:bg-slate-50 transition-colors text-left font-medium"
+                            >
+                                <Settings className="w-4 h-4" />
+                                My Profile
+                            </button>
                             <button
                                 onClick={logout}
                                 className="w-full flex items-center gap-2 px-4 py-2 text-sm text-accent hover:bg-slate-50 transition-colors text-left font-medium"

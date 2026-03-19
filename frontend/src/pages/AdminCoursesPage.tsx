@@ -19,9 +19,9 @@ export default function AdminCoursesPage() {
 
     const allCourses = getAllCourses();
     const filteredCourses = allCourses.filter(c => 
-        c.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        c.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.faculty.toLowerCase().includes(searchQuery.toLowerCase())
+        (c.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+        (c.category || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (c.faculty || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     const openCreate = () => {
@@ -103,7 +103,7 @@ export default function AdminCoursesPage() {
                     onClose={() => setIsAssignModalOpen(false)}
                     courseId={assigningCourse.id}
                     courseName={assigningCourse.name}
-                    currentInstructorId={assigningCourse.instructorId}
+                    currentInstructorId={(assigningCourse as any).instructorId}
                 />
             )}
 

@@ -6,6 +6,7 @@ import { useCourseStore } from '../store/courseStore';
 import { useToast } from '../lib/useToast';
 import { Activity } from '../lib/mockData';
 import { cn } from '../lib/utils';
+import api from '../lib/api';
 
 import ModuleSidebar from '../components/course/ModuleSidebar';
 import CourseCompleteButton from '../components/course/CourseCompleteButton';
@@ -27,52 +28,71 @@ export default function CoursePage() {
     const { coursesList, enrolledCourseIds, instructorCompleted, enrollUser, addModule, addActivity, updateActivity, deleteActivity } = useCourseStore();
     const toast = useToast();
 
-    const course = coursesList.find((c: any) => c.id === courseId);
-    
-    // Safety check
-    if (!course || !user) {
-        return <div className="p-8 text-center text-accent font-serif text-2xl">Course not found.</div>;
-    }
-
-    const isInstructor = user.role === 'admin' || user.role === 'instructor';
-    const isEnrolled = isInstructor || (enrolledCourseIds[user.id] && enrolledCourseIds[user.id].includes(course.id));
-
-    // Track course progress live
-    const allActivities = course.modules.flatMap((m: any) => m.activities);
+    const [course, setCourse] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
     const [progress, setProgress] = useState(0);
-
-    useEffect(() => {
-        if (isEnrolled && allActivities.length > 0) {
-            recalculateCourseProgress(course.id, allActivities);
-            const interval = setInterval(() => {
-                setProgress(getCourseProgress(course.id, allActivities));
-            }, 1000);
-            return () => clearInterval(interval);
-        }
-    }, [course, isEnrolled]);
-
-    const certificateReady = instructorCompleted.has(course.id) && progress === 100 && !isInstructor;
-
     const [isAddModuleOpen, setAddModuleOpen] = useState(false);
     const [newModuleTitle, setNewModuleTitle] = useState('');
-
     const [modalState, setModalState] = useState<{isOpen: boolean, moduleId: string | null, activity: Activity | undefined}>({
         isOpen: false,
         moduleId: null,
         activity: undefined
     });
 
+    const fetchCourse = React.useCallback(() => {
+        setLoading(true);
+        api.get(`/api/courses/${courseId}`)
+            .then((res: any) => setCourse(res.data.course))
+            .catch((err: any) => console.error(err))
+            .finally(() => setLoading(false));
+    }, [courseId]);
+
+    useEffect(() => {
+        fetchCourse();
+    }, [fetchCourse]);
+
+    const isInstructor = user?.role === 'admin' || user?.role === 'instructor';
+    const isEnrolled = isInstructor || (user && course && enrolledCourseIds[user.id] && enrolledCourseIds[user.id].includes(course.id));
+
+    // Track course progress live
+    const allActivities = course?.modules?.flatMap((m: any) => m.activities) || [];
+
+    useEffect(() => {
+        if (course && isEnrolled && allActivities.length > 0) {
+            recalculateCourseProgress(course.id, allActivities);
+            const interval = setInterval(() => {
+                setProgress(getCourseProgress(course.id, allActivities));
+            }, 1000);
+            return () => clearInterval(interval);
+        }
+    }, [course?.id, isEnrolled, allActivities.length]);
+
+    // Safety check
+    if (loading) {
+        return <div className="p-8 text-center text-muted font-serif text-2xl">Loading course...</div>;
+    }
+    if (!course || !user) {
+        return <div className="p-8 text-center text-accent font-serif text-2xl">Course not found.</div>;
+    }
+
+    const certificateReady = instructorCompleted.has(course.id) && progress === 100 && !isInstructor;
+
     const handleEnroll = () => {
         enrollUser(user.id, course.id);
         toast.success(`Successfully enrolled in ${course.name}!`);
     };
 
-    const handleAddModule = () => {
+    const handleAddModule = async () => {
         if (!newModuleTitle.trim()) return;
-        addModule(course.id, newModuleTitle);
-        setNewModuleTitle('');
-        setAddModuleOpen(false);
-        toast.success('Module created successfully.');
+        try {
+            await addModule(course.id, newModuleTitle);
+            setNewModuleTitle('');
+            setAddModuleOpen(false);
+            toast.success('Module created successfully.');
+            fetchCourse();
+        } catch (err) {
+            toast.error('Failed to create module');
+        }
     };
 
     const handleSaveActivity = async (activity: Activity) => {
@@ -81,20 +101,15 @@ export default function CoursePage() {
             if (modalState.activity) {
                 await updateActivity(course.id, modalState.moduleId, activity);
                 toast.success('Activity updated!');
+                fetchCourse();
             } else {
                 await addActivity(course.id, modalState.moduleId, activity);
                 toast.success('Activity added successfully!');
-                // Instant UI update callback
-                onActivityCreated(activity);
+                fetchCourse();
             }
         } catch (err) {
             toast.error('Failed to save activity');
         }
-    };
-
-    const onActivityCreated = (activity: Activity) => {
-        console.log('Activity created:', activity.title);
-        // Additional instant logic if needed
     };
 
     if (!isEnrolled) {
@@ -249,9 +264,14 @@ export default function CoursePage() {
                                                     <Edit2 className="w-4 h-4" />
                                                 </button>
                                                 <button 
-                                                    onClick={() => {
-                                                        deleteActivity(course.id, module.id, activity.id);
-                                                        toast.info('Activity deleted');
+                                                    onClick={async () => {
+                                                        try {
+                                                            await deleteActivity(course.id, module.id, activity.id);
+                                                            toast.info('Activity deleted');
+                                                            fetchCourse();
+                                                        } catch (err) {
+                                                            console.error(err);
+                                                        }
                                                     }}
                                                     className="p-1.5 text-accent hover:bg-accent/10 rounded transition-colors" title="Delete Activity"
                                                 >

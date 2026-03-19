@@ -4,6 +4,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useProgressStore } from '../../store/progressStore';
 import { Video, Calendar, Clock, Download, Upload, ExternalLink, FileText } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import api from '../../lib/api';
 
 interface Props {
     activity: LiveType;
@@ -24,11 +25,20 @@ export default function LiveClassActivity({ activity }: Props) {
     const isLive = now >= new Date(scheduledTime.getTime() - 15 * 60000); // Activable 15 mins before
     const isPast = now >= new Date(scheduledTime.getTime() + activity.durationMinutes * 60000);
 
-    const handleStartClass = () => {
-        // Generate mock link if none exists
-        const randomCode = () => Math.random().toString(36).substring(2, 5);
-        const mockLink = `https://meet.google.com/${randomCode()}-${randomCode()}-${randomCode()}`;
-        setMeetLink(mockLink);
+    const [loading, setLoading] = useState(false);
+
+    const handleStartClass = async () => {
+        setLoading(true);
+        try {
+            const res = await api.post('/api/live-sessions/create', { activityId: activity.id });
+            if (res.data.success && res.data.session) {
+                setMeetLink(res.data.session.meet_link);
+            }
+        } catch (err) {
+            console.error('Failed to create live session:', err);
+        } finally {
+            setLoading(false);
+        }
     };
 
     const handleJoinClass = () => {
@@ -87,10 +97,11 @@ export default function LiveClassActivity({ activity }: Props) {
                         {isInstructor ? (
                             <button
                                 onClick={meetLink ? handleJoinClass : handleStartClass}
-                                className="w-full bg-primary hover:bg-navy text-white px-6 py-3 rounded-xl font-bold transition-all shadow-sm flex justify-center items-center gap-2"
+                                disabled={loading}
+                                className="w-full bg-primary hover:bg-navy text-white px-6 py-3 rounded-xl font-bold transition-all shadow-sm flex justify-center items-center gap-2 disabled:opacity-50"
                             >
                                 <ExternalLink className="w-5 h-5" />
-                                {meetLink ? 'Rejoin Call' : 'Start & Generate Link'}
+                                {loading ? 'Generating...' : (meetLink ? 'Rejoin Call' : 'Start & Generate Link')}
                             </button>
                         ) : (
                             <button
