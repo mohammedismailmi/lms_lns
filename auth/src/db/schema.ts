@@ -103,13 +103,22 @@ export const modules = sqliteTable('sections', {
 
 export const activities = sqliteTable('lessons', {
     id: text('id').primaryKey(),
-    section_id: text('section_id').notNull().references(() => modules.id),
+    tenant_id: text('tenant_id').notNull().references(() => tenants.id),
+    section_id: text('section_id').references(() => modules.id),
     course_id: text('course_id').notNull().references(() => courses.id),
     title: text('title').notNull(),
     content: text('content'),
-    order_index: integer('order_index').notNull(),
-    type: text('type', { enum: ['video', 'blog', 'file', 'quiz', 'exam', 'live_class', 'submission'] }).notNull().default('blog'),
+    description: text('description'),
+    file_url: text('file_url'),
+    file_name: text('file_name'),
+    file_type: text('file_type'),
+    file_size: integer('file_size'),
+    video_url: text('video_url'),
     scheduled_at: text('scheduled_at'),
+    meet_link: text('meet_link'),
+    due_at: text('due_at'),
+    order_index: integer('order_index').notNull(),
+    type: text('type', { enum: ['video', 'blog', 'file', 'quiz', 'exam', 'live_class', 'submission', 'announcement'] }).notNull().default('blog'),
     duration_minutes: integer('duration_minutes').default(0),
     created_at: integer('created_at').notNull(),
     updated_at: integer('updated_at').notNull(),
@@ -148,4 +157,23 @@ export const userEvents = sqliteTable('user_events', {
     title: text('title').notNull(),
     date_time: integer('date_time').notNull(),
     created_at: integer('created_at').notNull(),
+});
+
+export const questions = sqliteTable('questions', {
+    id: text('id').primaryKey(),
+    tenant_id: text('tenant_id').notNull().references(() => tenants.id),
+    activity_id: text('activity_id').notNull().references(() => activities.id),
+    text: text('text').notNull(),
+    question_type: text('question_type').notNull().default('mcq'),
+    sample_answer: text('sample_answer'),
+    match_pairs: text('match_pairs'),
+    correct_answer_id: text('correct_answer_id'),
+    order_index: integer('order_index').notNull().default(0),
+});
+
+export const answerOptions = sqliteTable('answer_options', {
+    id: text('id').primaryKey(),
+    tenant_id: text('tenant_id').notNull().references(() => tenants.id),
+    question_id: text('question_id').notNull().references(() => questions.id),
+    text: text('text').notNull(),
 });

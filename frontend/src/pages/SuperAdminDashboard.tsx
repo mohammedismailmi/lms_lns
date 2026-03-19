@@ -33,11 +33,43 @@ export default function SuperAdminDashboard() {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [loading, setLoading] = useState(true);
     const [userFilter, setUserFilter] = useState<string>('all');
+    const [sortConfig, setSortConfig] = useState<{ key: keyof TenantRow, direction: 'asc' | 'desc' } | null>(null);
+
+    // Add Admin state
+    const [isAddAdminOpen, setIsAddAdminOpen] = useState(false);
+    const [selectedTenantId, setSelectedTenantId] = useState('');
+    const [selectedTenantName, setSelectedTenantName] = useState('');
+    const [newAdmin, setNewAdmin] = useState({ name: '', email: '', password: '' });
 
     // Create tenant form
     const [newTenant, setNewTenant] = useState({ name: '', slug: '', logoUrl: '', adminName: '', adminEmail: '', adminPassword: '' });
     const [createError, setCreateError] = useState('');
     const [createSuccess, setCreateSuccess] = useState('');
+    const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+
+    const sortedTenants = React.useMemo(() => {
+        let sortable = [...tenants];
+        if (sortConfig !== null) {
+            sortable.sort((a, b) => {
+                const aValue = a[sortConfig.key];
+                const bValue = b[sortConfig.key];
+                if (aValue === null || aValue === undefined) return sortConfig.direction === 'asc' ? 1 : -1;
+                if (bValue === null || bValue === undefined) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        return sortable;
+    }, [tenants, sortConfig]);
+
+    const requestSort = (key: keyof TenantRow) => {
+        let direction: 'asc' | 'desc' = 'desc';
+        if (sortConfig && sortConfig.key === key && sortConfig.direction === 'desc') {
+            direction = 'asc';
+        }
+        setSortConfig({ key, direction });
+    };
 
     const fetchAll = async () => {
         setLoading(true);
@@ -61,6 +93,32 @@ export default function SuperAdminDashboard() {
 
     const autoSlug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
+    const setLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        
+        setIsUploadingLogo(true);
+        setCreateError('');
+        
+        const fd = new FormData();
+        fd.append('file', file);
+        
+        try {
+            const res = await api.post('/api/upload/tenant-logo', fd, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            if (res.data.success || res.status === 200) {
+                setNewTenant({ ...newTenant, logoUrl: res.data.logoUrl });
+            } else {
+                setCreateError(res.data.message || res.data.error || 'Failed to upload logo');
+            }
+        } catch (err: any) {
+            setCreateError(err.response?.data?.error || err.response?.data?.message || 'Error uploading logo');
+        } finally {
+            setIsUploadingLogo(false);
+        }
+    };
+
     const handleCreateTenant = async (e: React.FormEvent) => {
         e.preventDefault();
         setCreateError('');
@@ -68,7 +126,7 @@ export default function SuperAdminDashboard() {
 
         try {
             // Step 1: Create tenant
-            const tenantRes = await api.post('/api/tenants', {
+            const tenantRes = await api.post('/api/superadmin/tenants', {
                 name: newTenant.name,
                 slug: newTenant.slug,
                 logoUrl: newTenant.logoUrl || undefined,
@@ -101,6 +159,30 @@ export default function SuperAdminDashboard() {
             }, 2000);
         } catch (err: any) {
             setCreateError(err.response?.data?.message || 'Error creating tenant');
+        }
+    };
+
+    const handleAddAdmin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setCreateError('');
+        setCreateSuccess('');
+        try {
+            await api.post('/api/auth/register', {
+                name: newAdmin.name || 'Admin',
+                email: newAdmin.email,
+                password: newAdmin.password,
+                tenantId: selectedTenantId,
+                role: 'admin',
+            });
+            setCreateSuccess(`Admin account ${newAdmin.email} created for ${selectedTenantName}.`);
+            setNewAdmin({ name: '', email: '', password: '' });
+            setTimeout(() => {
+                setIsAddAdminOpen(false);
+                setCreateSuccess('');
+                fetchAll();
+            }, 2000);
+        } catch (err: any) {
+            setCreateError(err.response?.data?.message || 'Error creating admin');
         }
     };
 
@@ -222,16 +304,25 @@ export default function SuperAdminDashboard() {
                     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                         <table className="w-full">
                             <thead>
-                                <tr className="border-b border-slate-100 bg-slate-50">
-                                    <th className="text-left px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Institution</th>
-                                    <th className="text-left px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Slug</th>
-                                    <th className="text-center px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Users</th>
-                                    <th className="text-center px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Courses</th>
+                                <tr className="border-b border-slate-100 bg-slate-50 select-none">
+                                    <th onClick={() => requestSort('name')} className="text-left px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-200 transition">
+                                        Institution {sortConfig?.key === 'name' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
+                                    </th>
+                                    <th onClick={() => requestSort('slug')} className="text-left px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-200 transition">
+                                        Slug {sortConfig?.key === 'slug' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
+                                    </th>
+                                    <th onClick={() => requestSort('user_count')} className="text-center px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-200 transition">
+                                        Users {sortConfig?.key === 'user_count' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
+                                    </th>
+                                    <th onClick={() => requestSort('course_count')} className="text-center px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider cursor-pointer hover:bg-slate-200 transition">
+                                        Courses {sortConfig?.key === 'course_count' ? (sortConfig.direction === 'asc' ? '↑' : '↓') : '↕'}
+                                    </th>
                                     <th className="text-left px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Admin</th>
+                                    <th className="text-center px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-wider">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {tenants.map((t) => (
+                                {sortedTenants.map((t) => (
                                     <tr key={t.id} className="border-b border-slate-50 hover:bg-slate-50 transition">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
@@ -245,6 +336,18 @@ export default function SuperAdminDashboard() {
                                         <td className="px-6 py-4 text-center font-bold text-slate-700">{t.user_count}</td>
                                         <td className="px-6 py-4 text-center font-bold text-slate-700">{t.course_count}</td>
                                         <td className="px-6 py-4 text-sm text-slate-500">{t.admin_email || '—'}</td>
+                                        <td className="px-6 py-4 text-center">
+                                            <button
+                                                onClick={() => {
+                                                    setSelectedTenantId(t.id);
+                                                    setSelectedTenantName(t.name);
+                                                    setIsAddAdminOpen(true);
+                                                }}
+                                                className="text-indigo-600 hover:text-indigo-800 text-sm font-semibold transition bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded"
+                                            >
+                                                Add Admin
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))}
                                 {tenants.length === 0 && (
@@ -333,13 +436,30 @@ export default function SuperAdminDashboard() {
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Logo URL (optional)</label>
-                                <input
-                                    value={newTenant.logoUrl}
-                                    onChange={(e) => setNewTenant({ ...newTenant, logoUrl: e.target.value })}
-                                    placeholder="https://example.com/logo.png"
-                                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-                                />
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Logo Image (optional)</label>
+                                {!newTenant.logoUrl ? (
+                                    <div className="relative border-2 border-dashed border-slate-200 rounded-lg p-4 text-center hover:bg-slate-50 transition cursor-pointer">
+                                        <input 
+                                            type="file" 
+                                            accept="image/*" 
+                                            onChange={setLogoFile} 
+                                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                            disabled={isUploadingLogo}
+                                        />
+                                        <span className="text-sm font-semibold text-slate-500">{isUploadingLogo ? 'Uploading...' : 'Click or Drag to Upload'}</span>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-lg border border-slate-200">
+                                        <img src={newTenant.logoUrl} alt="Logo" className="w-10 h-10 object-cover rounded shadow-sm" />
+                                        <button 
+                                            type="button" 
+                                            onClick={() => setNewTenant({ ...newTenant, logoUrl: '' })} 
+                                            className="text-xs text-red-600 hover:underline font-bold"
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="pt-2 border-t border-slate-100">
@@ -378,6 +498,70 @@ export default function SuperAdminDashboard() {
                                 <button type="submit"
                                     className="flex-1 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold transition shadow-sm">
                                     Create Tenant
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Add Admin Modal */}
+            {isAddAdminOpen && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
+                            <h3 className="text-lg font-bold text-slate-800">Add Admin to {selectedTenantName}</h3>
+                            <button onClick={() => { setIsAddAdminOpen(false); setCreateError(''); setCreateSuccess(''); }} className="p-1 hover:bg-slate-200 rounded transition">
+                                <X className="w-5 h-5 text-slate-500" />
+                            </button>
+                        </div>
+                        <form onSubmit={handleAddAdmin} className="p-6 space-y-4">
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Admin Name *</label>
+                                    <input
+                                        value={newAdmin.name}
+                                        onChange={(e) => setNewAdmin({ ...newAdmin, name: e.target.value })}
+                                        placeholder="Full Name"
+                                        className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Email Address *</label>
+                                    <input
+                                        value={newAdmin.email}
+                                        onChange={(e) => setNewAdmin({ ...newAdmin, email: e.target.value })}
+                                        placeholder="admin@institution.edu"
+                                        className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Password *</label>
+                                    <input
+                                        type="password"
+                                        value={newAdmin.password}
+                                        onChange={(e) => setNewAdmin({ ...newAdmin, password: e.target.value })}
+                                        placeholder="Admin Password"
+                                        className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                                        required
+                                        minLength={6}
+                                    />
+                                </div>
+                            </div>
+
+                            {createError && <p className="text-red-600 text-sm font-bold">{createError}</p>}
+                            {createSuccess && <p className="text-green-600 text-sm font-bold">{createSuccess}</p>}
+
+                            <div className="flex gap-3 pt-4">
+                                <button type="button" onClick={() => setIsAddAdminOpen(false)}
+                                    className="flex-1 px-4 py-2.5 border border-slate-200 rounded-lg font-bold text-slate-600 hover:bg-slate-50 transition">
+                                    Cancel
+                                </button>
+                                <button type="submit"
+                                    className="flex-1 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold transition shadow-sm">
+                                    Add Admin
                                 </button>
                             </div>
                         </form>

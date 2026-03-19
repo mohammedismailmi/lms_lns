@@ -1,40 +1,49 @@
-import React from 'react';
-import { Clock, Users, Video } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Clock, Users, Video, Calendar as CalendarIcon } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import CalendarWidget from '../components/calendar/CalendarWidget';
+import api from '../lib/api';
 
-// Tailwind overrides for react-calendar
 import './Dashboard.css';
 
-const mockEvents = [
-    {
-        id: 'e1',
-        title: 'Weekly Q&A Session: ML Fundamentals',
-        date: 'Today',
-        time: '4:00 PM - 5:00 PM',
-        attendees: 42,
-        type: 'live'
-    },
-    {
-        id: 'e2',
-        title: 'Guest Lecture: Advanced React Patterns',
-        date: 'Tomorrow',
-        time: '2:00 PM - 3:30 PM',
-        attendees: 128,
-        type: 'webinar'
-    },
-    {
-        id: 'e3',
-        title: 'Project Group 4 Kickoff',
-        date: 'Mar 18',
-        time: '11:00 AM - 12:00 PM',
-        attendees: 5,
-        type: 'meeting'
-    }
-];
+interface UpcomingSession {
+    id: string;
+    title: string;
+    date_time?: number;
+    event_date?: string;
+    description?: string;
+    event_type?: string;
+}
 
 export default function Dashboard() {
     const { user } = useAuthStore();
+    const [sessions, setSessions] = useState<UpcomingSession[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        api.get('/api/user-events')
+            .then(res => {
+                if (res.data.success && res.data.events) {
+                    // Show only future events, limit to 5
+                    const now = Math.floor(Date.now() / 1000);
+                    const upcoming = res.data.events
+                        .filter((e: any) => e.date_time > now)
+                        .slice(0, 5);
+                    setSessions(upcoming);
+                }
+            })
+            .catch(() => setSessions([]))
+            .finally(() => setLoading(false));
+    }, []);
+
+    const formatEventDate = (ts: number) => {
+        const d = new Date(ts * 1000);
+        return {
+            month: d.toLocaleDateString([], { month: 'short' }).toUpperCase(),
+            day: d.getDate().toString(),
+            time: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+    };
 
     return (
         <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -52,31 +61,45 @@ export default function Dashboard() {
                                 <Video className="w-5 h-5 text-highlight" />
                                 Upcoming Scheduled Events
                             </h2>
-                            <button className="text-sm font-bold text-primary hover:text-navy transition-colors">View All</button>
                         </div>
 
-                        <div className="space-y-4">
-                            {mockEvents.map((event) => (
-                                <div key={event.id} className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-5 rounded-xl border border-border hover:border-slate-300 hover:shadow-md transition-all bg-surface">
-                                    <div className="flex gap-4 items-start">
-                                        <div className="bg-white border border-border rounded-lg p-3 flex flex-col items-center justify-center min-w-[70px] shadow-sm">
-                                            <span className="text-xs font-bold text-muted uppercase tracking-wider">{event.date.includes('Mar') ? event.date.split(' ')[0] : 'MAR'}</span>
-                                            <span className="text-xl font-bold text-navy">{event.date.includes('Mar') ? event.date.split(' ')[1] : new Date().getDate() + (event.date === 'Tomorrow' ? 1 : 0)}</span>
-                                        </div>
-                                        <div>
-                                            <h3 className="font-bold text-navy text-lg">{event.title}</h3>
-                                            <div className="flex items-center gap-4 text-sm text-muted mt-2 font-medium">
-                                                <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" /> {event.time}</span>
-                                                <span className="flex items-center gap-1.5"><Users className="w-4 h-4" /> {event.attendees}</span>
+                        {loading ? (
+                            <div className="py-8 text-center text-muted font-serif italic animate-pulse">
+                                Loading events...
+                            </div>
+                        ) : sessions.length === 0 ? (
+                            <div className="text-center py-12">
+                                <CalendarIcon className="w-12 h-12 text-slate-200 mx-auto mb-3" />
+                                <p className="font-serif text-lg text-navy">No upcoming sessions scheduled</p>
+                                <p className="text-sm mt-1 text-muted">Sessions you schedule will appear here</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                {sessions.map((event) => {
+                                    const dt = event.date_time ? formatEventDate(event.date_time) : null;
+                                    return (
+                                        <div key={event.id} className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-5 rounded-xl border border-border hover:border-slate-300 hover:shadow-md transition-all bg-surface">
+                                            <div className="flex gap-4 items-start">
+                                                {dt && (
+                                                    <div className="bg-white border border-border rounded-lg p-3 flex flex-col items-center justify-center min-w-[70px] shadow-sm">
+                                                        <span className="text-xs font-bold text-muted uppercase tracking-wider">{dt.month}</span>
+                                                        <span className="text-xl font-bold text-navy">{dt.day}</span>
+                                                    </div>
+                                                )}
+                                                <div>
+                                                    <h3 className="font-bold text-navy text-lg">{event.title}</h3>
+                                                    {dt && (
+                                                        <div className="flex items-center gap-4 text-sm text-muted mt-2 font-medium">
+                                                            <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" /> {dt.time}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                    <button className="w-full md:w-auto px-6 py-2.5 bg-primary/10 text-primary hover:bg-primary hover:text-white font-bold rounded-lg transition-colors">
-                                        Join
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 </div>
 

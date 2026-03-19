@@ -29,7 +29,13 @@
     "vars": {
         "JWT_SECRET": "super-secret-local-jwt-key",
         "GROQ_API_KEY": "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"
-    }
+    },
+    "r2_buckets": [
+        {
+            "binding": "R2",
+            "bucket_name": "lms-files"
+        }
+    ]
     /**
      * Smart Placement
      * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement

@@ -33,6 +33,7 @@ import Unauthorized from './pages/Unauthorized';
 
 import AdminCoursesOverviewPage from './pages/AdminCoursesOverviewPage';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
+import AdminMeetingsPage from './pages/AdminMeetingsPage';
 
 // Smart redirector for root `/` handling role-based routing
 const RoleRootRedirect = () => {
@@ -120,6 +121,7 @@ export default function App() {
                             <Route path="/admin/courses" element={<AdminCoursesPage />} />
                             <Route path="/admin/tenants" element={<TenantComingSoonPage />} />
                             <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
+                            <Route path="/admin/meetings" element={<AdminMeetingsPage />} />
                         </Route>
 
                         {/* Route accessible by admin, effectively disabled for learners via CoursesRouteDirect */}

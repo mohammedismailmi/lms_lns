@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
-import { Users, BookOpen, Building2, Award, Search, ShieldBan, ChevronDown, Loader2 } from 'lucide-react';
+import { Users, BookOpen, GraduationCap, UserCheck, Search, ShieldBan, ChevronDown, Loader2, Plus, X, Video } from 'lucide-react';
 import { Navigate, Link } from 'react-router-dom';
 import api from '../lib/api';
 import CalendarWidget from '../components/dashboard/CalendarWidget';
@@ -8,8 +8,8 @@ import CalendarWidget from '../components/dashboard/CalendarWidget';
 interface Stats {
     totalUsers: number;
     totalCourses: number;
-    totalEnrollments: number;
-    certificatesIssued: number;
+    totalInstructors: number;
+    totalLearners: number;
 }
 
 interface TenantUser {
@@ -47,6 +47,14 @@ export default function AdminDashboard() {
     const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
 
+    // Schedule Meeting state
+    const [showMeetingModal, setShowMeetingModal] = useState(false);
+    const [meetForm, setMeetForm] = useState({ title: '', description: '', scheduledAt: '', durationMin: 60 });
+    const [userSearch, setUserSearch] = useState('');
+    const [meetFilteredUsers, setMeetFilteredUsers] = useState<TenantUser[]>([]);
+    const [invitees, setInvitees] = useState<TenantUser[]>([]);
+    const [meetError, setMeetError] = useState('');
+
     if (user?.role !== 'admin') return <Navigate to="/" replace />;
 
     useEffect(() => {
@@ -61,8 +69,31 @@ export default function AdminDashboard() {
             if (coursesRes.data.success) setCourses(coursesRes.data.courses);
             if (sessionsRes.data.success) setSessions(sessionsRes.data.sessions);
         }).catch(err => setError(err.message || 'Failed to load dashboard'))
-          .finally(() => setLoading(false));
+           .finally(() => setLoading(false));
     }, []);
+
+    const handleScheduleMeeting = async () => {
+        setMeetError('');
+        try {
+            const res = await api.post('/api/admin/meetings', {
+                title: meetForm.title,
+                description: meetForm.description,
+                scheduledAt: new Date(meetForm.scheduledAt).toISOString(),
+                durationMin: meetForm.durationMin,
+                inviteeIds: invitees.map(i => i.id),
+            });
+            if (res.data.success) {
+                alert(`Meeting scheduled! Link: ${res.data.meetLink}`);
+                setShowMeetingModal(false);
+                setMeetForm({ title: '', description: '', scheduledAt: '', durationMin: 60 });
+                setInvitees([]);
+            } else {
+                setMeetError(res.data.error || 'Failed to schedule meeting');
+            }
+        } catch (err: any) {
+            setMeetError(err.response?.data?.error || err.message || 'Error scheduling meeting');
+        }
+    };
 
     if (loading) {
         return (
@@ -114,16 +145,28 @@ export default function AdminDashboard() {
                 <Link to="/admin/courses" className="block hover:scale-[1.02] transition-transform">
                     <StatCard title="Total Courses" value={stats?.totalCourses || 0} icon={<BookOpen />} />
                 </Link>
-                <StatCard title="Enrollments" value={stats?.totalEnrollments || 0} icon={<Building2 />} />
-                <StatCard title="Certificates" value={stats?.certificatesIssued || 0} icon={<Award />} />
+                <StatCard title="Instructors" value={stats?.totalInstructors || 0} icon={<UserCheck />} />
+                <StatCard title="Learners" value={stats?.totalLearners || 0} icon={<GraduationCap />} />
             </div>
 
             <CalendarWidget />
 
             {/* Upcoming Sessions */}
             <section className="bg-white rounded-xl shadow-sm border border-border overflow-hidden">
-                <div className="p-6 border-b border-border">
-                    <h2 className="text-2xl font-serif font-bold text-navy">Upcoming Live Sessions</h2>
+                <div className="p-6 border-b border-border flex items-center justify-between">
+                    <h2 className="text-2xl font-serif font-bold text-navy flex items-center gap-2">
+                        <Video className="w-5 h-5 text-highlight" />
+                        Upcoming Live Sessions
+                    </h2>
+                    <div className="flex items-center gap-3">
+                        <Link to="/admin/meetings" className="text-xs text-primary underline font-bold">View All</Link>
+                        <button
+                            onClick={() => setShowMeetingModal(true)}
+                            className="flex items-center gap-2 bg-primary/10 text-primary hover:bg-primary hover:text-white font-bold px-4 py-2 rounded-lg text-sm transition-colors"
+                        >
+                            <Plus className="w-4 h-4" /> Schedule Meeting
+                        </button>
+                    </div>
                 </div>
                 <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {sessions.length === 0 ? (
@@ -222,6 +265,90 @@ export default function AdminDashboard() {
                     </table>
                 </div>
             </section>
+
+            {/* Schedule Meeting Modal */}
+            {showMeetingModal && (
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-surface">
+                            <h3 className="text-lg font-serif font-bold text-navy">Schedule a Meeting</h3>
+                            <button onClick={() => setShowMeetingModal(false)} className="p-1 hover:bg-slate-200 rounded transition">
+                                <X className="w-5 h-5 text-muted" />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Meeting Title *</label>
+                                <input type="text" placeholder="e.g. Weekly Sync" value={meetForm.title}
+                                    onChange={e => setMeetForm(p => ({ ...p, title: e.target.value }))}
+                                    className="w-full border border-border rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Description</label>
+                                <textarea placeholder="Optional description" value={meetForm.description}
+                                    onChange={e => setMeetForm(p => ({ ...p, description: e.target.value }))}
+                                    className="w-full border border-border rounded-lg px-4 py-2.5 text-sm h-20 resize-none focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Date & Time *</label>
+                                <input type="datetime-local" value={meetForm.scheduledAt}
+                                    onChange={e => setMeetForm(p => ({ ...p, scheduledAt: e.target.value }))}
+                                    className="w-full border border-border rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Duration (minutes)</label>
+                                <input type="number" value={meetForm.durationMin}
+                                    onChange={e => setMeetForm(p => ({ ...p, durationMin: Number(e.target.value) }))}
+                                    className="w-full border border-border rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Invite Participants</label>
+                                <input type="text" placeholder="Search users by name or email..." value={userSearch}
+                                    onChange={e => {
+                                        setUserSearch(e.target.value);
+                                        setMeetFilteredUsers(users.filter(u =>
+                                            u.name.toLowerCase().includes(e.target.value.toLowerCase()) ||
+                                            u.email.toLowerCase().includes(e.target.value.toLowerCase())
+                                        ));
+                                    }}
+                                    className="w-full border border-border rounded-lg px-4 py-2.5 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-primary/20" />
+                                {userSearch && meetFilteredUsers.length > 0 && (
+                                    <div className="max-h-32 overflow-y-auto border border-border rounded-lg">
+                                        {meetFilteredUsers.map(u => (
+                                            <div key={u.id}
+                                                onClick={() => setInvitees(prev => prev.find(i => i.id === u.id) ? prev.filter(i => i.id !== u.id) : [...prev, u])}
+                                                className={`flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-surface text-sm ${invitees.find(i => i.id === u.id) ? 'bg-surface' : ''}`}>
+                                                <span>{u.name} <span className="text-muted">({u.email})</span></span>
+                                                {invitees.find(i => i.id === u.id) && <span className="text-green-600 text-xs font-bold">✓</span>}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                {invitees.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-2">
+                                        {invitees.map(i => (
+                                            <span key={i.id} className="text-xs bg-primary text-white px-2 py-0.5 rounded-full cursor-pointer"
+                                                onClick={() => setInvitees(prev => prev.filter(p => p.id !== i.id))}>
+                                                {i.name} ×
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            {meetError && <p className="text-red-600 text-sm font-bold">{meetError}</p>}
+                            <div className="flex gap-3 pt-2">
+                                <button type="button" onClick={() => setShowMeetingModal(false)}
+                                    className="flex-1 px-4 py-2.5 border border-border rounded-lg font-bold text-muted hover:bg-surface transition">Cancel</button>
+                                <button onClick={handleScheduleMeeting}
+                                    disabled={!meetForm.title || !meetForm.scheduledAt}
+                                    className="flex-1 px-4 py-2.5 bg-primary hover:bg-navy text-white rounded-lg font-bold transition shadow-sm disabled:opacity-50">
+                                    Schedule & Get Link
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -17,6 +17,7 @@ import LiveClassActivity from '../components/course/LiveClassActivity';
 import AssessmentActivity from '../components/course/AssessmentActivity';
 import SubmissionActivity from '../components/course/SubmissionActivity';
 import ActivityModal from '../components/course/ActivityModal';
+import StudentProgressView from '../components/course/StudentProgressView';
 
 import { Users, Plus, LayoutList, Award, BookOpen, Clock, Lock, Edit2, Trash2, CheckCircle } from 'lucide-react';
 
@@ -32,12 +33,16 @@ export default function CoursePage() {
     const [loading, setLoading] = useState(true);
     const [progress, setProgress] = useState(0);
     const [isAddModuleOpen, setAddModuleOpen] = useState(false);
+    const [showAnnouncementForm, setShowAnnouncementForm] = useState(false);
+    const [announcementText, setAnnouncementText] = useState('');
+    const [postingAnnouncement, setPostingAnnouncement] = useState(false);
     const [newModuleTitle, setNewModuleTitle] = useState('');
     const [modalState, setModalState] = useState<{isOpen: boolean, moduleId: string | null, activity: Activity | undefined}>({
         isOpen: false,
         moduleId: null,
         activity: undefined
     });
+    const [activeTab, setActiveTab] = useState<'content' | 'progress'>('content');
 
     const fetchCourse = React.useCallback(() => {
         setLoading(true);
@@ -46,6 +51,22 @@ export default function CoursePage() {
             .catch((err: any) => console.error(err))
             .finally(() => setLoading(false));
     }, [courseId]);
+
+    const handlePostAnnouncement = async () => {
+        if (!announcementText.trim()) return;
+        try {
+            setPostingAnnouncement(true);
+            await api.post(`/api/courses/${courseId}/announcements`, { content: announcementText });
+            setAnnouncementText('');
+            setShowAnnouncementForm(false);
+            toast.success('Announcement posted!');
+            fetchCourse();
+        } catch (err: any) {
+            toast.error(err?.response?.data?.message || err.message || 'Failed to post announcement');
+        } finally {
+            setPostingAnnouncement(false);
+        }
+    };
 
     useEffect(() => {
         fetchCourse();
@@ -201,9 +222,27 @@ export default function CoursePage() {
 
                         {isInstructor && (
                             <div className="flex flex-col gap-3 min-w-[240px]">
-                                <button className="flex items-center justify-center gap-2 w-full bg-primary hover:bg-blue-800 text-white font-bold py-2.5 rounded-xl transition-colors border border-primary">
+                                <button
+                                    onClick={() => setShowAnnouncementForm(!showAnnouncementForm)}
+                                    className="flex items-center justify-center gap-2 w-full bg-primary hover:bg-blue-800 text-white font-bold py-2.5 rounded-xl transition-colors border border-primary">
                                     <Plus className="w-5 h-5" /> Post Announcement
                                 </button>
+                                {showAnnouncementForm && (
+                                    <div className="bg-white p-4 rounded-xl border border-border shadow-sm">
+                                        <textarea
+                                            value={announcementText}
+                                            onChange={e => setAnnouncementText(e.target.value)}
+                                            placeholder="Write your announcement..."
+                                            className="w-full border border-border rounded-lg p-3 text-sm resize-none h-24 mb-3 focus:outline-none focus:border-primary"
+                                        />
+                                        <div className="flex justify-end gap-2">
+                                            <button onClick={() => setShowAnnouncementForm(false)} className="px-3 py-1.5 text-sm text-slate-600 font-bold hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
+                                            <button onClick={handlePostAnnouncement} disabled={postingAnnouncement} className="px-4 py-1.5 text-sm bg-primary text-white font-bold rounded-lg transition-colors disabled:opacity-50">
+                                                {postingAnnouncement ? 'Posting...' : 'Post'}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
                                 <div className="flex gap-2 w-full">
                                     <button 
                                         onClick={() => setAddModuleOpen(true)}
@@ -219,7 +258,47 @@ export default function CoursePage() {
                 </div>
 
                 <div className="px-10 py-12 max-w-4xl mx-auto space-y-12 pb-32">
-                    
+
+                    {/* Tab bar for instructor/admin */}
+                    {isInstructor && (
+                        <div className="flex gap-2 border-b border-border mb-6">
+                            <button
+                                onClick={() => setActiveTab('content')}
+                                className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${activeTab === 'content' ? 'border-primary text-primary' : 'border-transparent text-muted hover:text-navy'}`}
+                            >
+                                Course Content
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('progress')}
+                                className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${activeTab === 'progress' ? 'border-primary text-primary' : 'border-transparent text-muted hover:text-navy'}`}
+                            >
+                                Student Progress
+                            </button>
+                        </div>
+                    )}
+
+                    {activeTab === 'progress' && isInstructor ? (
+                        <StudentProgressView courseId={course.id} />
+                    ) : (
+                    <>
+
+                    {/* Announcements Section */}
+                    {course.announcements && course.announcements.length > 0 && (
+                        <div className="mb-10 space-y-4">
+                            <h3 className="text-xl font-serif font-bold text-navy flex items-center gap-2">
+                                <Award className="w-5 h-5 text-primary" /> Announcements
+                            </h3>
+                            {course.announcements.map((ann: any) => (
+                                <div key={ann.id} className="bg-blue-50/50 border border-blue-100 p-5 rounded-xl">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <h4 className="font-bold text-navy">{ann.title}</h4>
+                                        <span className="text-xs text-muted">{new Date(ann.createdAt).toLocaleDateString()}</span>
+                                    </div>
+                                    <p className="text-sm text-slate-700 whitespace-pre-wrap">{ann.content}</p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                     {course.modules.length === 0 && (
                         <div className="py-20 text-center border-2 border-dashed border-border rounded-2xl bg-surface">
                             <p className="font-serif text-xl text-navy">Curriculum is empty.</p>
@@ -337,6 +416,7 @@ export default function CoursePage() {
                             )}
                         </div>
                     )}
+                    </> )}
                 </div>
             </div>
 

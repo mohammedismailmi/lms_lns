@@ -272,10 +272,9 @@ export const useCourseStore = create<CourseState>((set, get) => ({
 
     addActivity: async (courseId, moduleId, activity) => {
         try {
+            const payload = { ...activity, moduleId };
             const res = await api.post(`/api/courses/${courseId}/activities`, {
-                moduleId,
-                title: activity.title,
-                type: activity.type,
+                ...payload,
                 content: (activity as any).url || (activity as any).content || '',
                 orderIndex: 0 // Placeholder
             });

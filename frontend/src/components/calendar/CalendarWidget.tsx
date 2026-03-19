@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, MapPin, FileText, Video } from 'lucide-react';
+import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, FileText, Video } from 'lucide-react';
 import api from '../../lib/api';
 
 export default function CalendarWidget() {
@@ -9,8 +9,18 @@ export default function CalendarWidget() {
 
     useEffect(() => {
         setLoading(true);
-        api.get('/api/calendar/events')
-            .then(res => setEvents(res.data.events || []))
+        api.get('/api/user-events')
+            .then(res => {
+                if (res.data.success && res.data.events) {
+                    // Map user_events (date_time as unix ts) to calendar-friendly format
+                    setEvents(res.data.events.map((e: any) => ({
+                        ...e,
+                        date: new Date(e.date_time * 1000).toISOString(),
+                    })));
+                } else {
+                    setEvents([]);
+                }
+            })
             .catch(err => console.error('Failed to fetch events:', err))
             .finally(() => setLoading(false));
     }, []);
@@ -58,8 +68,8 @@ export default function CalendarWidget() {
 
             <div className="p-6">
                 <div className="grid grid-cols-7 gap-1 mb-2">
-                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => (
-                        <div key={d} className="text-center text-[10px] font-bold text-muted uppercase tracking-widest py-1">{d}</div>
+                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => (
+                        <div key={`${d}-${i}`} className="text-center text-[10px] font-bold text-muted uppercase tracking-widest py-1">{d}</div>
                     ))}
                 </div>
                 
@@ -74,13 +84,10 @@ export default function CalendarWidget() {
                             <div key={day} className={`aspect-square relative flex items-center justify-center text-sm rounded-xl transition-all ${isToday(day) ? 'bg-primary text-white font-bold ring-4 ring-primary/20' : 'hover:bg-slate-50 text-navy'}`}>
                                 {day}
                                 <div className="absolute bottom-1.5 left-0 right-0 flex justify-center gap-0.5">
-                                    {dayEvents.map((e, idx) => (
+                                    {dayEvents.map((_, idx) => (
                                         <div 
                                             key={idx} 
-                                            className={`w-1 h-1 rounded-full ${
-                                                e.eventKind === 'deadline' ? 'bg-accent' : 
-                                                e.type === 'quiz' || e.type === 'exam' ? 'bg-yellow-400' : 'bg-blue-400'
-                                            }`} 
+                                            className="w-1.5 h-1.5 rounded-full bg-purple-500" 
                                         />
                                     ))}
                                 </div>
@@ -91,7 +98,7 @@ export default function CalendarWidget() {
             </div>
 
             <div className="mt-auto border-t border-border bg-slate-50 p-6">
-                <h4 className="text-[10px] font-bold text-muted uppercase tracking-widest mb-4">Upcoming Deadlines</h4>
+                <h4 className="text-[10px] font-bold text-muted uppercase tracking-widest mb-4">Upcoming Events</h4>
                 <div className="space-y-4">
                     {loading ? (
                         <div className="space-y-3">
@@ -103,13 +110,12 @@ export default function CalendarWidget() {
                         upcomingEvents.map(event => (
                             <div key={event.id} className="bg-white p-3 rounded-xl border border-border shadow-sm hover:border-primary/30 transition-colors cursor-pointer group">
                                 <div className="flex items-start gap-3">
-                                    <div className={`p-2 rounded-lg shrink-0 ${event.eventKind === 'deadline' ? 'bg-accent/10 text-accent' : 'bg-primary/10 text-primary'}`}>
-                                        {event.eventKind === 'deadline' ? <FileText className="w-4 h-4" /> : <Video className="w-4 h-4" />}
+                                    <div className="p-2 rounded-lg shrink-0 bg-primary/10 text-primary">
+                                        <CalendarIcon className="w-4 h-4" />
                                     </div>
                                     <div className="min-w-0 flex-1">
                                         <p className="text-xs font-bold text-navy truncate group-hover:text-primary transition-colors">{event.title}</p>
-                                        <p className="text-[10px] text-muted truncate mb-1">{event.courseName}</p>
-                                        <div className="flex items-center gap-2 text-[10px] font-bold text-muted">
+                                        <div className="flex items-center gap-2 text-[10px] font-bold text-muted mt-1">
                                             <Clock className="w-3 h-3" />
                                             {new Date(event.date).toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                         </div>

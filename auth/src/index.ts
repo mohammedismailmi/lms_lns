@@ -5,9 +5,9 @@ import { cors } from 'hono/cors';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import { sign, verify } from 'hono/jwt';
 import bcrypt from 'bcryptjs';
-import { eq, and, ne, sql, gt, isNull, inArray } from 'drizzle-orm';
+import { eq, and, ne, sql, gt, isNull, inArray, desc } from 'drizzle-orm';
 import { getDb } from './db';
-import { users, tenants, enrollments, courses, progress, certificates, submissions, modules, activities, liveSessions, quizAttempts, userEvents } from './db/schema';
+import { users, tenants, enrollments, courses, progress, certificates, submissions, modules, activities, liveSessions, quizAttempts, userEvents, questions, answerOptions } from './db/schema';
 import { Context, Next } from 'hono';
 
 type Bindings = {
@@ -178,19 +178,42 @@ app.get('/api/courses', async (c) => {
 	if (!payload) return c.json({ success: false, message: 'Not authenticated' }, 401);
 	const db = getDb(c.env);
 	const tid = payload.tenant_id as string;
-	
+
 	try {
+		const selection = {
+			id: courses.id,
+			title: courses.title,
+			section: courses.section,
+			category: courses.category,
+			tenant_id: courses.tenant_id,
+			thumbnail_color: courses.thumbnail_color,
+			status: courses.status,
+			total_activities: courses.total_activities,
+			instructor_id: courses.instructor_id,
+			faculty_name: sql<string>`COALESCE((SELECT name FROM users WHERE id = ${courses.instructor_id}), ${courses.faculty_name}, 'Unassigned')`,
+			created_at: courses.created_at,
+			updated_at: courses.updated_at,
+		};
+
 		let result;
 		if (payload.role === 'instructor') {
-			result = await db.select().from(courses)
+			result = await db.select(selection).from(courses)
 				.where(and(eq(courses.tenant_id, tid), eq(courses.instructor_id, payload.userId as string)))
 				.all();
 		} else {
-			result = await db.select().from(courses)
+			result = await db.select(selection).from(courses)
 				.where(eq(courses.tenant_id, tid))
 				.all();
 		}
-		return c.json({ success: true, courses: result });
+
+		// Ensure output matches the frontend model expectations (e.g. course.name -> course.title mapped if necessary inside frontend)
+		const mappedResult = result.map(c => ({
+			...c,
+			name: c.title,
+			isInstructorCompleted: c.status !== 'draft',
+		}));
+
+		return c.json({ success: true, courses: mappedResult });
 	} catch (err: any) {
 		return c.json({ success: false, message: err.message }, 500);
 	}
@@ -269,19 +292,19 @@ app.get('/api/admin/stats', requireRole('admin', 'super_admin'), async (c) => {
 	const db = getDb(c.env);
 	const tid = user.tenant_id;
 	try {
-		const [uc, cc, ec, cert] = await Promise.all([
+		const [uc, cc, ic, lc] = await Promise.all([
 			db.select({ count: sql<number>`COUNT(*)` }).from(users).where(eq(users.tenant_id, tid)).get(),
 			db.select({ count: sql<number>`COUNT(*)` }).from(courses).where(eq(courses.tenant_id, tid)).get(),
-			db.select({ count: sql<number>`COUNT(*)` }).from(enrollments).where(eq(enrollments.tenant_id, tid)).get(),
-			db.select({ count: sql<number>`COUNT(*)` }).from(certificates).where(eq(certificates.tenant_id, tid)).get(),
+			db.select({ count: sql<number>`COUNT(*)` }).from(users).where(and(eq(users.tenant_id, tid), eq(users.role, 'instructor'))).get(),
+			db.select({ count: sql<number>`COUNT(*)` }).from(users).where(and(eq(users.tenant_id, tid), eq(users.role, 'learner'))).get(),
 		]);
 		return c.json({
 			success: true,
 			stats: {
 				totalUsers: uc?.count || 0,
 				totalCourses: cc?.count || 0,
-				totalEnrollments: ec?.count || 0,
-				certificatesIssued: cert?.count || 0,
+				totalInstructors: ic?.count || 0,
+				totalLearners: lc?.count || 0,
 			}
 		});
 	} catch (err: any) {
@@ -340,6 +363,44 @@ app.get('/api/admin/upcoming-sessions', requireRole('admin', 'instructor'), asyn
 	}
 });
 
+app.post('/api/admin/meetings', jwtMiddleware, requireRole('admin', 'instructor'), async (c) => {
+	const user = c.get('user');
+	const body = await c.req.json();
+	const db = getDb(c.env);
+
+	if (!body.title || !body.scheduledAt) {
+		return c.json({ success: false, error: 'Title and scheduledAt are required' }, 400);
+	}
+
+	try {
+		const a = Math.random().toString(36).substring(2, 5);
+		const b = Math.random().toString(36).substring(2, 6);
+		const cc = Math.random().toString(36).substring(2, 5);
+		const meetLink = `https://meet.google.com/${a}-${b}-${cc}`;
+
+		const inviteeIds: string[] = body.inviteeIds || [];
+		const allParticipants = [user.userId, ...inviteeIds];
+		const now = Math.floor(Date.now() / 1000);
+		const scheduledTs = Math.floor(new Date(body.scheduledAt).getTime() / 1000);
+
+		for (const participantId of allParticipants) {
+			await db.insert(userEvents).values({
+				id: crypto.randomUUID(),
+				tenant_id: user.tenant_id,
+				user_id: participantId,
+				title: body.title,
+				date_time: scheduledTs,
+				created_at: now,
+			});
+		}
+
+		return c.json({ success: true, meetLink, scheduledAt: body.scheduledAt }, 201);
+	} catch (err) {
+		console.error('create meeting error:', err);
+		return c.json({ success: false, error: String(err) }, 500);
+	}
+});
+
 app.put('/api/admin/users/:userId/role', requireRole('admin'), async (c) => {
 	const { userId } = c.req.param();
 	const user = c.get('user');
@@ -366,35 +427,53 @@ app.put('/api/admin/users/:userId/role', requireRole('admin'), async (c) => {
 // COURSE MANAGEMENT ENDPOINTS
 // =============================
 
-app.get('/api/courses/:id', jwtMiddleware, async (c) => {
-	const id = c.req.param('id') as string;
+app.get('/api/courses/:courseId', jwtMiddleware, async (c) => {
+	const courseId = c.req.param('courseId') as string;
+	const user = c.get('user');
 	const db = getDb(c.env);
-	try {
-		const course = await db.select().from(courses).where(eq(courses.id, id)).get();
-		if (!course) return c.json({ success: false, message: 'Course not found' }, 404);
 
-		const courseModules = await db.select().from(modules).where(eq(modules.course_id, id)).orderBy(modules.order_index);
-		const moduleIds = courseModules.map(m => m.id);
-		
-		let allActivities: any[] = [];
-		if (moduleIds.length > 0) {
-			allActivities = await db.select().from(activities).where(inArray(activities.section_id, moduleIds)).orderBy(activities.order_index);
+	try {
+		const course = await db.select()
+			.from(courses)
+			.where(and(
+				eq(courses.id, courseId),
+				eq(courses.tenant_id, user.tenant_id)
+			))
+			.get();
+
+		if (!course) {
+			console.error(`Course ${courseId} not found for tenant ${user.tenant_id}`);
+			return c.json({ success: false, error: 'Course not found' }, 404);
 		}
 
-		// Attach active meetLink for live classes
+		// fetch modules (sections table)
+		const moduleList = await db.select()
+			.from(modules)
+			.where(eq(modules.course_id, courseId))
+			.orderBy(modules.order_index);
+
+		// fetch activities (lessons table)
+		const activityList = await db.select()
+			.from(activities)
+			.where(eq(activities.course_id, courseId))
+			.orderBy(activities.order_index);
+
+		// fetch live sessions to attach meetLink
 		const activeLiveSessions = await db.select().from(liveSessions).where(isNull(liveSessions.ended_at)).all();
-		const finalActivities = allActivities.map(a => {
+
+		const activitiesWithMeetLink = activityList.map(a => {
 			const s = activeLiveSessions.find(ls => ls.activity_id === a.id);
-			return { ...a, meetLink: s?.meet_link };
+			return { ...a, meetLink: s?.meet_link || a.meet_link };
 		});
 
-		const resultModules = courseModules.map(m => ({
-			...m,
-			order: m.order_index,
-			activities: finalActivities.filter(a => a.section_id === m.id).map(a => ({
-				...a,
-				order: a.order_index,
-			}))
+		console.log(`Course ${courseId}: ${moduleList.length} modules, ${activityList.length} activities`);
+
+		const modulesWithActivities = moduleList.map(mod => ({
+			...mod,
+			order: mod.order_index,
+			activities: activitiesWithMeetLink
+				.filter(a => a.section_id === mod.id)
+				.map(a => ({ ...a, order: a.order_index }))
 		}));
 
 		return c.json({
@@ -404,11 +483,12 @@ app.get('/api/courses/:id', jwtMiddleware, async (c) => {
 				name: course.title,
 				faculty: course.faculty_name || 'Unassigned',
 				facultyInitial: (course.faculty_name || '??').split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase(),
-				modules: resultModules
+				modules: modulesWithActivities,
 			}
 		});
 	} catch (err: any) {
-		return c.json({ success: false, message: err.message }, 500);
+		console.error('GET /api/courses/:courseId error:', String(err));
+		return c.json({ success: false, error: String(err) }, 500);
 	}
 });
 
@@ -491,34 +571,181 @@ app.put('/api/courses/:courseId', jwtMiddleware, requireRole('instructor', 'admi
 });
 
 
-app.post('/api/courses/:courseId/activities', requireRole('instructor', 'admin'), async (c) => {
+app.post('/api/courses/:courseId/modules', jwtMiddleware, requireRole('instructor', 'admin'), async (c) => {
 	const { courseId } = c.req.param();
+	const user = c.get('user');
 	const body = await c.req.json();
 	const db = getDb(c.env);
+
+	if (!body.title || !body.title.trim()) return c.json({ success: false, message: 'Module title is required' }, 400);
+
 	try {
+		const course = await db.select().from(courses)
+			.where(and(eq(courses.id, courseId), eq(courses.tenant_id, user.tenant_id)))
+			.get();
+		if (!course) return c.json({ success: false, message: 'Course not found' }, 404);
+
 		const id = crypto.randomUUID();
 		const now = Math.floor(Date.now() / 1000);
-		await db.insert(activities).values({
+		const orderIndex = body.order ?? body.orderIndex ?? 0;
+
+		await db.insert(modules).values({
 			id,
-			section_id: body.moduleId,
 			course_id: courseId,
+			tenant_id: user.tenant_id,
 			title: body.title,
-			type: body.type,
-			content: body.content,
-			order_index: body.orderIndex || 0,
+			order_index: orderIndex,
 			created_at: now,
-			updated_at: now
+			updated_at: now,
 		});
-		
-		// Map back to expected frontend shape
-		return c.json({ 
-			success: true, 
-			activity: { id, title: body.title, type: body.type } 
+
+		return c.json({
+			success: true,
+			module: { id, title: body.title, order: orderIndex, activities: [] }
 		}, 201);
 	} catch (err: any) {
+		console.error('create module error:', err);
 		return c.json({ success: false, message: err.message }, 500);
 	}
 });
+
+app.get('/api/courses/:courseId/student-progress', jwtMiddleware, requireRole('instructor', 'admin'), async (c) => {
+	const { courseId } = c.req.param();
+	const user = c.get('user');
+	const db = getDb(c.env);
+
+	try {
+		const enrolled = await db.select({
+			userId: enrollments.user_id,
+			studentName: users.name,
+			studentEmail: users.email,
+		})
+		.from(enrollments)
+		.innerJoin(users, eq(enrollments.user_id, users.id))
+		.where(and(
+			eq(enrollments.course_id, courseId),
+			eq(enrollments.tenant_id, user.tenant_id)
+		));
+
+		const allProgress = await db.select()
+			.from(progress)
+			.where(and(
+				eq(progress.course_id, courseId),
+				eq(progress.tenant_id, user.tenant_id)
+			));
+
+		const moduleIds = (await db.select({ id: modules.id }).from(modules).where(eq(modules.course_id, courseId))).map(m => m.id);
+		let activityList: any[] = [];
+		if (moduleIds.length > 0) {
+			activityList = await db.select({ id: activities.id }).from(activities).where(inArray(activities.section_id, moduleIds));
+		}
+		const totalActivities = activityList.length;
+
+		const studentProgress = enrolled.map(student => {
+			const studentProgressRows = allProgress.filter(p => p.user_id === student.userId);
+			const completedCount = studentProgressRows.filter(p => p.percent_complete >= 80).length;
+			const overallPercent = totalActivities > 0
+				? Math.round((completedCount / totalActivities) * 100)
+				: 0;
+
+			return {
+				userId: student.userId,
+				name: student.studentName,
+				email: student.studentEmail,
+				completed: completedCount,
+				total: totalActivities,
+				percent: overallPercent,
+			};
+		});
+
+		return c.json({ success: true, students: studentProgress, totalActivities });
+	} catch (err: any) {
+		console.error('student-progress error:', err);
+		return c.json({ success: false, error: err.message }, 500);
+	}
+});
+
+app.post(
+	'/api/courses/:courseId/activities',
+	jwtMiddleware,
+	requireRole('instructor', 'admin'),
+	async (c) => {
+		const courseId = c.req.param('courseId') as string;
+		const user = c.get('user');
+		const db = getDb(c.env);
+		const body = await c.req.json();
+
+		console.log('[CreateActivity] body:', JSON.stringify(body));
+
+		const schema = z.object({
+			moduleId:    z.string().nullable().optional(),
+			title:       z.string().min(1),
+			type:        z.enum(['blog', 'video', 'file', 'quiz', 'exam', 'live_class', 'submission', 'announcement']),
+			content:     z.string().optional(),
+			description: z.string().optional(),
+			fileUrl:     z.string().optional(),
+			fileName:    z.string().optional(),
+			fileType:    z.string().optional(),
+			fileSize:    z.number().optional(),
+			videoUrl:    z.string().optional(),
+			duration:    z.number().optional(),
+			scheduledAt: z.string().optional(),
+			meetLink:    z.string().optional(),
+			dueAt:       z.string().optional(),
+			order:       z.number().default(0),
+			orderIndex:  z.number().optional(),
+		});
+
+		const parsed = schema.safeParse(body);
+		if (!parsed.success) {
+			console.error('[CreateActivity] validation failed:', JSON.stringify(parsed.error.flatten()));
+			return c.json({ success: false, error: parsed.error.flatten() }, 400);
+		}
+
+		try {
+			const id = crypto.randomUUID();
+			const now = Math.floor(Date.now() / 1000);
+			const orderVal = parsed.data.orderIndex ?? parsed.data.order;
+
+			await db.insert(activities).values({
+				id,
+				section_id:  parsed.data.moduleId ?? null,
+				course_id:   courseId,
+				tenant_id:   user.tenant_id,
+				title:       parsed.data.title,
+				type:        parsed.data.type,
+				content:     parsed.data.content ?? null,
+				description: parsed.data.description ?? null,
+				file_url:    parsed.data.fileUrl ?? null,
+				file_name:   parsed.data.fileName ?? null,
+				file_type:   parsed.data.fileType ?? null,
+				file_size:   parsed.data.fileSize ?? null,
+				video_url:   parsed.data.videoUrl ?? null,
+				duration_minutes: parsed.data.duration ?? 0,
+				scheduled_at: parsed.data.scheduledAt ?? null,
+				meet_link:    parsed.data.meetLink ?? null,
+				due_at:       parsed.data.dueAt ?? null,
+				order_index:  orderVal,
+				created_at: now,
+				updated_at: now,
+			});
+
+			console.log('[CreateActivity] created:', id);
+			return c.json({
+				success: true,
+				activity: {
+					id,
+					...parsed.data,
+					courseId,
+					activities: [],
+				}
+			}, 201);
+		} catch (err: any) {
+			console.error('[CreateActivity] insert failed:', String(err));
+			return c.json({ success: false, error: String(err) }, 500);
+		}
+	}
+);
 
 app.get('/api/admin/instructors', requireRole('admin', 'super_admin'), async (c) => {
 	const user = c.get('user');
@@ -562,6 +789,28 @@ app.post('/api/upload/lesson-file', jwtMiddleware, requireRole('instructor', 'ad
 		});
 	} catch (err) {
 		return c.json({ error: String(err) }, 500);
+	}
+});
+
+app.post('/api/upload/tenant-logo', jwtMiddleware, requireRole('super_admin'), async (c) => {
+	const formData = await c.req.formData();
+	const file = formData.get('file') as File;
+
+	if (!file) return c.json({ error: 'No file provided' }, 400);
+	if (file.size > 2 * 1024 * 1024) return c.json({ error: 'Max file size is 2MB' }, 413);
+
+	try {
+        const extension = file.name.split('.').pop() || 'png';
+		const key = `logos/${crypto.randomUUID()}.${extension}`;
+		await c.env.R2.put(key, file.stream(), {
+			httpMetadata: { contentType: file.type }
+		});
+		return c.json({
+            success: true,
+			logoUrl: `/api/files/${key}`,
+		});
+	} catch (err) {
+		return c.json({ success: false, message: String(err) }, 500);
 	}
 });
 
@@ -1076,6 +1325,38 @@ app.get('/api/superadmin/stats', jwtMiddleware, requireRole('super_admin'), asyn
   }
 });
 
+app.post('/api/superadmin/tenants', jwtMiddleware, requireRole('super_admin'), async (c) => {
+  const db = getDb(c.env);
+  try {
+    const { name, slug, logoUrl } = await c.req.json();
+
+    if (!name || !slug) {
+      return c.json({ success: false, message: 'Institution Name and Slug are required' }, 400);
+    }
+
+    const existing = await db.select().from(tenants).where(sql`${tenants.slug} = ${slug}`).get();
+    if (existing) {
+      return c.json({ success: false, message: 'Tenant with this slug already exists' }, 409);
+    }
+
+    const tenantId = crypto.randomUUID();
+    const now = Math.floor(Date.now() / 1000);
+
+    await db.insert(tenants).values({
+      id: tenantId,
+      name,
+      slug,
+      logo_url: logoUrl || null,
+      created_at: now,
+      updated_at: now,
+    });
+
+    return c.json({ success: true, tenant: { id: tenantId, name, slug } });
+  } catch (err) {
+    return c.json({ success: false, message: String(err) }, 500);
+  }
+});
+
 app.get('/api/superadmin/tenants', jwtMiddleware, requireRole('super_admin'), async (c) => {
   const db = getDb(c.env);
   try {
@@ -1116,6 +1397,124 @@ app.get('/api/superadmin/users', jwtMiddleware, requireRole('super_admin'), asyn
 
     return c.json({ success: true, users: userList });
   } catch (err) {
+    return c.json({ success: false, error: String(err) }, 500);
+  }
+});
+
+// --- EXAM / QUIZ QUESTIONS ---
+app.post('/api/activities/:activityId/questions', jwtMiddleware, requireRole('instructor', 'admin'), async (c) => {
+  const body = await c.req.json();
+  const db = getDb(c.env);
+  const user = c.get('user');
+
+  const schema = z.object({
+    text:            z.string().min(1),
+    questionType:    z.enum(['mcq', 'short_answer', 'long_answer', 'match_following']).default('mcq'),
+    correctAnswerId: z.string().optional(),
+    sampleAnswer:    z.string().optional(),
+    matchPairs:      z.array(z.object({
+      left:  z.string(),
+      right: z.string(),
+    })).optional(),
+    options: z.array(z.object({
+      text:      z.string(),
+      isCorrect: z.boolean(),
+    })).optional(),
+    order: z.number().default(0),
+  });
+
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) return c.json({ success: false, error: parsed.error.flatten() }, 400);
+
+  try {
+    const qId = crypto.randomUUID();
+    let correctAnswerId = parsed.data.correctAnswerId ?? null;
+
+    await db.insert(questions).values({
+      id:           qId,
+      activity_id:  c.req.param('activityId') as string,
+      tenant_id:    user.tenant_id,
+      text:         parsed.data.text,
+      question_type: parsed.data.questionType,
+      sample_answer: parsed.data.sampleAnswer ?? null,
+      match_pairs:   parsed.data.matchPairs ? JSON.stringify(parsed.data.matchPairs) : null,
+      correct_answer_id: null,
+      order_index:  parsed.data.order,
+    });
+
+    if (parsed.data.questionType === 'mcq' && parsed.data.options) {
+      for (const opt of parsed.data.options) {
+        const optId = crypto.randomUUID();
+        await db.insert(answerOptions).values({
+          id:         optId,
+          question_id: qId,
+          tenant_id:   user.tenant_id,
+          text:       opt.text,
+        });
+        if (opt.isCorrect) correctAnswerId = optId;
+      }
+      if (correctAnswerId) {
+        await db.update(questions)
+          .set({ correct_answer_id: correctAnswerId })
+          .where(eq(questions.id, qId));
+      }
+    }
+
+    return c.json({ success: true, question: { id: qId, ...parsed.data } }, 201);
+  } catch (err: any) {
+    return c.json({ success: false, error: String(err) }, 500);
+  }
+});
+
+// --- ANNOUNCEMENTS ---
+app.post('/api/courses/:courseId/announcements', jwtMiddleware, requireRole('instructor', 'admin'), async (c) => {
+  const { courseId } = c.req.param();
+  const user = c.get('user');
+  const body = await c.req.json();
+  const db = getDb(c.env);
+
+  const schema = z.object({ content: z.string().min(1) });
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) return c.json({ success: false, error: 'Content required' }, 400);
+
+  try {
+    const id = crypto.randomUUID();
+    const now = Math.floor(Date.now() / 1000);
+    await db.insert(activities).values({
+      id,
+      course_id: courseId,
+      tenant_id: user.tenant_id,
+      section_id: null,
+      title:       `Announcement — ${new Date().toLocaleDateString()}`,
+      type:        'announcement',
+      content:     parsed.data.content,
+      order_index: 0,
+      created_at: now,
+      updated_at: now,
+    });
+    return c.json({ success: true, announcement: { id, content: parsed.data.content } }, 201);
+  } catch (err: any) {
+    return c.json({ success: false, error: String(err) }, 500);
+  }
+});
+
+app.get('/api/courses/:courseId/announcements', jwtMiddleware, async (c) => {
+  const { courseId } = c.req.param();
+  const user = c.get('user');
+  const db = getDb(c.env);
+
+  try {
+    const announcements = await db.select()
+      .from(activities)
+      .where(and(
+        eq(activities.course_id, courseId),
+        eq(activities.type, 'announcement'),
+        eq(activities.tenant_id, user.tenant_id)
+      ))
+      .orderBy(desc(activities.order_index));
+
+    return c.json({ success: true, announcements });
+  } catch (err: any) {
     return c.json({ success: false, error: String(err) }, 500);
   }
 });
