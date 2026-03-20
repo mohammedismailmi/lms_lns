@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { courses } from '../../lib/mockData';
 import { useQuizStore } from '../../store/quizStore';
 import { useProgressStore } from '../../store/progressStore';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../lib/api';
-import { AlertCircle, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import QuizResults from './QuizResults';
 
 import ProctoringOverlay from './ProctoringOverlay';
@@ -34,27 +33,42 @@ export default function QuizShell({ isExam }: Props) {
     const { user } = useAuthStore();
     const isInstructor = user?.role === 'admin' || user?.role === 'instructor';
     const [existingResult, setExistingResult] = useState<any>(null);
-    const [loadingResult, setLoadingResult] = useState(false);
+    const [loadingResult, setLoadingResult] = useState(true);
+    const [activity, setActivity] = useState<any>(null);
+    const [course, setCourse] = useState<any>(null);
 
-    // Find the activity in mockData
-    const course = courses.find(c => c.modules.some(m => m.activities.some(a => a.id === id)));
-    const activity: any = course?.modules.flatMap(m => m.activities).find(a => a.id === id);
+    // Fetch activity from API
+    useEffect(() => {
+        if (!id) return;
+        setLoadingResult(true);
+        api.get(`/api/activities/${id}/quiz-data`)
+            .then(res => {
+                if (res.data.success) {
+                    setActivity(res.data.activity);
+                    setCourse(res.data.course);
+                }
+            })
+            .catch(() => {
+                // Fallback: try to find in the API via courses
+                console.error('Failed to load quiz data for', id);
+            })
+            .finally(() => setLoadingResult(false));
+    }, [id]);
 
     useEffect(() => {
         if (!activity) return;
         resetQuiz();
-        setTimer(activity.duration * 60);
-        if (activity.questions.length > 0) {
+        setTimer((activity.duration || 30) * 60);
+        if (activity.questions && activity.questions.length > 0) {
             setVisitedSet(new Set([activity.questions[0].id]));
         }
 
         if (!isInstructor) {
-            setLoadingResult(true);
             api.get(`/api/quizzes/${activity.id}/my-result`).then(res => {
                 if (res.data.success && res.data.result) {
                     setExistingResult(res.data.result);
                 }
-            }).finally(() => setLoadingResult(false));
+            }).catch(() => {});
         }
 
         return () => resetQuiz();

@@ -1,9 +1,9 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCourseStore } from '../store/courseStore';
 import { useProgressStore } from '../store/progressStore';
-import { CheckCircle2, ArrowLeft } from 'lucide-react';
-import { Course, Activity } from '../lib/mockData';
+import { CheckCircle2, ArrowLeft, Loader2 } from 'lucide-react';
+import api from '../lib/api';
 
 export default function BlogLessonPage() {
     const { activityId } = useParams();
@@ -11,22 +11,44 @@ export default function BlogLessonPage() {
     const { coursesList } = useCourseStore();
     const { markDone, activityStatus } = useProgressStore();
 
-    let course: Course | null = null;
-    let activity: Activity | null = null;
-    let moduleOrder = 0;
+    const [apiActivity, setApiActivity] = useState<any>(null);
+    const [apiCourse, setApiCourse] = useState<any>(null);
+    const [loading, setLoading] = useState(false);
 
+    // Try to find in store first
+    let storeActivity: any = null;
+    let storeCourse: any = null;
+    let moduleOrder = 0;
     for (const c of coursesList) {
         for (const m of c.modules) {
-            const a = m.activities.find(x => x.id === activityId);
+            const a = m.activities.find((x: any) => x.id === activityId);
             if (a && a.type === 'blog') {
-                activity = a;
-                course = c;
+                storeActivity = a;
+                storeCourse = c;
                 moduleOrder = m.order;
                 break;
             }
         }
-        if (activity) break;
+        if (storeActivity) break;
     }
+
+    const activity = storeActivity || apiActivity;
+    const course = storeCourse || apiCourse;
+
+    // If not found in store, fetch from API
+    useEffect(() => {
+        if (storeActivity || !activityId) return;
+        setLoading(true);
+        api.get(`/api/activities/${activityId}`)
+            .then(res => {
+                if (res.data.success) {
+                    setApiActivity(res.data.activity);
+                    setApiCourse(res.data.course);
+                }
+            })
+            .catch(err => console.error('Failed to fetch activity:', err))
+            .finally(() => setLoading(false));
+    }, [activityId, storeActivity]);
 
     const isCompleted = activityStatus[activityId!] === 'completed';
     const bottomRef = useRef<HTMLDivElement>(null);
@@ -46,6 +68,14 @@ export default function BlogLessonPage() {
 
         return () => observer.disconnect();
     }, [activity, isCompleted, markDone]);
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        );
+    }
 
     if (!activity || !course) {
         return (
@@ -90,28 +120,18 @@ export default function BlogLessonPage() {
                 </h1>
 
                 <div className="prose prose-lg prose-slate prose-headings:font-serif prose-headings:text-navy text-ink leading-relaxed">
-                    <p className="lead text-xl text-slate-600 font-serif italic mb-8">
-                        This is a placeholder article for {activity.title}. In a production system, this would be fetched from a rich text CMS or Markdown parser containing the full lecture notes.
-                    </p>
+                    {activity.content ? (
+                        <div dangerouslySetInnerHTML={{ __html: activity.content }} />
+                    ) : (
+                        <>
+                            <p className="lead text-xl text-slate-600 font-serif italic mb-8">
+                                This is a placeholder article for {activity.title}. In a production system, this would be fetched from a rich text CMS or Markdown parser containing the full lecture notes.
+                            </p>
+                            <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent libero. Sed cursus ante dapibus diam.</p>
+                        </>
+                    )}
 
-                    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer nec odio. Praesent libero. Sed cursus ante dapibus diam. Sed nisi. Nulla quis sem at nibh elementum imperdiet. Duis sagittis ipsum. Praesent mauris. Fusce nec tellus sed augue semper porta. Mauris massa. Vestibulum lacinia arcu eget nulla.</p>
-                    <p>Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Curabitur sodales ligula in libero.</p>
-
-                    <h3>Fundamental Principles</h3>
-                    <p>Sed dignissim lacinia nunc. Curabitur tortor. Pellentesque nibh. Aenean quam. In scelerisque sem at dolor. Maecenas mattis. Sed convallis tristique sem. Proin ut ligula vel nunc egestas porttitor. Morbi lectus risus, iaculis vel, suscipit quis, luctus non, massa. Fusce ac turpis quis ligula lacinia aliquet.</p>
-
-                    <div className="my-12 p-6 bg-primary/5 border-l-4 border-primary rounded-r-xl">
-                        <p className="font-medium text-navy m-0">
-                            <strong>Key Takeaway:</strong> The rigor required to master these concepts cannot be overstated. Mastery originates from prolonged exposure to challenging abstractions.
-                        </p>
-                    </div>
-
-                    <p>Mauris ipsum. Nulla metus metus, ullamcorper vel, tincidunt sed, euismod in, nibh. Quisque volutpat condimentum velit. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos.</p>
-
-                    {/* Artificially inflate height so scroll is required */}
                     <div className="h-96" />
-
-                    <p>Nam sed tellus id magna elementum tincidunt. Donec sit amet nulla. Sed tristique arcu scelerisque tellus ultricies euismod.</p>
                 </div>
 
                 {/* Intersection Observer Target */}

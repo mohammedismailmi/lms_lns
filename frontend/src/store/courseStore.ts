@@ -240,12 +240,26 @@ export const useCourseStore = create<CourseState>((set, get) => ({
                         id: m.id,
                         courseId: c.id,
                         title: m.title,
+                        order: m.order ?? m.order_index ?? 0,
                         activities: (m.activities || []).map((a: any) => ({
+                            ...a,
                             id: a.id,
                             moduleId: m.id,
                             title: a.title,
                             type: a.type,
-                            content: a.content
+                            content: a.content,
+                            videoUrl: a.video_url || a.videoUrl,
+                            fileUrl: a.file_url || a.fileUrl,
+                            fileName: a.file_name || a.fileName,
+                            fileType: a.file_type || a.fileType,
+                            fileSize: a.file_size || a.fileSize,
+                            duration: a.duration,
+                            durationMinutes: a.duration,
+                            scheduledAt: a.scheduled_at || a.scheduledAt,
+                            meetLink: a.meet_link || a.meetLink,
+                            dueAt: a.due_at || a.dueAt,
+                            questions: a.questions || [],
+                            order: a.order ?? a.order_index ?? 0,
                         }))
                     }))
                 };

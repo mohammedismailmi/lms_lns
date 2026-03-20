@@ -1,9 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCourseStore } from '../store/courseStore';
 import { useProgressStore } from '../store/progressStore';
-import { FileText, Download, ArrowLeft, CheckCircle2 } from 'lucide-react';
-import { Course, Activity } from '../lib/mockData';
+import { FileText, Download, ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
+import api from '../lib/api';
 
 export default function FileLessonPage() {
     const { activityId } = useParams();
@@ -11,31 +11,59 @@ export default function FileLessonPage() {
     const { coursesList } = useCourseStore();
     const { markDone, activityStatus } = useProgressStore();
 
-    let course: Course | null = null;
-    let activity: Activity | null = null;
-    let moduleOrder = 0;
+    const [apiActivity, setApiActivity] = useState<any>(null);
+    const [apiCourse, setApiCourse] = useState<any>(null);
+    const [loading, setLoading] = useState(false);
 
+    // Try to find in store first
+    let storeActivity: any = null;
+    let storeCourse: any = null;
+    let moduleOrder = 0;
     for (const c of coursesList) {
         for (const m of c.modules) {
-            const a = m.activities.find(x => x.id === activityId);
+            const a = m.activities.find((x: any) => x.id === activityId);
             if (a && a.type === 'file') {
-                activity = a;
-                course = c;
+                storeActivity = a;
+                storeCourse = c;
                 moduleOrder = m.order;
                 break;
             }
         }
-        if (activity) break;
+        if (storeActivity) break;
     }
+
+    const activity = storeActivity || apiActivity;
+    const course = storeCourse || apiCourse;
+
+    // If not found in store, fetch from API
+    useEffect(() => {
+        if (storeActivity || !activityId) return;
+        setLoading(true);
+        api.get(`/api/activities/${activityId}`)
+            .then(res => {
+                if (res.data.success) {
+                    setApiActivity(res.data.activity);
+                    setApiCourse(res.data.course);
+                }
+            })
+            .catch(err => console.error('Failed to fetch activity:', err))
+            .finally(() => setLoading(false));
+    }, [activityId, storeActivity]);
 
     const isCompleted = activityStatus[activityId!] === 'completed';
 
     useEffect(() => {
         if (!activity || isCompleted) return;
-        // Instantly mark files as completed when they open the page, or optionally tie to 'Download' button click.
-        // Tying to load makes it simpler for immediate progression.
         markDone(activity.id);
     }, [activity, isCompleted, markDone]);
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        );
+    }
 
     if (!activity || !course) {
         return (
@@ -79,13 +107,17 @@ export default function FileLessonPage() {
                             <FileText className="w-8 h-8" />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-serif font-bold text-navy leading-tight">{activity.title}.pdf</h2>
+                            <h2 className="text-2xl font-serif font-bold text-navy leading-tight">{activity.fileName || activity.title}</h2>
                             <p className="text-muted font-medium flex items-center gap-3 mt-1 text-sm">
-                                <span>PDF Document</span>
+                                <span>{activity.fileType || 'PDF Document'}</span>
                                 <span className="w-1 h-1 bg-slate-300 rounded-full" />
-                                <span>2.4 MB</span>
-                                <span className="w-1 h-1 bg-slate-300 rounded-full" />
-                                <span>{activity.durationMinutes} min read</span>
+                                <span>{activity.fileSize ? `${(activity.fileSize / 1024 / 1024).toFixed(1)} MB` : 'Unknown size'}</span>
+                                {activity.durationMinutes && (
+                                    <>
+                                        <span className="w-1 h-1 bg-slate-300 rounded-full" />
+                                        <span>{activity.durationMinutes} min read</span>
+                                    </>
+                                )}
                             </p>
                         </div>
                     </div>
@@ -96,15 +128,19 @@ export default function FileLessonPage() {
                     </a>
                 </div>
 
-                {/* PDF Embed Placeholder */}
+                {/* PDF Embed or Preview */}
                 <div className="flex-1 bg-slate-200/50 rounded-2xl border-2 border-dashed border-border flex items-center justify-center min-h-[600px] overflow-hidden">
-                    <div className="text-center p-8">
-                        <FileText className="w-16 h-16 text-slate-400 mx-auto mb-4 opacity-50" />
-                        <h3 className="font-serif font-bold text-xl text-navy mb-2">Document Preview</h3>
-                        <p className="text-slate-500 max-w-sm mx-auto">
-                            The iframe renderer is disabled in this mockup. Click the Download button above to acquire the asset natively.
-                        </p>
-                    </div>
+                    {activity.fileUrl ? (
+                        <iframe src={activity.fileUrl} className="w-full h-full min-h-[600px]" title={activity.title} />
+                    ) : (
+                        <div className="text-center p-8">
+                            <FileText className="w-16 h-16 text-slate-400 mx-auto mb-4 opacity-50" />
+                            <h3 className="font-serif font-bold text-xl text-navy mb-2">Document Preview</h3>
+                            <p className="text-slate-500 max-w-sm mx-auto">
+                                Click the Download button above to view the document.
+                            </p>
+                        </div>
+                    )}
                 </div>
 
             </div>

@@ -461,9 +461,25 @@ app.get('/api/courses/:courseId', jwtMiddleware, async (c) => {
 		// fetch live sessions to attach meetLink
 		const activeLiveSessions = await db.select().from(liveSessions).where(isNull(liveSessions.ended_at)).all();
 
+		// fetch questions for activities (specifically quizzes/exams, but safe to fetch for all matched ones)
+		let questionsList: any[] = [];
+		if (activityList.length > 0) {
+			const activityIds = activityList.map(a => a.id);
+			questionsList = await db.select()
+				.from(questions)
+				.where(inArray(questions.activity_id, activityIds))
+				.orderBy(questions.order_index)
+				.all();
+		}
+
 		const activitiesWithMeetLink = activityList.map(a => {
 			const s = activeLiveSessions.find(ls => ls.activity_id === a.id);
-			return { ...a, meetLink: s?.meet_link || a.meet_link };
+			const activityQuestions = questionsList.filter(q => q.activity_id === a.id);
+			return { 
+				...a, 
+				meetLink: s?.meet_link || a.meet_link,
+				questions: activityQuestions || []
+			};
 		});
 
 		console.log(`Course ${courseId}: ${moduleList.length} modules, ${activityList.length} activities`);
@@ -1517,6 +1533,170 @@ app.get('/api/courses/:courseId/announcements', jwtMiddleware, async (c) => {
   } catch (err: any) {
     return c.json({ success: false, error: String(err) }, 500);
   }
+});
+app.post('/api/ai/chat', jwtMiddleware, async (c) => {
+	const body = await c.req.json();
+	const user = c.get('user');
+	
+	const groqApiKey = c.env.GROQ_API_KEY;
+	if (!groqApiKey) {
+		return c.json({ success: false, message: 'AI is not configured on the server.' });
+	}
+
+	const prompt = `You are a helpful academic AI assistant for an LMS platform. 
+User context: ${JSON.stringify(body.context)}. 
+User role: ${user.role}.
+Please provide a concise, helpful, and academic response to the user's message.
+User Message: ${body.message}`;
+
+	try {
+		const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+			method: 'POST',
+			headers: {
+				'Authorization': `Bearer ${groqApiKey}`,
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				model: 'llama-3.3-70b-versatile',
+				messages: [
+					{ role: 'system', content: 'You are an AI assistant in an LMS platform.' },
+					{ role: 'user', content: prompt }
+				],
+				temperature: 0.7,
+				max_tokens: 512
+			})
+		});
+
+		if (!response.ok) {
+			const text = await response.text();
+			console.error('Groq Error:', text);
+			return c.json({ success: false, message: 'AI service error. Please try again later.' });
+		}
+
+		const data: any = await response.json();
+		const reply = data.choices[0]?.message?.content || "I'm sorry, I couldn't generate a response.";
+		
+		return c.json({ success: true, reply, executed: false });
+	} catch (err: any) {
+		console.error('AI Chat Error:', err);
+		return c.json({ success: false, message: 'Failed to connect to AI service.' });
+	}
+});
+
+// GET single activity with full data (for lesson pages)
+app.get('/api/activities/:activityId', jwtMiddleware, async (c) => {
+	const { activityId } = c.req.param();
+	const user = c.get('user');
+	const db = getDb(c.env);
+
+	try {
+		const activity = await db.select()
+			.from(activities)
+			.where(and(
+				eq(activities.id, activityId),
+				eq(activities.tenant_id, user.tenant_id)
+			))
+			.get();
+
+		if (!activity) return c.json({ success: false, error: 'Activity not found' }, 404);
+
+		const course = await db.select()
+			.from(courses)
+			.where(eq(courses.id, activity.course_id))
+			.get();
+
+		return c.json({
+			success: true,
+			activity: {
+				...activity,
+				title: activity.title,
+				videoUrl: activity.video_url,
+				fileUrl: activity.file_url,
+				fileName: activity.file_name,
+				fileType: activity.file_type,
+				fileSize: activity.file_size,
+				meetLink: activity.meet_link,
+				scheduledAt: activity.scheduled_at,
+				dueAt: activity.due_at,
+				durationMinutes: activity.duration_minutes,
+			},
+			course: course ? { id: course.id, name: course.title } : null
+		});
+	} catch (err: any) {
+		return c.json({ success: false, error: String(err) }, 500);
+	}
+});
+
+// GET quiz/exam activity with questions and answer options (for QuizShell)
+app.get('/api/activities/:activityId/quiz-data', jwtMiddleware, async (c) => {
+	const { activityId } = c.req.param();
+	const user = c.get('user');
+	const db = getDb(c.env);
+
+	try {
+		const activity = await db.select()
+			.from(activities)
+			.where(and(
+				eq(activities.id, activityId),
+				eq(activities.tenant_id, user.tenant_id)
+			))
+			.get();
+
+		if (!activity) return c.json({ success: false, error: 'Activity not found' }, 404);
+
+		const course = await db.select()
+			.from(courses)
+			.where(eq(courses.id, activity.course_id))
+			.get();
+
+		// Fetch questions
+		const questionList = await db.select()
+			.from(questions)
+			.where(eq(questions.activity_id, activityId))
+			.orderBy(questions.order_index)
+			.all();
+
+		// Fetch answer options for each question
+		const questionIds = questionList.map(q => q.id);
+		let allOptions: any[] = [];
+		if (questionIds.length > 0) {
+			allOptions = await db.select()
+				.from(answerOptions)
+				.where(inArray(answerOptions.question_id, questionIds))
+				.all();
+		}
+
+		const questionsWithOptions = questionList.map(q => {
+			const opts = allOptions.filter(o => o.question_id === q.id);
+			const correctIndex = opts.findIndex(o => o.id === q.correct_answer_id);
+			return {
+				id: q.id,
+				text: q.text,
+				type: q.question_type || 'mcq',
+				options: opts.map(o => o.text),
+				optionIds: opts.map(o => o.id),
+				correctAnswerIndex: correctIndex >= 0 ? correctIndex : 0,
+				sampleAnswer: q.sample_answer,
+				matchPairs: q.match_pairs,
+			};
+		});
+
+		return c.json({
+			success: true,
+			activity: {
+				id: activity.id,
+				title: activity.title,
+				type: activity.type,
+				duration: activity.duration_minutes || 30,
+				content: activity.content,
+				questions: questionsWithOptions,
+			},
+			course: course ? { id: course.id, name: course.title } : null
+		});
+	} catch (err: any) {
+		console.error('GET /api/activities/:activityId/quiz-data error:', err);
+		return c.json({ success: false, error: String(err) }, 500);
+	}
 });
 
 export default app;

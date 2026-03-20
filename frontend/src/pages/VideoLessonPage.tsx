@@ -2,10 +2,10 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useCourseStore } from '../store/courseStore';
 import { useProgressStore } from '../store/progressStore';
-import { Play, Pause, Volume2, VolumeX, ArrowLeft, CheckCircle2 } from 'lucide-react';
-import { Course, Activity } from '../lib/mockData';
+import { Play, Pause, Volume2, VolumeX, ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useToast } from '../lib/useToast';
+import api from '../lib/api';
 
 export default function VideoLessonPage() {
     const { activityId } = useParams();
@@ -14,40 +14,59 @@ export default function VideoLessonPage() {
     const { coursesList } = useCourseStore();
     const { markDone, activityStatus } = useProgressStore();
 
-    let course: Course | null = null;
-    let activity: Activity | null = null;
-    let moduleOrder = 0;
+    const [apiActivity, setApiActivity] = useState<any>(null);
+    const [apiCourse, setApiCourse] = useState<any>(null);
+    const [loading, setLoading] = useState(false);
 
+    // Try to find in store first
+    let storeActivity: any = null;
+    let storeCourse: any = null;
+    let moduleOrder = 0;
     for (const c of coursesList) {
         for (const m of c.modules) {
-            const a = m.activities.find(x => x.id === activityId);
+            const a = m.activities.find((x: any) => x.id === activityId);
             if (a && a.type === 'video') {
-                activity = a;
-                course = c;
+                storeActivity = a;
+                storeCourse = c;
                 moduleOrder = m.order;
                 break;
             }
         }
-        if (activity) break;
+        if (storeActivity) break;
     }
+
+    const activity = storeActivity || apiActivity;
+    const course = storeCourse || apiCourse;
+
+    // If not found in store, fetch from API
+    useEffect(() => {
+        if (storeActivity || !activityId) return;
+        setLoading(true);
+        api.get(`/api/activities/${activityId}`)
+            .then(res => {
+                if (res.data.success) {
+                    setApiActivity(res.data.activity);
+                    setApiCourse(res.data.course);
+                }
+            })
+            .catch(err => console.error('Failed to fetch activity:', err))
+            .finally(() => setLoading(false));
+    }, [activityId, storeActivity]);
 
     const isInitiallyCompleted = activityStatus[activityId!] === 'completed';
     const [isCompleted, setIsCompleted] = useState(isInitiallyCompleted);
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const [isPlaying, setIsPlaying] = useState(false);
-    const [progress, setProgress] = useState(0); // 0 to 100
+    const [progress, setProgress] = useState(0);
     const [isMuted, setIsMuted] = useState(false);
-
-    // Prevent seeking forward memory block
     const [maxProgressReached, setMaxProgressReached] = useState(0);
 
-    // Provide a valid dummy video so native events fire (e.g. big buck bunny generic)
     const MOCK_VIDEO_URL = "https://www.w3schools.com/html/mov_bbb.mp4";
 
     useEffect(() => {
         if (!videoRef.current) return;
-        videoRef.current.playbackRate = 1.0; // Strictly enforce 1x
+        videoRef.current.playbackRate = 1.0;
     }, []);
 
     const togglePlay = () => {
@@ -72,10 +91,8 @@ export default function VideoLessonPage() {
 
         const currentProgress = (current / total) * 100;
 
-        // Prevent native or JS seeking forward if constraints bypass UI
-        if (currentProgress > maxProgressReached + 5) { // 5% buffer for streaming skips
+        if (currentProgress > maxProgressReached + 5) {
             videoRef.current.currentTime = (maxProgressReached / 100) * total;
-            // Notify user
             toast.info("Fast forwarding is disabled for this lecture.");
             return;
         }
@@ -85,7 +102,6 @@ export default function VideoLessonPage() {
             setMaxProgressReached(currentProgress);
         }
 
-        // 80% completion requirement
         if (currentProgress >= 80 && !isCompleted) {
             markDone(activity.id);
             setIsCompleted(true);
@@ -93,7 +109,6 @@ export default function VideoLessonPage() {
         }
     };
 
-    // Timeline scrubbing logic - only backwards allowed
     const handleTimelineClick = (e: React.MouseEvent<HTMLDivElement>) => {
         if (!videoRef.current) return;
         const rect = e.currentTarget.getBoundingClientRect();
@@ -107,6 +122,14 @@ export default function VideoLessonPage() {
         videoRef.current.currentTime = percent * videoRef.current.duration;
         setProgress(percent * 100);
     };
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        );
+    }
 
     if (!activity || !course) {
         return (
@@ -152,10 +175,9 @@ export default function VideoLessonPage() {
                     src={activity.videoUrl || MOCK_VIDEO_URL}
                     onTimeUpdate={handleTimeUpdate}
                     onEnded={() => setIsPlaying(false)}
-                    controls={false} // completely disable native controls
+                    controls={false}
                 />
 
-                {/* Big center play button when paused */}
                 {!isPlaying && (
                     <button
                         onClick={togglePlay}
