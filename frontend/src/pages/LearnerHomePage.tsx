@@ -4,14 +4,24 @@ import StarredCourses from '../components/home/StarredCourses';
 import RecommendedCourses from '../components/home/RecommendedCourses';
 import CourseCard from '../components/home/CourseCard';
 import { useCourseStore } from '../store/courseStore';
+import { useProgressStore } from '../store/progressStore';
 import { useAuthStore } from '../store/authStore';
 import { Search } from 'lucide-react';
 
 export default function LearnerHomePage() {
     const { user } = useAuthStore();
-    const { getEnrolledCourses, coursesList } = useCourseStore();
+    const { getEnrolledCourses, coursesList, hydrateCourses, hydrateEnrollments } = useCourseStore();
+    const { hydrateProgress } = useProgressStore();
     const [searchQuery, setSearchQuery] = useState('');
     
+    React.useEffect(() => {
+        hydrateCourses();
+        if (user) {
+            hydrateEnrollments(user.id);
+            hydrateProgress();
+        }
+    }, [hydrateCourses, hydrateEnrollments, hydrateProgress, user]);
+
     // Safety check, should be guarded by RoleRoute anyway
     const enrolledCourses = user ? getEnrolledCourses(user.id) : [];
     const unenrolledCourses = coursesList.filter(c => !enrolledCourses.find(ec => ec.id === c.id));

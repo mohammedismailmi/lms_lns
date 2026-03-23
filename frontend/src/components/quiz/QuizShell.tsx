@@ -4,7 +4,7 @@ import { useQuizStore } from '../../store/quizStore';
 import { useProgressStore } from '../../store/progressStore';
 import { useAuthStore } from '../../store/authStore';
 import api from '../../lib/api';
-import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, BarChart3 } from 'lucide-react';
 import QuizResults from './QuizResults';
 
 import ProctoringOverlay from './ProctoringOverlay';
@@ -18,7 +18,7 @@ interface Props {
 }
 
 export default function QuizShell({ isExam }: Props) {
-    const { id } = useParams(); // quizId or examId
+    const { id, courseId } = useParams(); // quizId or examId
     const navigate = useNavigate();
 
     const { markDone } = useProgressStore();
@@ -98,7 +98,16 @@ export default function QuizShell({ isExam }: Props) {
         return <div className="min-h-screen bg-surface flex items-center justify-center p-6 text-muted font-bold animate-pulse">Loading assessment...</div>;
     }
 
-    if (existingResult) {
+    const handleReviewAnswers = () => {
+        if (existingResult && existingResult.answers) {
+            useQuizStore.getState().loadAnswers(existingResult.answers);
+            setViewState('active');
+            setReadOnlyMode(true);
+            setCurrentIndex(0);
+        }
+    };
+
+    if (existingResult && viewState === 'intro') {
         return (
             <div className="min-h-screen bg-surface flex items-center justify-center p-6">
                 <div className="bg-white max-w-2xl w-full rounded-2xl shadow-xl border border-border p-12 text-center">
@@ -123,6 +132,14 @@ export default function QuizShell({ isExam }: Props) {
                                     <p className="text-sm text-ink">{existingResult.instructorNote}</p>
                                 </div>
                             )}
+
+                            <button
+                                onClick={handleReviewAnswers}
+                                className="mt-8 w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-navy text-white font-bold hover:bg-slate-800 transition-all shadow-md"
+                            >
+                                <BarChart3 className="w-5 h-5" />
+                                Review Your Answers
+                            </button>
                         </div>
                     ) : (
                         <div className="bg-highlight/5 border border-highlight/20 p-8 rounded-xl mb-8">
@@ -187,11 +204,24 @@ export default function QuizShell({ isExam }: Props) {
                 tabSwitchCount: currentTabSwitchCount
             }).catch(() => {});
         });
-        markDone(activity.id);
+        markDone(activity.id, courseId);
         navigate(`/course/${course?.id}`, { replace: true });
     };
 
-    const currentQuestion = activity.questions[currentIndex];
+    const currentQuestion = activity.questions && activity.questions.length > currentIndex ? activity.questions[currentIndex] : null;
+
+    if (!currentQuestion && viewState === 'active') {
+        return (
+            <div className="min-h-screen bg-surface flex flex-col items-center justify-center p-6 text-center shadow-inner">
+                <AlertCircle className="w-16 h-16 text-accent mb-4" />
+                <h1 className="text-2xl font-serif font-bold text-navy mb-2">No Questions Available</h1>
+                <p className="text-muted mb-6">This quiz does not have any questions yet.</p>
+                <button onClick={() => navigate(-1)} className="px-8 py-3 rounded-xl font-bold text-navy bg-white border border-border hover:bg-slate-50 shadow-sm transition-all">
+                    Go Back
+                </button>
+            </div>
+        );
+    }
 
     if (viewState === 'intro') {
         return (
@@ -261,7 +291,10 @@ export default function QuizShell({ isExam }: Props) {
                 <div className="flex items-center gap-6">
                     {readOnlyMode ? (
                         <button
-                            onClick={() => setViewState('summary')}
+                            onClick={() => {
+                                setViewState(existingResult ? 'intro' : 'summary');
+                                setReadOnlyMode(false);
+                            }}
                             className="bg-white text-navy font-bold px-6 py-2 rounded-lg hover:bg-slate-100"
                         >
                             Exit Review
@@ -283,12 +316,12 @@ export default function QuizShell({ isExam }: Props) {
             {/* Main Execution Area */}
             <main className="flex-1 overflow-hidden p-6 flex gap-6 max-w-[1600px] w-full mx-auto">
                 <div className="flex-[7] min-w-0 pointer-events-auto h-full relative">
-                    {readOnlyMode && <div className="absolute inset-0 z-10" />} {/* Block clicks in review mode */}
                     <QuestionCard
                         question={currentQuestion}
                         questionNumber={currentIndex + 1}
                         totalQuestions={activity.questions.length}
                         onNext={handleNext}
+                        readOnly={readOnlyMode}
                     />
                 </div>
 

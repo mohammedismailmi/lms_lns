@@ -126,10 +126,14 @@ export const activities = sqliteTable('lessons', {
 
 export const liveSessions = sqliteTable('live_sessions', {
     id: text('id').primaryKey(),
-    activity_id: text('activity_id').notNull().references(() => activities.id),
-    meet_link: text('meet_link'),
-    start_time: integer('start_time'),
+    tenant_id: text('tenant_id').notNull().references(() => tenants.id),
+    course_id: text('course_id').notNull().references(() => courses.id),
+    title: text('title').notNull(),
+    start_time: integer('start_time').notNull(),
     end_time: integer('end_time'),
+    meet_link: text('meet_link'),
+    space_id: text('space_id'),
+    transcript_text: text('transcript_text'),
     ended_at: integer('ended_at'),
     created_at: integer('created_at').notNull(),
     updated_at: integer('updated_at').notNull(),
@@ -155,6 +159,8 @@ export const userEvents = sqliteTable('user_events', {
     tenant_id: text('tenant_id').notNull().references(() => tenants.id),
     user_id: text('user_id').notNull().references(() => users.id),
     title: text('title').notNull(),
+    description: text('description'),
+    meet_link: text('meet_link'),
     date_time: integer('date_time').notNull(),
     created_at: integer('created_at').notNull(),
 });
@@ -164,6 +170,7 @@ export const questions = sqliteTable('questions', {
     tenant_id: text('tenant_id').notNull().references(() => tenants.id),
     activity_id: text('activity_id').notNull().references(() => activities.id),
     text: text('text').notNull(),
+    type: text('type').notNull().default('mcq'),
     question_type: text('question_type').notNull().default('mcq'),
     sample_answer: text('sample_answer'),
     match_pairs: text('match_pairs'),
@@ -176,4 +183,25 @@ export const answerOptions = sqliteTable('answer_options', {
     tenant_id: text('tenant_id').notNull().references(() => tenants.id),
     question_id: text('question_id').notNull().references(() => questions.id),
     text: text('text').notNull(),
+});
+
+export const courseQuestions = sqliteTable('course_questions', {
+    id: text('id').primaryKey(),
+    tenant_id: text('tenant_id').notNull().references(() => tenants.id),
+    course_id: text('course_id').notNull().references(() => courses.id),
+    user_id: text('user_id').notNull().references(() => users.id),
+    title: text('title').notNull(),
+    content: text('content').notNull(),
+    created_at: integer('created_at').notNull(),
+    updated_at: integer('updated_at').notNull(),
+});
+
+export const courseAnswers = sqliteTable('course_answers', {
+    id: text('id').primaryKey(),
+    tenant_id: text('tenant_id').notNull().references(() => tenants.id),
+    question_id: text('question_id').notNull().references(() => courseQuestions.id),
+    user_id: text('user_id').notNull().references(() => users.id),
+    content: text('content').notNull(),
+    created_at: integer('created_at').notNull(),
+    updated_at: integer('updated_at').notNull(),
 });

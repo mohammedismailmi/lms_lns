@@ -1,5 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { 
+    LayoutList, 
+    Users, 
+    Plus, 
+    CheckCircle, 
+    Lock, 
+    BookOpen, 
+    Award, 
+    MessageSquare,
+    ChevronRight,
+    Play,
+    FileText,
+    HelpCircle,
+    Calendar,
+    Clock,
+    Edit2,
+    Trash2
+} from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useProgressStore } from '../store/progressStore';
 import { useCourseStore } from '../store/courseStore';
@@ -19,13 +37,11 @@ import SubmissionActivity from '../components/course/SubmissionActivity';
 import ActivityModal from '../components/course/ActivityModal';
 import StudentProgressView from '../components/course/StudentProgressView';
 
-import { Users, Plus, LayoutList, Award, BookOpen, Clock, Lock, Edit2, Trash2, CheckCircle } from 'lucide-react';
-
 export default function CoursePage() {
     const { courseId } = useParams();
     const navigate = useNavigate();
     const { user } = useAuthStore();
-    const { recalculateCourseProgress, getCourseProgress } = useProgressStore();
+    const { getCourseProgress, recalculateCourseProgress, hydrateProgress } = useProgressStore();
     const { coursesList, enrolledCourseIds, instructorCompleted, enrollUser, addModule, addActivity, updateActivity, deleteActivity } = useCourseStore();
     const toast = useToast();
 
@@ -70,7 +86,8 @@ export default function CoursePage() {
 
     useEffect(() => {
         fetchCourse();
-    }, [fetchCourse]);
+        hydrateProgress();
+    }, [fetchCourse, hydrateProgress]);
 
     const isInstructor = user?.role === 'admin' || user?.role === 'instructor';
     const isEnrolled = isInstructor || (user && course && enrolledCourseIds[user.id] && enrolledCourseIds[user.id].includes(course.id));
@@ -217,6 +234,10 @@ export default function CoursePage() {
                                 <span>{course.section}</span>
                                 <span>•</span>
                                 <span className="flex items-center gap-1.5"><Users className="w-4 h-4" /> Enrolled</span>
+                                <span>•</span>
+                                <Link to={`/course/${course.id}/qna`} className="flex items-center gap-1.5 text-highlight hover:underline transition-all">
+                                    <MessageSquare className="w-4 h-4" /> Course Q&A
+                                </Link>
                             </div>
                         </div>
 
@@ -233,7 +254,7 @@ export default function CoursePage() {
                                             value={announcementText}
                                             onChange={e => setAnnouncementText(e.target.value)}
                                             placeholder="Write your announcement..."
-                                            className="w-full border border-border rounded-lg p-3 text-sm resize-none h-24 mb-3 focus:outline-none focus:border-primary"
+                                            className="w-full border border-border rounded-lg p-3 text-sm resize-none h-24 mb-3 focus:outline-none focus:border-primary text-navy"
                                         />
                                         <div className="flex justify-end gap-2">
                                             <button onClick={() => setShowAnnouncementForm(false)} className="px-3 py-1.5 text-sm text-slate-600 font-bold hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
@@ -249,6 +270,12 @@ export default function CoursePage() {
                                         className="flex-1 flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 rounded-xl transition-colors border border-slate-700"
                                     >
                                         <LayoutList className="w-5 h-5" /> Add Module
+                                    </button>
+                                    <button 
+                                        onClick={() => setActiveTab('progress')}
+                                        className="flex-1 flex items-center justify-center gap-2 bg-highlight text-navy font-bold py-2.5 rounded-xl hover:opacity-90 transition-all border border-highlight"
+                                    >
+                                        <Users className="w-5 h-5" /> Student Progress
                                     </button>
                                     <CourseCompleteButton courseId={course.id} />
                                 </div>
@@ -324,14 +351,14 @@ export default function CoursePage() {
                                     <div key={activity.id} className="relative group/activity border border-transparent hover:border-border rounded-xl -ml-2 p-2 transition-all">
                                         
                                         {/* Activity Render Matrix block */}
-                                        <div onClick={() => !isInstructor && activity.type !== 'quiz' && activity.type !== 'exam' && navigate(`/lesson/${activity.type}/${activity.id}`)}
-                                             className={cn("w-full transition-all", !isInstructor && activity.type !== 'quiz' && activity.type !== 'exam' && "cursor-pointer hover:opacity-90")}>
+                                        <div onClick={() => !isInstructor && !['quiz', 'exam', 'submission'].includes(activity.type) && navigate(`/course/${course.id}/lesson/${activity.type}/${activity.id}`)}
+                                             className={cn("w-full transition-all", !isInstructor && !['quiz', 'exam', 'submission'].includes(activity.type) && "cursor-pointer hover:opacity-90")}>
                                             {activity.type === 'blog' && <BlogActivity activity={activity} />}
                                             {activity.type === 'file' && <FileActivity activity={activity} />}
                                             {activity.type === 'video' && <VideoActivity activity={activity} />}
                                             {activity.type === 'live_class' && <LiveClassActivity activity={activity} />}
-                                            {(activity.type === 'quiz' || activity.type === 'exam') && <AssessmentActivity activity={activity} />}
-                                            {activity.type === 'submission' && <SubmissionActivity activity={activity} />}
+                                            {(activity.type === 'quiz' || activity.type === 'exam') && <AssessmentActivity activity={activity} courseId={course.id} />}
+                                            {activity.type === 'submission' && <SubmissionActivity activity={activity} courseId={course.id} />}
                                         </div>
 
                                         {isInstructor && (

@@ -6,7 +6,7 @@ import { CheckCircle2, ArrowLeft, Loader2 } from 'lucide-react';
 import api from '../lib/api';
 
 export default function BlogLessonPage() {
-    const { activityId } = useParams();
+    const { activityId, courseId } = useParams();
     const navigate = useNavigate();
     const { coursesList } = useCourseStore();
     const { markDone, activityStatus } = useProgressStore();
@@ -58,7 +58,7 @@ export default function BlogLessonPage() {
 
         const observer = new IntersectionObserver((entries) => {
             if (entries[0].isIntersecting) {
-                markDone(activity.id);
+                markDone(activity.id, courseId);
             }
         }, { threshold: 1.0 });
 

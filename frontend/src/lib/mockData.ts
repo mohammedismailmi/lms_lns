@@ -12,6 +12,7 @@ export interface User {
     email: string;
     role: Role;
     tenantId: string;
+    avatarUrl?: string;
 }
 
 export type ActivityType = 'blog' | 'video' | 'file' | 'quiz' | 'exam' | 'live_class' | 'submission';
@@ -95,6 +96,8 @@ export interface Course {
     category: 'AI/ML' | 'Science' | 'Arts' | 'Business' | 'Default';
     isCompleted: boolean;
     totalActivities: number;
+    enrolledCount?: number;
+    progressPercent?: number;
     description?: string;
     thumbnailColor?: string;
     modules: Module[];

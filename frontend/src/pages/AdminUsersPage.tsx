@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
-import { Search, Plus, ChevronDown, ChevronUp, UserMinus, X, Loader2, BookOpen } from 'lucide-react';
+import { Search, Plus, ChevronDown, ChevronUp, UserMinus, X, Loader2, BookOpen, ChevronLeft } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import AddUserModal from '../components/admin/AddUserModal';
 import { cn } from '../lib/utils';
 import api from '../lib/api';
@@ -94,6 +95,9 @@ export default function AdminUsersPage() {
         <div className="p-8 max-w-7xl mx-auto space-y-8 pb-24">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
+                    <Link to="/admin" className="text-xs font-bold text-primary hover:underline flex items-center gap-1 mb-2">
+                        <ChevronLeft className="w-3 h-3" /> Back to Admin Hub
+                    </Link>
                     <h2 className="text-3xl font-serif font-bold text-navy">Manage Users</h2>
                     <p className="text-muted text-sm mt-1">Add, edit, and orchestrate platform user roles.</p>
                 </div>

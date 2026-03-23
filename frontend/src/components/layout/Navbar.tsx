@@ -70,8 +70,12 @@ export default function Navbar() {
                         <p className="text-sm font-medium">{user?.name}</p>
                         <p className="text-xs text-highlight capitalize">{user?.role}</p>
                     </div>
-                    <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                        <UserCircle className="w-8 h-8 text-slate-300" />
+                    <button className="flex items-center gap-2 hover:opacity-80 transition-opacity" onClick={() => navigate('/profile')}>
+                        {user?.avatarUrl ? (
+                            <img src={user.avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full object-cover border border-slate-700" title="Manage Profile" />
+                        ) : (
+                            <UserCircle className="w-8 h-8 text-slate-300" />
+                        )}
                     </button>
 
                     {/* User Dropdown */}

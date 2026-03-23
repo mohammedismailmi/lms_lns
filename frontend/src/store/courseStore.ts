@@ -35,11 +35,10 @@ interface CourseState {
     deleteActivity: (courseId: string, moduleId: string, activityId: string) => void;
 }
 
-const initialEnrolled: Record<string, string[]> = {
-    'u3': ['c1', 'c2'] // Pre-enroll Arjun Mehta in some courses
-};
+const initialEnrolled: Record<string, string[]> = {};
 
 import api from '../lib/api';
+import { useAuthStore } from './authStore';
 
 export const useCourseStore = create<CourseState>((set, get) => ({
     starred: new Set<string>(),
@@ -76,7 +75,7 @@ export const useCourseStore = create<CourseState>((set, get) => ({
         }
     },
 
-    coursesList: [...mockCourses],
+    coursesList: [],
     enrolledCourseIds: { ...initialEnrolled },
 
     getAllCourses: () => get().coursesList,
@@ -118,7 +117,8 @@ export const useCourseStore = create<CourseState>((set, get) => ({
             };
         });
         try {
-            await api.post('/api/enrollments', { course_id: courseId });
+            const tenantId = useAuthStore.getState().user?.tenantId;
+            await api.post('/api/enrollments', { course_id: courseId, tenant_id: tenantId });
         } catch (err) {
             console.error('Failed to sync enrollment:', err);
         }
@@ -150,6 +150,8 @@ export const useCourseStore = create<CourseState>((set, get) => ({
                     thumbnailColor: c.thumbnail_color || '#1B3A6B',
                     isCompleted: c.status === 'completed',
                     totalActivities: c.total_activities,
+                    enrolledCount: c.enrolled_count || 0,
+                    progressPercent: c.total_activities > 0 ? Math.round(c.progress_sum / c.total_activities) : 0,
                     modules: []
                 }));
                 set({ coursesList: courses });
@@ -236,6 +238,7 @@ export const useCourseStore = create<CourseState>((set, get) => ({
                     thumbnailColor: c.thumbnail_color || '#1B3A6B',
                     isCompleted: c.status === 'completed',
                     totalActivities: c.total_activities,
+                    enrolledCount: c.enrolledCount || 0,
                     modules: (c.modules || []).map((m: any) => ({
                         id: m.id,
                         courseId: c.id,
@@ -300,30 +303,35 @@ export const useCourseStore = create<CourseState>((set, get) => ({
         }
     },
 
-    updateActivity: (courseId, moduleId, activity) => set(state => {
-        return {
-            coursesList: state.coursesList.map(course => {
-                if (course.id !== courseId) return course;
-                const newModules = course.modules.map(mod => {
-                    if (mod.id !== moduleId) return mod;
-                    const newActivities = mod.activities.map(a => a.id === activity.id ? activity : a);
-                    return { ...mod, activities: newActivities };
-                });
-                return { ...course, modules: newModules };
-            })
-        };
-    }),
+    updateActivity: async (courseId, moduleId, activity) => {
+        try {
+            const res = await api.put(`/api/courses/${courseId}/activities/${activity.id}`, activity);
+            if (res.data.success) {
+                await get().fetchCourse(courseId);
+            }
+        } catch (err) {
+            console.error('Failed to update activity:', err);
+        }
+    },
 
-    deleteActivity: (courseId, moduleId, activityId) => set(state => {
-        return {
-            coursesList: state.coursesList.map(course => {
-                if (course.id !== courseId) return course;
-                const newModules = course.modules.map(mod => {
-                    if (mod.id !== moduleId) return mod;
-                    return { ...mod, activities: mod.activities.filter(a => a.id !== activityId) };
-                });
-                return { ...course, modules: newModules, totalActivities: Math.max(0, course.totalActivities - 1) };
-            })
-        };
-    }),
+    deleteActivity: async (courseId, moduleId, activityId) => {
+        try {
+            await api.delete(`/api/courses/${courseId}/activities/${activityId}`);
+        } catch (err) {
+            console.error('Failed to delete activity from backend:', err);
+        }
+
+        set(state => {
+            return {
+                coursesList: state.coursesList.map(course => {
+                    if (course.id !== courseId) return course;
+                    const newModules = course.modules.map(mod => {
+                        if (mod.id !== moduleId) return mod;
+                        return { ...mod, activities: mod.activities.filter(a => a.id !== activityId) };
+                    });
+                    return { ...course, modules: newModules, totalActivities: Math.max(0, course.totalActivities - 1) };
+                })
+            };
+        });
+    },
 }));

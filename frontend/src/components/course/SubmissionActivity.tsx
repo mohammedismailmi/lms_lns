@@ -12,9 +12,10 @@ interface Props {
         content?: string;
         dueAt?: string;
     };
+    courseId?: string;
 }
 
-export default function SubmissionActivity({ activity }: Props) {
+export default function SubmissionActivity({ activity, courseId }: Props) {
     const { user } = useAuthStore();
     const { activityStatus, markDone } = useProgressStore();
     const [file, setFile] = useState<File | null>(null);
@@ -58,7 +59,7 @@ export default function SubmissionActivity({ activity }: Props) {
             if (res.data.success) {
                 setSubmitted(true);
                 setMySubmission(res.data.submission);
-                markDone(activity.id);
+                markDone(activity.id, courseId);
                 toast.success('Assignment submitted successfully!');
             }
         } catch (err) {
@@ -216,12 +217,6 @@ export default function SubmissionActivity({ activity }: Props) {
             ) : (
                 <div className="space-y-6">
                     <div className="border-2 border-dashed border-slate-200 rounded-2xl p-10 text-center hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer relative group">
-                        <input 
-                            type="file" 
-                            className="absolute inset-0 opacity-0 cursor-pointer" 
-                            onChange={(e) => setFile(e.target.files?.[0] || null)}
-                            disabled={uploading}
-                        />
                         <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                             <Upload className="w-8 h-8 text-muted group-hover:text-primary" />
                         </div>
@@ -229,6 +224,12 @@ export default function SubmissionActivity({ activity }: Props) {
                             {file ? file.name : 'Click or drag file to upload'}
                         </p>
                         <p className="text-xs text-muted uppercase tracking-widest font-medium">PDF, DOCX, ZIP (MAX 50MB)</p>
+                        <input 
+                            type="file" 
+                            className="absolute inset-0 opacity-0 cursor-pointer z-10" 
+                            onChange={(e) => setFile(e.target.files?.[0] || null)}
+                            disabled={uploading}
+                        />
                     </div>
 
                     <button

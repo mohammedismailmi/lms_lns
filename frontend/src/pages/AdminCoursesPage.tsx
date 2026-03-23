@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useCourseStore } from '../store/courseStore';
-import { Search, Plus } from 'lucide-react';
+import { Search, Plus, ChevronLeft } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import AdminCourseCard from '../components/admin/AdminCourseCard';
 import CourseModal from '../components/admin/CourseModal';
 import AssignInstructorModal from '../components/admin/AssignInstructorModal';
@@ -44,6 +45,9 @@ export default function AdminCoursesPage() {
             
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
+                    <Link to="/admin" className="text-xs font-bold text-primary hover:underline flex items-center gap-1 mb-2">
+                        <ChevronLeft className="w-3 h-3" /> Back to Admin Hub
+                    </Link>
                     <h2 className="text-3xl font-serif font-bold text-navy">All Courses</h2>
                     <p className="text-muted text-sm mt-1">Full control matrix for creating, mapping, and dropping internal platform courses.</p>
                 </div>

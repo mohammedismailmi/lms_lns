@@ -9,29 +9,32 @@ interface Props {
     questionNumber: number;
     totalQuestions: number;
     onNext: () => void;
+    readOnly?: boolean;
 }
 
-export default function QuestionCard({ question, questionNumber, totalQuestions, onNext }: Props) {
+export default function QuestionCard({ question, questionNumber, totalQuestions, onNext, readOnly }: Props) {
     const { answers, saveAnswer, markedForReview, toggleMarkForReview } = useQuizStore();
 
     const selectedAnswer = answers[question.id];
     const isMarked = markedForReview.has(question.id);
+    const correctAnswer = question.options[question.correctAnswerIndex];
 
     const handleSelect = (option: string) => {
+        if (readOnly) return;
         saveAnswer(question.id, option);
     };
 
     const handleClear = () => {
+        if (readOnly) return;
         saveAnswer(question.id, '');
     };
 
     const handleSaveAndNext = () => {
-        // Already saved implicitly on click, just advance
         onNext();
     };
 
     const handleMarkAndNext = () => {
-        if (!isMarked) toggleMarkForReview(question.id);
+        if (!readOnly && !isMarked) toggleMarkForReview(question.id);
         onNext();
     };
 
@@ -39,9 +42,14 @@ export default function QuestionCard({ question, questionNumber, totalQuestions,
         <div className="bg-white rounded-xl shadow-sm border border-border flex flex-col h-full">
             <div className="p-8 border-b border-border bg-slate-50 rounded-t-xl flex items-center justify-between">
                 <h2 className="text-xl font-bold text-navy">Question {questionNumber} of {totalQuestions}</h2>
-                {isMarked && (
+                {!readOnly && isMarked && (
                     <span className="flex items-center gap-1.5 text-highlight bg-highlight/10 px-3 py-1 rounded-full text-sm font-bold uppercase tracking-wider border border-highlight/20">
                         <Bookmark className="w-4 h-4 fill-highlight" /> Marked for Review
+                    </span>
+                )}
+                {readOnly && (
+                    <span className="bg-navy/10 text-navy px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest border border-navy/20">
+                        Review Mode
                     </span>
                 )}
             </div>
@@ -54,61 +62,102 @@ export default function QuestionCard({ question, questionNumber, totalQuestions,
                 <div className="space-y-4">
                     {question.options.map((option, index) => {
                         const isSelected = selectedAnswer === option;
+                        const isCorrect = option === correctAnswer;
                         const letter = String.fromCharCode(65 + index); // A, B, C, D
+
+                        let buttonStyles = "border-border bg-white hover:bg-slate-50 hover:border-slate-300";
+                        let circleStyles = "bg-surface text-muted border-slate-300 group-hover:border-slate-400";
+                        
+                        if (readOnly) {
+                            if (isCorrect) {
+                                buttonStyles = "border-success bg-success/5 shadow-sm ring-1 ring-success/20";
+                                circleStyles = "bg-success text-white border-success";
+                            } else if (isSelected && !isCorrect) {
+                                buttonStyles = "border-accent bg-accent/5 shadow-sm ring-1 ring-accent/20";
+                                circleStyles = "bg-accent text-white border-accent";
+                            } else {
+                                buttonStyles = "border-border bg-white opacity-60 grayscale-[0.5]";
+                                circleStyles = "bg-surface text-muted border-slate-300";
+                            }
+                        } else if (isSelected) {
+                            buttonStyles = "border-primary bg-primary/5 shadow-inner";
+                            circleStyles = "bg-primary text-white border-primary";
+                        }
 
                         return (
                             <button
                                 key={index}
                                 onClick={() => handleSelect(option)}
+                                disabled={readOnly}
                                 className={cn(
                                     "w-full text-left p-5 rounded-xl border-2 transition-all flex items-start gap-4 group",
-                                    isSelected
-                                        ? "border-primary bg-primary/5 shadow-inner"
-                                        : "border-border bg-white hover:bg-slate-50 hover:border-slate-300"
+                                    buttonStyles
                                 )}
                             >
                                 <div className={cn(
                                     "w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0 transition-colors border-2",
-                                    isSelected
-                                        ? "bg-primary text-white border-primary"
-                                        : "bg-surface text-muted border-slate-300 group-hover:border-slate-400"
+                                    circleStyles
                                 )}>
-                                    {letter}
+                                    {isCorrect && readOnly ? <CheckCircle2 className="w-5 h-5" /> : letter}
                                 </div>
-                                <span className={cn("text-lg pt-0.5", isSelected ? "text-primary font-medium" : "text-ink")}>
-                                    {option}
-                                </span>
+                                <div className="flex-1 flex justify-between items-start">
+                                    <span className={cn("text-lg pt-0.5", isSelected ? "text-primary font-medium" : "text-ink")}>
+                                        {option}
+                                    </span>
+                                    {readOnly && isSelected && !isCorrect && (
+                                        <div className="flex items-center gap-1.5 text-accent text-xs font-bold uppercase tracking-widest mt-1">
+                                            <XCircle className="w-4 h-4" /> Incorrect Selection
+                                        </div>
+                                    )}
+                                    {readOnly && isCorrect && (
+                                        <div className="flex items-center gap-1.5 text-success text-xs font-bold uppercase tracking-widest mt-1">
+                                            <CheckCircle2 className="w-4 h-4" /> Correct Answer
+                                        </div>
+                                    )}
+                                </div>
                             </button>
                         );
                     })}
                 </div>
             </div>
 
-            <div className="p-6 border-t border-border bg-surface rounded-b-xl flex items-center justify-between gap-4">
-                <button
-                    onClick={handleClear}
-                    disabled={!selectedAnswer}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-muted font-bold hover:text-navy disabled:opacity-50 transition-colors"
-                >
-                    <XCircle className="w-5 h-5" /> Clear Response
-                </button>
+            <div className="p-6 border-t border-border bg-surface rounded-b-xl flex items-center justify-end gap-4">
+                {!readOnly ? (
+                    <>
+                        <button
+                            onClick={handleClear}
+                            disabled={!selectedAnswer}
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-muted font-bold hover:text-navy disabled:opacity-50 transition-colors"
+                        >
+                            <XCircle className="w-5 h-5" /> Clear Response
+                        </button>
 
-                <div className="flex gap-4">
-                    <button
-                        onClick={handleMarkAndNext}
-                        className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-highlight hover:bg-yellow-600 text-white font-bold transition-all shadow-sm"
-                    >
-                        <Bookmark className="w-5 h-5" /> Mark for Review & Next
-                    </button>
+                        <div className="flex gap-4">
+                            <button
+                                onClick={handleMarkAndNext}
+                                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-highlight hover:bg-yellow-600 text-white font-bold transition-all shadow-sm"
+                            >
+                                <Bookmark className="w-5 h-5" /> Mark for Review & Next
+                            </button>
 
+                            <button
+                                onClick={handleSaveAndNext}
+                                className="flex items-center gap-2 px-8 py-2.5 rounded-xl bg-success hover:bg-green-800 text-white font-bold transition-all shadow-sm"
+                            >
+                                <CheckCircle2 className="w-5 h-5" /> Save & Next
+                            </button>
+                        </div>
+                    </>
+                ) : (
                     <button
                         onClick={handleSaveAndNext}
-                        className="flex items-center gap-2 px-8 py-2.5 rounded-xl bg-success hover:bg-green-800 text-white font-bold transition-all shadow-sm"
+                        className="flex items-center gap-2 px-8 py-2.5 rounded-xl bg-navy hover:bg-slate-800 text-white font-bold transition-all shadow-sm"
                     >
-                        <CheckCircle2 className="w-5 h-5" /> Save & Next
+                        Next Question <CheckCircle2 className="w-5 h-5" />
                     </button>
-                </div>
+                )}
             </div>
         </div>
     );
 }
+

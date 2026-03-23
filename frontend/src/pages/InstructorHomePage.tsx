@@ -7,11 +7,14 @@ import { Users, BellRing } from 'lucide-react';
 
 export default function InstructorHomePage() {
     const { user } = useAuthStore();
-    const { getTeachingCourses, hydrateCourses } = useCourseStore();
+    const { getTeachingCourses, hydrateCourses, hydrateEnrollments } = useCourseStore();
     
     useEffect(() => {
         hydrateCourses();
-    }, [hydrateCourses]);
+        if (user) {
+            hydrateEnrollments(user.id);
+        }
+    }, [hydrateCourses, hydrateEnrollments, user]);
 
     if (!user) return null;
     
@@ -50,37 +53,6 @@ export default function InstructorHomePage() {
                         ))}
                     </div>
                 )}
-            </section>
-
-            <section className="bg-surface rounded-2xl p-8 border border-border">
-                <h3 className="text-lg font-bold font-serif text-navy mb-4">Quick Actions</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Link 
-                        to="/teaching/progress" 
-                        className="flex items-center gap-4 bg-white p-4 rounded-xl border border-border hover:border-slate-300 hover:shadow-sm transition-all group"
-                    >
-                        <div className="p-3 bg-slate-50 rounded-lg group-hover:bg-primary/10 transition-colors">
-                            <Users className="w-5 h-5 text-navy group-hover:text-primary transition-colors" />
-                        </div>
-                        <div>
-                            <p className="font-bold text-navy">View Student Progress</p>
-                            <p className="text-sm text-muted">Review class completion analytics</p>
-                        </div>
-                    </Link>
-
-                    <Link 
-                        to="/teaching/announcements" 
-                        className="flex items-center gap-4 bg-white p-4 rounded-xl border border-border hover:border-slate-300 hover:shadow-sm transition-all group"
-                    >
-                        <div className="p-3 bg-slate-50 rounded-lg group-hover:bg-highlight/10 transition-colors">
-                            <BellRing className="w-5 h-5 text-navy group-hover:text-highlight transition-colors" />
-                        </div>
-                        <div>
-                            <p className="font-bold text-navy">My Announcements</p>
-                            <p className="text-sm text-muted">Send updates to your courses</p>
-                        </div>
-                    </Link>
-                </div>
             </section>
 
         </div>

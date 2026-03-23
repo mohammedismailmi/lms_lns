@@ -14,8 +14,7 @@ export default function InstructorCourseCard({ course }: Props) {
     const navigate = useNavigate();
     const { enrolledCourseIds } = useCourseStore();
 
-    // Calculate number of enrolled students across the entire array of user -> course bindings
-    const enrolledCount = Object.values(enrolledCourseIds).filter(courseIds => courseIds.includes(course.id)).length;
+    const enrolledCount = course.enrolledCount || 0;
 
     // Static placeholder mock rate as strict individual user progress isn't tracked in global global progressStore structure yet
     const mockCompletionRate = 65; 

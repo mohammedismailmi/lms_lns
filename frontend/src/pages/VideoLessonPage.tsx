@@ -8,11 +8,11 @@ import { useToast } from '../lib/useToast';
 import api from '../lib/api';
 
 export default function VideoLessonPage() {
-    const { activityId } = useParams();
+    const { activityId, courseId } = useParams();
     const navigate = useNavigate();
     const toast = useToast();
     const { coursesList } = useCourseStore();
-    const { markDone, activityStatus } = useProgressStore();
+    const { markDone, updateVideoProgress, activityStatus } = useProgressStore();
 
     const [apiActivity, setApiActivity] = useState<any>(null);
     const [apiCourse, setApiCourse] = useState<any>(null);
@@ -103,7 +103,7 @@ export default function VideoLessonPage() {
         }
 
         if (currentProgress >= 80 && !isCompleted) {
-            markDone(activity.id);
+            markDone(activity.id, courseId);
             setIsCompleted(true);
             toast.success("Lecture requirements met! Marked as complete.");
         }

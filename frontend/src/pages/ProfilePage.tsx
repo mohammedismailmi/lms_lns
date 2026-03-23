@@ -28,8 +28,9 @@ export default function ProfilePage() {
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         setSaving(true);
+        const payload = { ...profile };
         try {
-            await api.put('/api/profile', profile);
+            await api.put('/api/profile', payload);
             toast.success('Profile updated successfully');
             if (user && profile.name !== user.name) {
                 useAuthStore.setState({ user: { ...user, name: profile.name } });
@@ -55,11 +56,12 @@ export default function ProfilePage() {
                 setProfile({ ...profile, avatar_url: res.data.avatarUrl });
                 toast.success('Avatar updated');
                 if (user) {
-                    useAuthStore.setState({ user: { ...user, avatarUrl: res.data.avatarUrl } as any });
+                    useAuthStore.setState({ user: { ...user, avatarUrl: res.data.avatarUrl } });
                 }
             }
-        } catch (err) {
-            toast.error('Failed to upload avatar');
+        } catch (err: any) {
+            const msg = err.response?.data?.error || err.response?.data?.message || 'Failed to upload avatar';
+            toast.error(msg);
         } finally {
             setUploading(false);
         }

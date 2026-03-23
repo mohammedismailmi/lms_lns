@@ -19,7 +19,9 @@ export default function CourseCard({ course }: Props) {
     const isInstructorCertified = instructorCompleted.has(course.id);
     // Flatten activities from all modules to calculate progress
     const allActivities = course.modules.flatMap(m => m.activities);
-    const progressPercent = getCourseProgress(course.id, allActivities);
+    const progressPercent = allActivities.length > 0 
+        ? getCourseProgress(course.id, allActivities)
+        : (course.progressPercent || 0);
 
     const showCertificateBadge = isInstructorCertified && progressPercent === 100;
 

@@ -7,7 +7,7 @@ import { sign, verify } from 'hono/jwt';
 import bcrypt from 'bcryptjs';
 import { eq, and, ne, sql, gt, isNull, inArray, desc } from 'drizzle-orm';
 import { getDb } from './db';
-import { users, tenants, enrollments, courses, progress, certificates, submissions, modules, activities, liveSessions, quizAttempts, userEvents, questions, answerOptions } from './db/schema';
+import { users, tenants, enrollments, courses, progress, certificates, submissions, modules, activities, liveSessions, quizAttempts, userEvents, questions, answerOptions, courseQuestions, courseAnswers } from './db/schema';
 import { Context, Next } from 'hono';
 
 type Bindings = {
@@ -133,7 +133,7 @@ app.post('/api/auth/login', zValidator('json', loginSchema), async (c) => {
 
 		const payload = { userId: superAdmin.id, email: superAdmin.email, role: superAdmin.role, tenant_id: 'system', exp: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60 };
 		const token = await sign(payload, c.env.JWT_SECRET);
-		setCookie(c, 'auth_token', token, { path: '/', httpOnly: true, secure: true, sameSite: 'None', maxAge: 7 * 24 * 60 * 60 });
+		setCookie(c, 'auth_token', token, { path: '/', httpOnly: true, secure: false, sameSite: 'Lax', maxAge: 7 * 24 * 60 * 60 });
 
 		return c.json({ 
 			success: true, 
@@ -150,9 +150,9 @@ app.post('/api/auth/login', zValidator('json', loginSchema), async (c) => {
 
 	const payload = { userId: user.id, email: user.email, role: user.role, tenant_id: user.tenant_id, exp: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60 };
 	const token = await sign(payload, c.env.JWT_SECRET);
-	setCookie(c, 'auth_token', token, { path: '/', httpOnly: true, secure: true, sameSite: 'None', maxAge: 7 * 24 * 60 * 60 });
+	setCookie(c, 'auth_token', token, { path: '/', httpOnly: true, secure: false, sameSite: 'Lax', maxAge: 7 * 24 * 60 * 60 });
 
-	return c.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role, tenantId: user.tenant_id } });
+	return c.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role, tenantId: user.tenant_id, avatarUrl: user.avatar_url } });
 });
 
 app.get('/api/auth/me', async (c) => {
@@ -161,7 +161,7 @@ app.get('/api/auth/me', async (c) => {
 	const db = getDb(c.env);
 	const user = await db.select().from(users).where(eq(users.id, payload.userId as string)).get();
 	if (!user) return c.json({ success: false, message: 'User not found' }, 401);
-	return c.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role, tenantId: user.tenant_id } });
+	return c.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role, tenantId: user.tenant_id, avatarUrl: user.avatar_url } });
 });
 
 app.post('/api/auth/logout', (c) => {
@@ -178,8 +178,22 @@ app.get('/api/courses', async (c) => {
 	if (!payload) return c.json({ success: false, message: 'Not authenticated' }, 401);
 	const db = getDb(c.env);
 	const tid = payload.tenant_id as string;
+	const uid = payload.userId as string;
 
 	try {
+		// Define subqueries for counts and sums
+		const statsSub = db.select({
+			course_id: activities.course_id,
+			total: sql<number>`COUNT(DISTINCT ${activities.id})`.as('total')
+		}).from(activities)
+		.where(ne(activities.type, 'announcement'))
+		.groupBy(activities.course_id).as('stats');
+
+		const progressSub = db.select({
+			course_id: progress.course_id,
+			sum: sql<number>`SUM(${progress.percent_complete})`.as('sum')
+		}).from(progress).where(eq(progress.user_id, uid)).groupBy(progress.course_id).as('user_p');
+
 		const selection = {
 			id: courses.id,
 			title: courses.title,
@@ -188,9 +202,11 @@ app.get('/api/courses', async (c) => {
 			tenant_id: courses.tenant_id,
 			thumbnail_color: courses.thumbnail_color,
 			status: courses.status,
-			total_activities: courses.total_activities,
 			instructor_id: courses.instructor_id,
 			faculty_name: sql<string>`COALESCE((SELECT name FROM users WHERE id = ${courses.instructor_id}), ${courses.faculty_name}, 'Unassigned')`,
+			total_activities: sql<number>`COALESCE(${statsSub.total}, 0)`,
+			progress_sum: sql<number>`COALESCE(${progressSub.sum}, 0)`,
+			enrollment_count: sql<number>`(SELECT COUNT(*) FROM enrollments WHERE course_id = ${courses.id})`,
 			created_at: courses.created_at,
 			updated_at: courses.updated_at,
 		};
@@ -198,10 +214,14 @@ app.get('/api/courses', async (c) => {
 		let result;
 		if (payload.role === 'instructor') {
 			result = await db.select(selection).from(courses)
-				.where(and(eq(courses.tenant_id, tid), eq(courses.instructor_id, payload.userId as string)))
+				.leftJoin(statsSub, eq(courses.id, statsSub.course_id))
+				.leftJoin(progressSub, eq(courses.id, progressSub.course_id))
+				.where(and(eq(courses.tenant_id, tid), eq(courses.instructor_id, uid)))
 				.all();
 		} else {
 			result = await db.select(selection).from(courses)
+				.leftJoin(statsSub, eq(courses.id, statsSub.course_id))
+				.leftJoin(progressSub, eq(courses.id, progressSub.course_id))
 				.where(eq(courses.tenant_id, tid))
 				.all();
 		}
@@ -234,7 +254,7 @@ app.post('/api/enrollments', async (c) => {
 	if (existing) return c.json({ success: true, alreadyEnrolled: true });
 
 	await c.env.DB.prepare('INSERT INTO enrollments (id, user_id, course_id, tenant_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)')
-		.bind(crypto.randomUUID(), payload.userId, body.course_id, body.tenant_id, Math.floor(Date.now() / 1000), Math.floor(Date.now() / 1000)).run();
+		.bind(crypto.randomUUID(), payload.userId, body.course_id, payload.tenant_id || body.tenant_id, Math.floor(Date.now() / 1000), Math.floor(Date.now() / 1000)).run();
 	return c.json({ success: true });
 });
 
@@ -338,28 +358,74 @@ app.get('/api/admin/upcoming-sessions', requireRole('admin', 'instructor'), asyn
 	const db = getDb(c.env);
 	const now = Math.floor(Date.now() / 1000);
 	try {
+		// 1. Fetch Live Sessions tied to courses
 		const sessions = await db
 			.select({
 				id: liveSessions.id,
-				title: activities.title,
+				title: liveSessions.title,
 				start_time: liveSessions.start_time,
 				meet_link: liveSessions.meet_link,
-				course_id: activities.course_id,
+				course_id: liveSessions.course_id,
 				course_title: courses.title,
 			})
 			.from(liveSessions)
-			.innerJoin(activities, eq(liveSessions.activity_id, activities.id))
-			.innerJoin(courses, eq(activities.course_id, courses.id))
+			.innerJoin(courses, eq(liveSessions.course_id, courses.id))
 			.where(and(
 				eq(courses.tenant_id, user.tenant_id),
 				gt(liveSessions.start_time, now),
 				isNull(liveSessions.ended_at)
 			))
 			.orderBy(liveSessions.start_time)
-			.limit(5);
-		return c.json({ success: true, sessions });
+			.all();
+
+		// 2. Fetch General User Events (Meetings) for the current user
+		const events = await db.select().from(userEvents)
+			.where(and(
+				eq(userEvents.user_id, user.userId),
+				eq(userEvents.tenant_id, user.tenant_id)
+			))
+			.all();
+
+		// 3. Merge and Normalize
+		const unified = [
+			...sessions.map(s => ({ ...s, type: 'live_session' })),
+			...events
+				.filter(e => e.date_time > now - 3600) // Show upcoming and very recent (1h)
+				.map(e => ({
+					id: e.id,
+					title: e.title,
+					description: e.description,
+					start_time: e.date_time,
+					course_title: 'Personal Meeting',
+					meet_link: e.meet_link,
+					type: 'meeting'
+				}))
+		].sort((a, b) => (Number(a.start_time) || 0) - (Number(b.start_time) || 0)).slice(0, 6);
+
+		return c.json({ 
+			success: true, 
+			sessions: unified,
+			trace: {
+				userId: user.userId,
+				tenantId: user.tenant_id,
+				now,
+				sessionsCount: sessions.length,
+				rawEventsCount: events.length,
+				filteredEventsCount: unified.filter(s => s.type === 'meeting').length
+			}
+		});
 	} catch (err: any) {
-		return c.json({ success: true, sessions: [] });
+		console.error('[UpcomingSessions] failed:', err);
+		return c.json({ 
+			success: true, 
+			sessions: [],
+			trace: {
+				userId: user?.userId || 'not set',
+				error: err.message,
+				stack: err.stack,
+				now: Math.floor(Date.now() / 1000)
+			}
+		}, 200); 
 	}
 });
 
@@ -389,6 +455,8 @@ app.post('/api/admin/meetings', jwtMiddleware, requireRole('admin', 'instructor'
 				tenant_id: user.tenant_id,
 				user_id: participantId,
 				title: body.title,
+				description: body.description,
+				meet_link: meetLink,
 				date_time: scheduledTs,
 				created_at: now,
 			});
@@ -473,12 +541,22 @@ app.get('/api/courses/:courseId', jwtMiddleware, async (c) => {
 		}
 
 		const activitiesWithMeetLink = activityList.map(a => {
-			const s = activeLiveSessions.find(ls => ls.activity_id === a.id);
+			const s = activeLiveSessions.find(ls => ls.course_id === a.course_id);
 			const activityQuestions = questionsList.filter(q => q.activity_id === a.id);
 			return { 
 				...a, 
 				meetLink: s?.meet_link || a.meet_link,
-				questions: activityQuestions || []
+				questions: activityQuestions || [],
+				fileUrl: a.file_url,
+				fileName: a.file_name,
+				fileType: a.file_type,
+				fileSize: a.file_size,
+				videoUrl: a.video_url,
+				// CamelCase mapping for frontend components
+				dueAt: a.due_at,
+				scheduledAt: a.scheduled_at,
+				durationMinutes: a.duration_minutes,
+				duration: a.duration_minutes || 0,
 			};
 		});
 
@@ -488,18 +566,35 @@ app.get('/api/courses/:courseId', jwtMiddleware, async (c) => {
 			...mod,
 			order: mod.order_index,
 			activities: activitiesWithMeetLink
-				.filter(a => a.section_id === mod.id)
+				.filter(a => a.section_id === mod.id && a.type !== 'announcement')
 				.map(a => ({ ...a, order: a.order_index }))
 		}));
+
+		const announcementActivities = activitiesWithMeetLink.filter(a => a.type === 'announcement');
+		const totalNonAnnouncements = activitiesWithMeetLink.filter(a => a.type !== 'announcement').length;
+
+		const announcementsList = activitiesWithMeetLink
+			.filter(a => a.type === 'announcement')
+			.map(a => ({
+				id: a.id,
+				title: a.title,
+				content: a.content,
+				createdAt: a.created_at ? new Date(a.created_at * 1000).toISOString() : new Date().toISOString()
+			}))
+			.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
 		return c.json({
 			success: true,
 			course: {
 				...course,
+				enrolledCount: (await db.select({ count: sql<number>`count(*)` }).from(enrollments).where(eq(enrollments.course_id, courseId)).get())?.count || 0,
 				name: course.title,
 				faculty: course.faculty_name || 'Unassigned',
 				facultyInitial: (course.faculty_name || '??').split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase(),
 				modules: modulesWithActivities,
+				announcements: announcementsList,
+				totalActivities: totalNonAnnouncements,
+				total_activities: totalNonAnnouncements
 			}
 		});
 	} catch (err: any) {
@@ -691,8 +786,6 @@ app.post(
 		const db = getDb(c.env);
 		const body = await c.req.json();
 
-		console.log('[CreateActivity] body:', JSON.stringify(body));
-
 		const schema = z.object({
 			moduleId:    z.string().nullable().optional(),
 			title:       z.string().min(1),
@@ -710,6 +803,11 @@ app.post(
 			dueAt:       z.string().optional(),
 			order:       z.number().default(0),
 			orderIndex:  z.number().optional(),
+			questions:   z.array(z.object({
+				text: z.string(),
+				options: z.array(z.string()),
+				correctOptionIndex: z.number(),
+			})).optional(),
 		});
 
 		const parsed = schema.safeParse(body);
@@ -737,7 +835,7 @@ app.post(
 				file_type:   parsed.data.fileType ?? null,
 				file_size:   parsed.data.fileSize ?? null,
 				video_url:   parsed.data.videoUrl ?? null,
-				duration_minutes: parsed.data.duration ?? 0,
+				duration_minutes: parsed.data.duration ?? 30,
 				scheduled_at: parsed.data.scheduledAt ?? null,
 				meet_link:    parsed.data.meetLink ?? null,
 				due_at:       parsed.data.dueAt ?? null,
@@ -746,6 +844,29 @@ app.post(
 				updated_at: now,
 			});
 
+			// If it's a quiz/exam, save questions
+			if ((parsed.data.type === 'quiz' || parsed.data.type === 'exam') && parsed.data.questions) {
+				for (const [qIdx, q] of parsed.data.questions.entries()) {
+					const qId = crypto.randomUUID();
+					// Store the entire question object as JSON in the 'text' field
+					const questionData = JSON.stringify({
+						text: q.text,
+						options: q.options,
+						correctAnswerIndex: q.correctOptionIndex
+					});
+
+					await db.insert(questions).values({
+						id: qId,
+						activity_id: id,
+						tenant_id: user.tenant_id,
+						text: questionData,
+						type: 'mcq',
+						question_type: 'mcq',
+						order_index: qIdx,
+					});
+				}
+			}
+
 			console.log('[CreateActivity] created:', id);
 			return c.json({
 				success: true,
@@ -753,11 +874,157 @@ app.post(
 					id,
 					...parsed.data,
 					courseId,
-					activities: [],
 				}
 			}, 201);
 		} catch (err: any) {
 			console.error('[CreateActivity] insert failed:', String(err));
+			return c.json({ success: false, error: String(err) }, 500);
+		}
+	}
+);
+
+app.put(
+	'/api/courses/:courseId/activities/:activityId',
+	jwtMiddleware,
+	requireRole('instructor', 'admin'),
+	async (c) => {
+		const { courseId, activityId } = c.req.param();
+		const user = c.get('user');
+		const db = getDb(c.env);
+		const body = await c.req.json();
+
+		const schema = z.object({
+			title:       z.string().min(1).optional(),
+			type:        z.enum(['blog', 'video', 'file', 'quiz', 'exam', 'live_class', 'submission', 'announcement']).optional(),
+			content:     z.string().optional(),
+			description: z.string().optional(),
+			fileUrl:     z.string().nullable().optional(),
+			fileName:    z.string().nullable().optional(),
+			fileType:    z.string().nullable().optional(),
+			fileSize:    z.number().nullable().optional(),
+			videoUrl:    z.string().nullable().optional(),
+			duration:    z.number().nullable().optional(),
+			scheduledAt: z.string().nullable().optional(),
+			meetLink:    z.string().nullable().optional(),
+			dueAt:       z.string().nullable().optional(),
+			orderIndex:  z.number().optional(),
+			questions:   z.array(z.object({
+				text: z.string(),
+				options: z.array(z.string()),
+				correctOptionIndex: z.number(),
+			})).optional(),
+		});
+
+		const parsed = schema.safeParse(body);
+		if (!parsed.success) {
+			return c.json({ success: false, error: parsed.error.flatten() }, 400);
+		}
+
+		try {
+			const now = Math.floor(Date.now() / 1000);
+			const updateData: any = {
+				updated_at: now,
+			};
+
+			if (parsed.data.title) updateData.title = parsed.data.title;
+			if (parsed.data.type) updateData.type = parsed.data.type;
+			if (parsed.data.content !== undefined) updateData.content = parsed.data.content;
+			if (parsed.data.description !== undefined) updateData.description = parsed.data.description;
+			if (parsed.data.fileUrl !== undefined) updateData.file_url = parsed.data.fileUrl;
+			if (parsed.data.fileName !== undefined) updateData.file_name = parsed.data.fileName;
+			if (parsed.data.fileType !== undefined) updateData.file_type = parsed.data.fileType;
+			if (parsed.data.fileSize !== undefined) updateData.file_size = parsed.data.fileSize;
+			if (parsed.data.videoUrl !== undefined) updateData.video_url = parsed.data.videoUrl;
+			if (parsed.data.duration !== undefined) updateData.duration_minutes = parsed.data.duration;
+			if (parsed.data.scheduledAt !== undefined) updateData.scheduled_at = parsed.data.scheduledAt;
+			if (parsed.data.meetLink !== undefined) updateData.meet_link = parsed.data.meetLink;
+			if (parsed.data.dueAt !== undefined) updateData.due_at = parsed.data.dueAt;
+			if (parsed.data.orderIndex !== undefined) updateData.order_index = parsed.data.orderIndex;
+
+			await db.update(activities)
+				.set(updateData)
+				.where(and(
+					eq(activities.id, activityId),
+					eq(activities.course_id, courseId),
+					eq(activities.tenant_id, user.tenant_id)
+				));
+
+			// If questions provided, sync them
+			if (parsed.data.questions) {
+				// Clear existing questions for this activity
+				const existingQuestions = await db.select({ id: questions.id })
+					.from(questions)
+					.where(eq(questions.activity_id, activityId));
+				
+				const qIds = existingQuestions.map(q => q.id);
+				if (qIds.length > 0) {
+					// NOTE: answerOptions table doesn't exist in actual DB, so skipping its deletion
+					await db.delete(questions).where(inArray(questions.id, qIds));
+				}
+
+				// Re-create new questions
+				for (const [qIdx, q] of parsed.data.questions.entries()) {
+					const qId = crypto.randomUUID();
+					const questionData = JSON.stringify({
+						text: q.text,
+						options: q.options,
+						correctAnswerIndex: q.correctOptionIndex
+					});
+
+					await db.insert(questions).values({
+						id: qId,
+						activity_id: activityId,
+						tenant_id: user.tenant_id,
+						text: questionData,
+						type: 'mcq',
+						question_type: 'mcq',
+						order_index: qIdx,
+					});
+				}
+			}
+
+			return c.json({ success: true });
+		} catch (err: any) {
+			console.error('[UpdateActivity] update failed:', String(err));
+			return c.json({ success: false, error: String(err) }, 500);
+		}
+	}
+);
+
+app.delete(
+	'/api/courses/:courseId/activities/:activityId',
+	jwtMiddleware,
+	requireRole('instructor', 'admin'),
+	async (c) => {
+		const { courseId, activityId } = c.req.param();
+		const user = c.get('user');
+		const db = getDb(c.env);
+
+		try {
+			// 1. Delete associated questions if it's a quiz/exam
+			await db.delete(questions).where(eq(questions.activity_id, activityId)).run();
+			
+			// 2. Delete progress records
+			await db.delete(progress).where(eq(progress.lesson_id, activityId)).run();
+			
+			// 3. Delete submissions
+			await db.delete(submissions).where(eq(submissions.activity_id, activityId)).run();
+
+			// 4. Finally delete the activity itself
+			const result = await db.delete(activities)
+				.where(and(
+					eq(activities.id, activityId),
+					eq(activities.course_id, courseId),
+					eq(activities.tenant_id, user.tenant_id)
+				)).run();
+
+			if (result.meta.changes === 0) {
+				return c.json({ success: false, message: 'Activity not found' }, 404);
+			}
+
+			return c.json({ success: true, message: 'Activity deleted' });
+		} catch (err: any) {
+			console.error('[DeleteActivity] delete failed:', String(err));
 			return c.json({ success: false, error: String(err) }, 500);
 		}
 	}
@@ -781,6 +1048,55 @@ app.get('/api/admin/instructors', requireRole('admin', 'super_admin'), async (c)
 		return c.json({ success: true, instructors: instructorList });
 	} catch (err: any) {
 		return c.json({ success: false, message: err.message }, 500);
+	}
+});
+
+app.get('/api/admin/learners-by-course', jwtMiddleware, requireRole('admin'), async (c) => {
+	const user = c.get('user');
+	const db = getDb(c.env);
+
+	try {
+		// Fetch all courses for the tenant
+		const courseList = await db.select({
+			id: courses.id,
+			title: courses.title,
+		})
+		.from(courses)
+		.where(eq(courses.tenant_id, user.tenant_id))
+		.orderBy(courses.title);
+
+		// Fetch all enrollments with user details for the tenant
+		const enrollmentList = await db.select({
+			course_id: enrollments.course_id,
+			user_id: users.id,
+			user_name: users.name,
+			user_email: users.email,
+		})
+		.from(enrollments)
+		.innerJoin(users, eq(enrollments.user_id, users.id))
+		.where(and(
+			eq(enrollments.tenant_id, user.tenant_id),
+			eq(users.role, 'learner')
+		))
+		.all();
+
+		// Group learners by course
+		const coursesWithLearners = courseList.map(course => ({
+			id: course.id,
+			title: course.title,
+			learners: enrollmentList
+				.filter(e => e.course_id === course.id)
+				.map(e => ({
+					id: e.user_id,
+					name: e.user_name,
+					email: e.user_email
+				}))
+		})).filter(c => c.learners.length > 0);
+
+		return c.json({ success: true, courses: coursesWithLearners });
+	} catch (err: any) {
+		console.error('[LearnersByCourse] failed:', err);
+		return c.json({ success: false, error: err.message }, 500);
 	}
 });
 
@@ -838,6 +1154,13 @@ app.get('/api/files/*', async (c) => {
 	const headers = new Headers();
 	object.writeHttpMetadata(headers);
 	headers.set('etag', object.httpEtag);
+
+	const contentType = headers.get('content-type');
+	const isInline = contentType && (contentType === 'application/pdf' || contentType.startsWith('image/'));
+	if (isInline) {
+		headers.set('Content-Disposition', 'inline');
+	}
+
 	return new Response(object.body, { headers });
 });
 
@@ -981,28 +1304,31 @@ app.post('/api/live-sessions/create', jwtMiddleware, requireRole('instructor', '
 	const body = await c.req.json();
 	const db = getDb(c.env);
 
-	if (!body.activityId) return c.json({ success: false, error: 'Activity ID required' }, 400);
+		const courseId = body.courseId || body.course_id;
+		if (!courseId) return c.json({ success: false, error: 'Course ID required' }, 400);
 
-	try {
-			const existing = await db.select().from(liveSessions)
-					.where(and(eq(liveSessions.activity_id, body.activityId), isNull(liveSessions.ended_at)))
-					.get();
+		try {
+				const existing = await db.select().from(liveSessions)
+						.where(and(eq(liveSessions.course_id, courseId), isNull(liveSessions.ended_at)))
+						.get();
 
-			if (existing) return c.json({ success: true, session: existing });
+				if (existing) return c.json({ success: true, session: existing });
 
-			const sessionId = crypto.randomUUID();
-			const now = Math.floor(Date.now() / 1000);
-			const randomCode = () => Math.random().toString(36).substring(2, 5);
-			const mockLink = `https://meet.google.com/${randomCode()}-${randomCode()}-${randomCode()}`;
+				const sessionId = crypto.randomUUID();
+				const now = Math.floor(Date.now() / 1000);
+				const randomCode = () => Math.random().toString(36).substring(2, 5);
+				const mockLink = `https://meet.google.com/${randomCode()}-${randomCode()}-${randomCode()}`;
 
-			await db.insert(liveSessions).values({
-					id: sessionId,
-					activity_id: body.activityId,
-					meet_link: mockLink,
-					start_time: now,
-					created_at: now,
-					updated_at: now,
-			});
+				await db.insert(liveSessions).values({
+						id: sessionId,
+						tenant_id: user.tenant_id,
+						course_id: courseId,
+						title: body.title || 'Live Session',
+						meet_link: mockLink,
+						start_time: now,
+						created_at: now,
+						updated_at: now,
+				});
 
 			const session = await db.select().from(liveSessions).where(eq(liveSessions.id, sessionId)).get();
 			return c.json({ success: true, session });
@@ -1027,18 +1353,24 @@ app.post('/api/quizzes/:quizId/submit', jwtMiddleware, requireRole('learner'), a
 	let score = 0;
 	
 	try {
-			const contentStr = activity.content || '{}';
-			const parsed = JSON.parse(contentStr);
-			const questions = Array.isArray(parsed) ? parsed : (parsed.questions || []);
+			const questionsResult = await db.select().from(questions).where(eq(questions.activity_id, quizId)).all();
 			
-			maxScore = questions.length;
-			questions.forEach((q: any) => {
-					const correctStr = q.options[q.correctAnswerIndex];
+			maxScore = questionsResult.length;
+			questionsResult.forEach((q: any) => {
+					let qData: any = {};
+					try {
+						qData = JSON.parse(q.text || '{}');
+					} catch(e) {
+						qData = { options: [], correctAnswerIndex: 0 };
+					}
+					const correctStr = qData.options[qData.correctAnswerIndex];
 					if (body.answers && body.answers[q.id] === correctStr) {
 							score++;
 					}
 			});
-	} catch {}
+	} catch(e) {
+		console.error('Submission score calculation failed:', e);
+	}
 
 	const now = Math.floor(Date.now() / 1000);
 	const attemptId = crypto.randomUUID();
@@ -1155,7 +1487,8 @@ app.get('/api/quizzes/:quizId/my-result', jwtMiddleware, requireRole('learner'),
 					modifiedScore: attempt.modified_score,
 					instructorNote: attempt.instructor_note,
 					isPublished: attempt.is_published === 1,
-					submittedAt: attempt.created_at * 1000
+					submittedAt: attempt.created_at * 1000,
+					answers: attempt.is_published === 1 ? JSON.parse(attempt.answers_json) : null
 			}
 	});
 });
@@ -1164,11 +1497,61 @@ app.get('/api/user-events', jwtMiddleware, async (c) => {
 	const user = c.get('user');
 	const db = getDb(c.env);
 	try {
-			const events = await db.select().from(userEvents)
-					.where(and(eq(userEvents.user_id, user.userId), eq(userEvents.tenant_id, user.tenant_id)))
-					.orderBy(userEvents.date_time);
-			return c.json({ success: true, events });
+			// 1. Fetch personal events
+			const personalEvents = await db.select().from(userEvents)
+					.where(and(eq(userEvents.user_id, user.userId), eq(userEvents.tenant_id, user.tenant_id)));
+			
+			const mappedPersonal = personalEvents.map(e => ({
+				id: e.id,
+				title: e.title,
+				description: e.description,
+				date_time: e.date_time,
+				meet_link: e.meet_link,
+				type: 'personal'
+			}));
+
+			// 2. Fetch enrolled course activities (assignments, quizzes, etc.)
+			// JOIN enrollments with activities
+			const courseActivities = await db.select({
+				id: activities.id,
+				title: activities.title,
+				due_at: activities.due_at,
+				scheduled_at: activities.scheduled_at,
+				type: activities.type,
+				courseTitle: courses.title
+			})
+			.from(enrollments)
+			.innerJoin(courses, eq(enrollments.course_id, courses.id))
+			.innerJoin(activities, eq(activities.course_id, courses.id))
+			.where(and(
+				eq(enrollments.user_id, user.userId),
+				eq(enrollments.tenant_id, user.tenant_id),
+				sql`(${activities.due_at} IS NOT NULL OR ${activities.scheduled_at} IS NOT NULL)`
+			));
+
+			const mappedActivities = courseActivities.map(a => {
+				const dateStr = a.due_at || a.scheduled_at;
+				let ts = 0;
+				if (dateStr) {
+					try {
+						ts = Math.floor(new Date(dateStr).getTime() / 1000);
+					} catch (e) {
+						console.error('Failed to parse date:', dateStr);
+					}
+				}
+				return {
+					id: a.id,
+					title: `[${a.courseTitle}] ${a.title}`,
+					date_time: ts,
+					type: a.type
+				};
+			});
+
+			const allEvents = [...mappedPersonal, ...mappedActivities].sort((a, b) => a.date_time - b.date_time);
+
+			return c.json({ success: true, events: allEvents });
 	} catch (err: any) {
+			console.error('user-events error:', err);
 			return c.json({ success: false, error: err.message }, 500);
 	}
 });
@@ -1241,6 +1624,7 @@ app.put('/api/profile', jwtMiddleware, async (c) => {
 							website: body.website,
 							linkedin: body.linkedin,
 							github: body.github,
+							avatar_url: body.avatar_url,
 							updated_at: Math.floor(Date.now() / 1000)
 					} as any)
 					.where(eq(users.id, user.userId));
@@ -1270,7 +1654,8 @@ app.post('/api/profile/avatar', jwtMiddleware, async (c) => {
 
 			return c.json({ success: true, avatarUrl });
 	} catch (err: any) {
-			return c.json({ success: false, error: err.message }, 500);
+		console.error('Avatar upload error:', err);
+		return c.json({ success: false, error: err.message || 'Internal Server Error' }, 500);
 	}
 });
 
@@ -1510,6 +1895,7 @@ app.post('/api/courses/:courseId/announcements', jwtMiddleware, requireRole('ins
     });
     return c.json({ success: true, announcement: { id, content: parsed.data.content } }, 201);
   } catch (err: any) {
+    console.error('Post announcement error:', err);
     return c.json({ success: false, error: String(err) }, 500);
   }
 });
@@ -1527,7 +1913,7 @@ app.get('/api/courses/:courseId/announcements', jwtMiddleware, async (c) => {
         eq(activities.type, 'announcement'),
         eq(activities.tenant_id, user.tenant_id)
       ))
-      .orderBy(desc(activities.order_index));
+      .orderBy(desc(activities.created_at));
 
     return c.json({ success: true, announcements });
   } catch (err: any) {
@@ -1649,36 +2035,36 @@ app.get('/api/activities/:activityId/quiz-data', jwtMiddleware, async (c) => {
 			.where(eq(courses.id, activity.course_id))
 			.get();
 
-		// Fetch questions
+		// Fetch questions - they are stored as JSON in the 'text' field
 		const questionList = await db.select()
 			.from(questions)
 			.where(eq(questions.activity_id, activityId))
 			.orderBy(questions.order_index)
 			.all();
-
-		// Fetch answer options for each question
-		const questionIds = questionList.map(q => q.id);
-		let allOptions: any[] = [];
-		if (questionIds.length > 0) {
-			allOptions = await db.select()
-				.from(answerOptions)
-				.where(inArray(answerOptions.question_id, questionIds))
-				.all();
-		}
-
+		
 		const questionsWithOptions = questionList.map(q => {
-			const opts = allOptions.filter(o => o.question_id === q.id);
-			const correctIndex = opts.findIndex(o => o.id === q.correct_answer_id);
-			return {
-				id: q.id,
-				text: q.text,
-				type: q.question_type || 'mcq',
-				options: opts.map(o => o.text),
-				optionIds: opts.map(o => o.id),
-				correctAnswerIndex: correctIndex >= 0 ? correctIndex : 0,
-				sampleAnswer: q.sample_answer,
-				matchPairs: q.match_pairs,
-			};
+			try {
+				// The actual DB stores the question object as JSON in the 'text' column
+				const data = JSON.parse(q.text || '{}');
+				return {
+					id: q.id,
+					text: data.text || 'Untitled Question',
+					type: q.question_type || 'mcq', // Use q.question_type from DB, fallback to 'mcq'
+					options: data.options || [],
+					correctAnswerIndex: data.correctAnswerIndex ?? 0,
+					sampleAnswer: q.sample_answer,
+					matchPairs: q.match_pairs,
+				};
+			} catch (e) {
+				// Fallback if not JSON
+				return {
+					id: q.id,
+					text: q.text,
+					type: q.question_type || 'mcq', // Use q.question_type from DB, fallback to 'mcq'
+					options: [],
+					correctAnswerIndex: 0,
+				};
+			}
 		});
 
 		return c.json({
@@ -1696,6 +2082,123 @@ app.get('/api/activities/:activityId/quiz-data', jwtMiddleware, async (c) => {
 	} catch (err: any) {
 		console.error('GET /api/activities/:activityId/quiz-data error:', err);
 		return c.json({ success: false, error: String(err) }, 500);
+	}
+});
+
+// ── Course Q&A Endpoints ──────────────────────────────────────────
+
+app.get('/api/courses/:courseId/questions', jwtMiddleware, async (c) => {
+	const courseId = c.req.param('courseId');
+	if (!courseId) return c.json({ success: false, message: 'Missing courseId' }, 400);
+	const user = c.get('user');
+	const db = getDb(c.env);
+	try {
+		const result = await db.select({
+			id: courseQuestions.id,
+			title: courseQuestions.title,
+			content: courseQuestions.content,
+			user_id: courseQuestions.user_id,
+			user_name: sql<string>`COALESCE((SELECT name FROM users WHERE id = ${courseQuestions.user_id}), 'Unknown User')`,
+			created_at: courseQuestions.created_at,
+		}).from(courseQuestions)
+		.where(and(
+			eq(courseQuestions.course_id, courseId),
+			eq(courseQuestions.tenant_id, user.tenant_id)
+		))
+		.orderBy(desc(courseQuestions.created_at))
+		.all();
+		
+		return c.json({ success: true, questions: result });
+	} catch (err: any) {
+		return c.json({ success: false, error: err.message }, 500);
+	}
+});
+
+app.post('/api/courses/:courseId/questions', jwtMiddleware, async (c) => {
+	const courseId = c.req.param('courseId');
+	if (!courseId) return c.json({ success: false, message: 'Missing courseId' }, 400);
+	const user = c.get('user');
+	const db = getDb(c.env);
+	const body = await c.req.json();
+	const schema = z.object({
+		title: z.string().min(1),
+		content: z.string().min(1),
+	});
+	const parsed = schema.safeParse(body);
+	if (!parsed.success) return c.json({ success: false, error: parsed.error.flatten() }, 400);
+
+	try {
+		const id = crypto.randomUUID();
+		const now = Math.floor(Date.now() / 1000);
+		await db.insert(courseQuestions).values({
+			id,
+			tenant_id: user.tenant_id,
+			course_id: courseId,
+			user_id: user.userId,
+			title: parsed.data.title,
+			content: parsed.data.content,
+			created_at: now,
+			updated_at: now,
+		}).run();
+		return c.json({ success: true, id });
+	} catch (err: any) {
+		return c.json({ success: false, error: err.message }, 500);
+	}
+});
+
+app.get('/api/questions/:questionId/answers', jwtMiddleware, async (c) => {
+	const questionId = c.req.param('questionId');
+	if (!questionId) return c.json({ success: false, message: 'Missing questionId' }, 400);
+	const user = c.get('user');
+	const db = getDb(c.env);
+	try {
+		const result = await db.select({
+			id: courseAnswers.id,
+			content: courseAnswers.content,
+			user_id: courseAnswers.user_id,
+			user_name: sql<string>`COALESCE((SELECT name FROM users WHERE id = ${courseAnswers.user_id}), 'Unknown User')`,
+			user_role: sql<string>`COALESCE((SELECT role FROM users WHERE id = ${courseAnswers.user_id}), 'learner')`,
+			created_at: courseAnswers.created_at,
+		}).from(courseAnswers)
+		.where(and(
+			eq(courseAnswers.question_id, questionId),
+			eq(courseAnswers.tenant_id, user.tenant_id)
+		))
+		.orderBy(courseAnswers.created_at)
+		.all();
+		return c.json({ success: true, answers: result });
+	} catch (err: any) {
+		return c.json({ success: false, error: err.message }, 500);
+	}
+});
+
+app.post('/api/questions/:questionId/answers', jwtMiddleware, async (c) => {
+	const questionId = c.req.param('questionId');
+	if (!questionId) return c.json({ success: false, message: 'Missing questionId' }, 400);
+	const user = c.get('user');
+	const db = getDb(c.env);
+	const body = await c.req.json();
+	const schema = z.object({
+		content: z.string().min(1),
+	});
+	const parsed = schema.safeParse(body);
+	if (!parsed.success) return c.json({ success: false, error: parsed.error.flatten() }, 400);
+
+	try {
+		const id = crypto.randomUUID();
+		const now = Math.floor(Date.now() / 1000);
+		await db.insert(courseAnswers).values({
+			id,
+			tenant_id: user.tenant_id,
+			question_id: questionId,
+			user_id: user.userId,
+			content: parsed.data.content,
+			created_at: now,
+			updated_at: now,
+		}).run();
+		return c.json({ success: true, id });
+	} catch (err: any) {
+		return c.json({ success: false, error: err.message }, 500);
 	}
 });
 

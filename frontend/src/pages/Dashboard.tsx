@@ -13,6 +13,7 @@ interface UpcomingSession {
     event_date?: string;
     description?: string;
     event_type?: string;
+    type?: string;
 }
 
 export default function Dashboard() {
@@ -87,10 +88,25 @@ export default function Dashboard() {
                                                     </div>
                                                 )}
                                                 <div>
-                                                    <h3 className="font-bold text-navy text-lg">{event.title}</h3>
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <h3 className="font-bold text-navy text-lg">{event.title}</h3>
+                                                        {event.type && (
+                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                                                event.type === 'submission' ? 'bg-red-50 text-red-500 border border-red-100' :
+                                                                (event.type === 'quiz' || event.type === 'exam') ? 'bg-orange-50 text-orange-500 border border-orange-100' :
+                                                                event.type === 'live_class' ? 'bg-blue-50 text-blue-500 border border-blue-100' :
+                                                                'bg-slate-100 text-slate-500 border border-slate-200'
+                                                            }`}>
+                                                                {event.type.replace('_', ' ')}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     {dt && (
                                                         <div className="flex items-center gap-4 text-sm text-muted mt-2 font-medium">
-                                                            <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" /> {dt.time}</span>
+                                                            <span className="flex items-center gap-1.5">
+                                                                {event.type === 'live_class' ? <Video className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
+                                                                {dt.time}
+                                                            </span>
                                                         </div>
                                                     )}
                                                 </div>

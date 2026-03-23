@@ -9,9 +9,9 @@ interface ProgressState {
     courseProgress: Record<string, number>; // 0 to 100
 
     hydrateProgress: () => Promise<void>;
-    markDone: (activityId: string) => Promise<void>;
-    markInProgress: (activityId: string) => Promise<void>;
-    updateVideoProgress: (activityId: string, percent: number) => Promise<void>;
+    markDone: (activityId: string, courseId?: string) => Promise<void>;
+    markInProgress: (activityId: string, courseId?: string) => Promise<void>;
+    updateVideoProgress: (activityId: string, percent: number, courseId?: string) => Promise<void>;
     getCourseProgress: (courseId: string, activities: Activity[]) => number;
     recalculateCourseProgress: (courseId: string, activities: Activity[]) => void;
 }
@@ -19,7 +19,9 @@ interface ProgressState {
 function findCourseId(activityId: string) {
     const courses = useCourseStore.getState().coursesList;
     for (const c of courses) {
+        if (!c.modules) continue;
         for (const m of c.modules) {
+            if (!m.activities) continue;
             for (const a of m.activities) {
                 if (a.id === activityId) return c.id;
             }
@@ -55,7 +57,7 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
         }
     },
 
-    markDone: async (activityId) => {
+    markDone: async (activityId, explicitCourseId?: string) => {
         // Optimistic update
         set((state) => ({
             activityStatus: { ...state.activityStatus, [activityId]: 'completed' },
@@ -63,7 +65,7 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
         }));
 
         try {
-            const courseId = findCourseId(activityId);
+            const courseId = explicitCourseId || findCourseId(activityId);
             const course = useCourseStore.getState().coursesList.find(c => c.id === courseId);
             const totalActivities = course ? course.totalActivities : 1;
 
@@ -83,7 +85,7 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
         }
     },
 
-    markInProgress: async (activityId) => {
+    markInProgress: async (activityId, explicitCourseId?: string) => {
         if (get().activityStatus[activityId] === 'completed') return;
 
         set((state) => ({
@@ -91,8 +93,9 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
         }));
 
         try {
+            const courseId = explicitCourseId || findCourseId(activityId);
             await api.post(`/api/progress`, {
-                course_id: findCourseId(activityId),
+                course_id: courseId,
                 lesson_id: activityId,
                 percent_complete: 1,
             });
@@ -101,7 +104,7 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
         }
     },
 
-    updateVideoProgress: async (activityId, percent) => {
+    updateVideoProgress: async (activityId, percent, explicitCourseId?: string) => {
         if (get().videoProgress[activityId] >= percent) return;
 
         set((state) => {
@@ -115,7 +118,7 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
         });
 
         try {
-            const courseId = findCourseId(activityId);
+            const courseId = explicitCourseId || findCourseId(activityId);
             const course = useCourseStore.getState().coursesList.find(c => c.id === courseId);
             const totalActivities = course ? course.totalActivities : 1;
 

@@ -17,10 +17,13 @@ import AdminDashboard from './pages/AdminDashboard'; // .tsx with real API data
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminCoursesPage from './pages/AdminCoursesPage';
 import AdminAnalyticsPage from './pages/AdminAnalyticsPage';
+import AdminInstructorsPage from './pages/AdminInstructorsPage';
+import AdminLearnersPage from './pages/AdminLearnersPage';
 import TenantComingSoonPage from './pages/TenantComingSoonPage';
 import ProfilePage from './pages/ProfilePage';
 
 import CoursePage from './pages/CoursePage';
+import CourseQnAPage from './pages/CourseQnAPage';
 import QuizPage from './pages/QuizPage';
 import ExamPage from './pages/ExamPage';
 import CertificatePage from './pages/CertificatePage';
@@ -80,8 +83,8 @@ export default function App() {
 
                     {/* Fullscreen Protected Routes outside Sidebar Layout */}
                     <Route element={<ProtectedRoute allowedRoles={['admin', 'instructor', 'learner']} />}>
-                        <Route path="/quiz/:id" element={<QuizPage />} />
-                        <Route path="/exam/:id" element={<ExamPage />} />
+                        <Route path="/course/:courseId/quiz/:id" element={<QuizPage />} />
+                        <Route path="/course/:courseId/exam/:id" element={<ExamPage />} />
                     </Route>
 
                     {/* Super Admin Route — standalone, no sidebar */}
@@ -108,11 +111,12 @@ export default function App() {
                             <Route path="/profile" element={<ProfilePage />} />
 
                             <Route path="/course/:courseId" element={<CoursePage />} />
+                            <Route path="/course/:courseId/qna" element={<CourseQnAPage />} />
                             <Route path="/certificates" element={<CertificatePage />} />
 
-                            <Route path="/lesson/blog/:activityId" element={<BlogLessonPage />} />
-                            <Route path="/lesson/file/:activityId" element={<FileLessonPage />} />
-                            <Route path="/lesson/video/:activityId" element={<VideoLessonPage />} />
+                            <Route path="/course/:courseId/lesson/blog/:activityId" element={<BlogLessonPage />} />
+                            <Route path="/course/:courseId/lesson/file/:activityId" element={<FileLessonPage />} />
+                            <Route path="/course/:courseId/lesson/video/:activityId" element={<VideoLessonPage />} />
                         </Route>
 
                         <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
@@ -121,6 +125,8 @@ export default function App() {
                             <Route path="/admin/courses" element={<AdminCoursesPage />} />
                             <Route path="/admin/tenants" element={<TenantComingSoonPage />} />
                             <Route path="/admin/analytics" element={<AdminAnalyticsPage />} />
+                            <Route path="/admin/instructors" element={<AdminInstructorsPage />} />
+                            <Route path="/admin/learners" element={<AdminLearnersPage />} />
                             <Route path="/admin/meetings" element={<AdminMeetingsPage />} />
                         </Route>
 

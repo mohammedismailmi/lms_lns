@@ -46,7 +46,12 @@ export default function CalendarWidget() {
     };
 
     const upcomingEvents = events
-        .filter(e => new Date(e.date) >= new Date())
+        .filter(e => {
+            const eventDate = new Date(e.date);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            return eventDate >= today;
+        })
         .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
         .slice(0, 3);
 
@@ -84,12 +89,21 @@ export default function CalendarWidget() {
                             <div key={day} className={`aspect-square relative flex items-center justify-center text-sm rounded-xl transition-all ${isToday(day) ? 'bg-primary text-white font-bold ring-4 ring-primary/20' : 'hover:bg-slate-50 text-navy'}`}>
                                 {day}
                                 <div className="absolute bottom-1.5 left-0 right-0 flex justify-center gap-0.5">
-                                    {dayEvents.map((_, idx) => (
-                                        <div 
-                                            key={idx} 
-                                            className="w-1.5 h-1.5 rounded-full bg-purple-500" 
-                                        />
-                                    ))}
+                                    {dayEvents.map((ev, idx) => {
+                                        let color = "bg-purple-500";
+                                        if (ev.type === 'submission') color = "bg-red-500";
+                                        else if (ev.type === 'quiz' || ev.type === 'exam') color = "bg-orange-500";
+                                        else if (ev.type === 'live_class') color = "bg-blue-500";
+                                        else if (ev.type === 'personal') color = "bg-purple-500";
+                                        else if (ev.type === 'announcement') color = "bg-yellow-500";
+
+                                        return (
+                                            <div 
+                                                key={idx} 
+                                                className={`w-1.5 h-1.5 rounded-full ${color}`} 
+                                            />
+                                        );
+                                    })}
                                 </div>
                             </div>
                         );
@@ -110,8 +124,15 @@ export default function CalendarWidget() {
                         upcomingEvents.map(event => (
                             <div key={event.id} className="bg-white p-3 rounded-xl border border-border shadow-sm hover:border-primary/30 transition-colors cursor-pointer group">
                                 <div className="flex items-start gap-3">
-                                    <div className="p-2 rounded-lg shrink-0 bg-primary/10 text-primary">
-                                        <CalendarIcon className="w-4 h-4" />
+                                    <div className={`p-2 rounded-lg shrink-0 ${
+                                        event.type === 'submission' ? 'bg-red-50 text-red-500' :
+                                        (event.type === 'quiz' || event.type === 'exam') ? 'bg-orange-50 text-orange-500' :
+                                        event.type === 'live_class' ? 'bg-blue-50 text-blue-500' :
+                                        'bg-primary/10 text-primary'
+                                    }`}>
+                                        {event.type === 'submission' ? <FileText className="w-4 h-4" /> :
+                                         event.type === 'live_class' ? <Video className="w-4 h-4" /> :
+                                         <CalendarIcon className="w-4 h-4" />}
                                     </div>
                                     <div className="min-w-0 flex-1">
                                         <p className="text-xs font-bold text-navy truncate group-hover:text-primary transition-colors">{event.title}</p>

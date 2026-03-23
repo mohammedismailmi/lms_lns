@@ -6,7 +6,7 @@ import { FileText, Download, ArrowLeft, CheckCircle2, Loader2 } from 'lucide-rea
 import api from '../lib/api';
 
 export default function FileLessonPage() {
-    const { activityId } = useParams();
+    const { activityId, courseId } = useParams();
     const navigate = useNavigate();
     const { coursesList } = useCourseStore();
     const { markDone, activityStatus } = useProgressStore();
@@ -54,7 +54,7 @@ export default function FileLessonPage() {
 
     useEffect(() => {
         if (!activity || isCompleted) return;
-        markDone(activity.id);
+        markDone(activity.id, courseId);
     }, [activity, isCompleted, markDone]);
 
     if (loading) {

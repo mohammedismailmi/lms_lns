@@ -1,19 +1,23 @@
 import React from 'react';
 import { AssessmentActivity as AssessmentType } from '../../lib/mockData';
 import { useProgressStore } from '../../store/progressStore';
+import { useAuthStore } from '../../store/authStore';
 import { useNavigate } from 'react-router-dom';
-import { FileQuestion, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { FileQuestion, Clock, CheckCircle2, AlertCircle, BarChart3 } from 'lucide-react';
 
 interface Props {
     activity: AssessmentType;
+    courseId?: string;
 }
 
-export default function AssessmentActivity({ activity }: Props) {
+export default function AssessmentActivity({ activity, courseId }: Props) {
     const navigate = useNavigate();
     const { activityStatus } = useProgressStore();
+    const { user } = useAuthStore();
 
     const isCompleted = activityStatus[activity.id] === 'completed';
     const isExam = activity.type === 'exam';
+    const isInstructor = user?.role === 'instructor' || user?.role === 'admin';
 
     return (
         <div className={`rounded-xl shadow-sm border p-8 flex flex-col md:flex-row items-center justify-between gap-6 ${isExam ? 'bg-highlight/5 border-highlight/20' : 'bg-white border-border'}`} id={`activity-${activity.id}`}>
@@ -34,9 +38,9 @@ export default function AssessmentActivity({ activity }: Props) {
                     </div>
 
                     <div className="flex items-center gap-4 text-sm font-medium text-muted">
-                        <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" /> {activity.duration} Mins</span>
+                        <span className="flex items-center gap-1.5"><Clock className="w-4 h-4" /> {(activity as any).duration || (activity as any).durationMinutes || 0} Mins</span>
                         <span>•</span>
-                        <span>{activity.questions.length} Questions</span>
+                        <span>{activity.questions?.length || 0} Questions</span>
                         <span>•</span>
                         <span className="uppercase tracking-wider">{activity.type}</span>
                     </div>
@@ -51,17 +55,28 @@ export default function AssessmentActivity({ activity }: Props) {
             </div>
 
             <div className="min-w-[200px] w-full md:w-auto">
-                {isCompleted ? (
-                    <div className="w-full bg-success/10 border border-success/30 text-success px-6 py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm">
+                {isInstructor ? (
+                    <button
+                        onClick={() => navigate(`/course/${courseId}/${activity.type}/${activity.id}`)}
+                        className="w-full bg-navy hover:bg-slate-800 text-white px-8 py-4 rounded-xl font-bold transition-all shadow-md flex items-center justify-center gap-2"
+                    >
+                        <BarChart3 className="w-5 h-5" />
+                        View Results
+                    </button>
+                ) : isCompleted ? (
+                    <button
+                        onClick={() => navigate(`/course/${courseId}/${activity.type}/${activity.id}`)}
+                        className="w-full bg-success/10 border border-success/30 text-success px-6 py-4 rounded-xl font-bold flex items-center justify-center gap-2 shadow-sm hover:bg-success/20 transition-all"
+                    >
                         <CheckCircle2 className="w-6 h-6" />
                         <div className="text-left leading-tight">
                             <p>Submitted</p>
                             <p className="text-xs font-medium opacity-80">Review results online</p>
                         </div>
-                    </div>
+                    </button>
                 ) : (
                     <button
-                        onClick={() => navigate(`/${activity.type}/${activity.id}`)}
+                        onClick={() => navigate(`/course/${courseId}/${activity.type}/${activity.id}`)}
                         className={`w-full text-white px-8 py-4 rounded-xl font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 ${isExam ? 'bg-accent hover:bg-red-900' : 'bg-primary hover:bg-blue-900'}`}
                     >
                         Start {isExam ? 'Exam' : 'Quiz'}
@@ -72,3 +87,4 @@ export default function AssessmentActivity({ activity }: Props) {
         </div>
     );
 }
+

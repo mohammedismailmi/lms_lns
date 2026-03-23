@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-export const API_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:8787';
+export const API_URL = (import.meta as any).env.VITE_API_URL || '';
 
 /**
  * Axios instance pre-configured for the backend API.
@@ -9,9 +9,6 @@ export const API_URL = (import.meta as any).env.VITE_API_URL || 'http://localhos
 export const api = axios.create({
     baseURL: API_URL,
     withCredentials: true,
-    headers: {
-        'Content-Type': 'application/json',
-    }
 });
 
 export default api;

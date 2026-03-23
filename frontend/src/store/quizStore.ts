@@ -9,6 +9,7 @@ interface QuizState {
     isTerminated: boolean;
 
     saveAnswer: (questionId: string, answer: string) => void;
+    loadAnswers: (answers: Record<string, string>) => void;
     toggleMarkForReview: (questionId: string) => void;
     incrementTabSwitch: () => void;
     terminateQuiz: () => void;
@@ -29,6 +30,8 @@ export const useQuizStore = create<QuizState>((set, get) => ({
         set((state) => ({
             answers: { ...state.answers, [questionId]: answer },
         })),
+
+    loadAnswers: (answers) => set({ answers }),
 
     toggleMarkForReview: (questionId) =>
         set((state) => {
