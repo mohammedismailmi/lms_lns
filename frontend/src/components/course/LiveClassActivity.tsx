@@ -7,10 +7,11 @@ import { cn } from '../../lib/utils';
 import api from '../../lib/api';
 
 interface Props {
-    activity: LiveType;
+    activity: any;
+    courseFaculty?: string;
 }
 
-export default function LiveClassActivity({ activity }: Props) {
+export default function LiveClassActivity({ activity, courseFaculty }: Props) {
     const { user } = useAuthStore();
     const { markDone, activityStatus } = useProgressStore();
 
@@ -20,10 +21,11 @@ export default function LiveClassActivity({ activity }: Props) {
     const isCompleted = activityStatus[activity.id] === 'completed';
     const isInstructor = user?.role === 'admin' || user?.role === 'instructor';
 
-    const scheduledTime = new Date(activity.scheduledAt);
+    const scheduledAtStr = activity.scheduledAt || activity.scheduled_at;
+    const scheduledTime = scheduledAtStr ? new Date(scheduledAtStr) : new Date();
     const now = new Date();
-    const isLive = now >= new Date(scheduledTime.getTime() - 15 * 60000); // Activable 15 mins before
-    const isPast = now >= new Date(scheduledTime.getTime() + activity.durationMinutes * 60000);
+    const isLive = scheduledAtStr ? (now >= new Date(scheduledTime.getTime() - 15 * 60000)) : false;
+    const isPast = (scheduledAtStr && activity.durationMinutes) ? (now >= new Date(scheduledTime.getTime() + activity.durationMinutes * 60000)) : false;
 
     const [loading, setLoading] = useState(false);
 
@@ -87,9 +89,9 @@ export default function LiveClassActivity({ activity }: Props) {
                         </div>
                         <div className="flex items-center gap-3 text-ink">
                             <div className="w-5 h-5 rounded-full bg-slate-200 border border-slate-300 flex items-center justify-center font-bold text-[10px] text-muted">
-                                {activity.instructorName.charAt(0)}
+                                {(activity.instructorName || courseFaculty || 'U').charAt(0)}
                             </div>
-                            <span className="font-medium text-muted">Instructor: <span className="text-ink">{activity.instructorName}</span></span>
+                            <span className="font-medium text-muted">Instructor: <span className="text-ink">{activity.instructorName || courseFaculty || 'Unassigned'}</span></span>
                         </div>
                     </div>
 

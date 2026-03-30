@@ -356,7 +356,7 @@ export default function CoursePage() {
                                             {activity.type === 'blog' && <BlogActivity activity={activity} />}
                                             {activity.type === 'file' && <FileActivity activity={activity} />}
                                             {activity.type === 'video' && <VideoActivity activity={activity} />}
-                                            {activity.type === 'live_class' && <LiveClassActivity activity={activity} />}
+                                            {activity.type === 'live_class' && <LiveClassActivity activity={activity} courseFaculty={course.faculty} />}
                                             {(activity.type === 'quiz' || activity.type === 'exam') && <AssessmentActivity activity={activity} courseId={course.id} />}
                                             {activity.type === 'submission' && <SubmissionActivity activity={activity} courseId={course.id} />}
                                         </div>

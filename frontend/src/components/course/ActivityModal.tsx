@@ -350,13 +350,38 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
                                     className="w-full border border-[#D4CFC6] rounded-md px-3 py-2 text-sm"
                                   />
                                 </div>
-                                <div className="bg-[#EDE8DC] rounded-md p-3 text-xs text-[#6B6B6B]">
-                                  💡 Google Meet link will be generated when you click "Start Session" on the course page.
-                                  {!(process as any).env?.GOOGLE_CLIENT_EMAIL && (
-                                    <span className="block text-[#C9A84C] mt-1">
-                                      ⚠ Google Meet credentials not configured — a placeholder link will be used for testing.
-                                    </span>
-                                  )}
+                                <div className="space-y-3">
+                                  <label className="block text-xs font-semibold text-[#1B3A6B] uppercase tracking-wide mb-1">
+                                    Meeting Link
+                                  </label>
+                                  <div className="flex gap-2">
+                                    <input 
+                                      type="text"
+                                      placeholder="https://meet.google.com/..."
+                                      value={formData.meetLink || ''}
+                                      onChange={e => setFormData((p: any) => ({ ...p, meetLink: e.target.value }))}
+                                      className="flex-1 border border-[#D4CFC6] rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const r = () => Math.random().toString(36).substring(2, 5);
+                                        const link = `https://meet.google.com/${r()}-${r()}-${r()}`;
+                                        setFormData((p: any) => ({ ...p, meetLink: link }));
+                                      }}
+                                      className="bg-primary hover:bg-navy text-white px-3 py-2 rounded-md text-xs font-bold transition-all shadow-sm"
+                                    >
+                                      Generate Link
+                                    </button>
+                                  </div>
+                                  <div className="bg-[#EDE8DC] rounded-md p-3 text-xs text-[#6B6B6B]">
+                                    💡 You can generate a link now or it will be created when you start the session.
+                                    {!((import.meta as any).env?.VITE_GOOGLE_CLIENT_EMAIL) && (
+                                      <span className="block text-[#C9A84C] mt-1">
+                                        ⚠ Google Workspace integration not connected — using placeholder links.
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             )}

@@ -9,6 +9,7 @@ import { eq, and, ne, sql, gt, isNull, inArray, desc } from 'drizzle-orm';
 import { getDb } from './db';
 import { users, tenants, enrollments, courses, progress, certificates, submissions, modules, activities, liveSessions, quizAttempts, userEvents, questions, answerOptions, courseQuestions, courseAnswers } from './db/schema';
 import { Context, Next } from 'hono';
+import { createGoogleMeet } from './lib/googleCalendar';
 
 type Bindings = {
 	DB: D1Database;
@@ -441,10 +442,12 @@ app.post('/api/admin/meetings', jwtMiddleware, requireRole('admin', 'instructor'
 	}
 
 	try {
-		const a = Math.random().toString(36).substring(2, 5);
-		const b = Math.random().toString(36).substring(2, 6);
-		const cc = Math.random().toString(36).substring(2, 5);
-		const meetLink = `https://meet.google.com/${a}-${b}-${cc}`;
+		const meetLink = await createGoogleMeet(c.env, {
+			title: body.title,
+			description: body.description || '',
+			startAt: body.scheduledAt,
+			durationMinutes: body.durationMinutes || 60
+		});
 
 		const inviteeIds: string[] = body.inviteeIds || [];
 		const allParticipants = [user.userId, ...inviteeIds];
@@ -600,14 +603,24 @@ app.get('/api/courses/:courseId', jwtMiddleware, async (c) => {
 			}))
 			.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
+		// Resolve faculty name: use stored faculty_name, or look up by instructor_id
+		let resolvedFacultyName = course.faculty_name;
+		if (!resolvedFacultyName && course.instructor_id) {
+			const instructor = await db.select({ name: users.name })
+				.from(users)
+				.where(eq(users.id, course.instructor_id))
+				.get();
+			resolvedFacultyName = instructor?.name || null;
+		}
+
 		return c.json({
 			success: true,
 			course: {
 				...course,
 				enrolledCount: (await db.select({ count: sql<number>`count(*)` }).from(enrollments).where(eq(enrollments.course_id, courseId)).get())?.count || 0,
 				name: course.title,
-				faculty: course.faculty_name || 'Unassigned',
-				facultyInitial: (course.faculty_name || '??').split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase(),
+				faculty: resolvedFacultyName || 'Unassigned',
+				facultyInitial: (resolvedFacultyName || '??').split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase(),
 				modules: modulesWithActivities,
 				announcements: announcementsList,
 				totalActivities: totalNonAnnouncements,
@@ -843,6 +856,16 @@ app.post(
 			const now = Math.floor(Date.now() / 1000);
 			const orderVal = parsed.data.orderIndex ?? parsed.data.order;
 
+			let finalMeetLink: string | undefined = parsed.data.meetLink;
+			if (parsed.data.type === 'live_class' && !finalMeetLink) {
+				finalMeetLink = await createGoogleMeet(c.env, {
+					title: parsed.data.title,
+					description: parsed.data.description || '',
+					startAt: parsed.data.scheduledAt || new Date().toISOString(),
+					durationMinutes: parsed.data.duration || 60
+				}) ?? undefined;
+			}
+
 			await db.insert(activities).values({
 				id,
 				section_id:  parsed.data.moduleId ?? null,
@@ -859,7 +882,7 @@ app.post(
 				video_url:   parsed.data.videoUrl || parsed.data.video_url || null,
 				duration_minutes: parsed.data.duration ?? 30,
 				scheduled_at: parsed.data.scheduledAt ?? null,
-				meet_link:    parsed.data.meetLink ?? null,
+				meet_link:    finalMeetLink ?? null,
 				due_at:       parsed.data.dueAt ?? null,
 				order_index:  orderVal,
 				max_score:    parsed.data.maxScore ?? 0,
@@ -1412,15 +1435,19 @@ app.post('/api/live-sessions/create', jwtMiddleware, requireRole('instructor', '
 
 				const sessionId = crypto.randomUUID();
 				const now = Math.floor(Date.now() / 1000);
-				const randomCode = () => Math.random().toString(36).substring(2, 5);
-				const mockLink = `https://meet.google.com/${randomCode()}-${randomCode()}-${randomCode()}`;
+				const meetLink = await createGoogleMeet(c.env, {
+						title: body.title || 'Live Session',
+						description: 'Spontaneous live session started from course page.',
+						startAt: new Date().toISOString(),
+						durationMinutes: 60
+				});
 
 				await db.insert(liveSessions).values({
 						id: sessionId,
 						tenant_id: user.tenant_id,
 						course_id: courseId,
 						title: body.title || 'Live Session',
-						meet_link: mockLink,
+						meet_link: meetLink,
 						start_time: now,
 						created_at: now,
 						updated_at: now,
