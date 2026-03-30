@@ -24,11 +24,11 @@ type Variables = {
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
 
 app.use('*', cors({
-	origin: 'http://localhost:5173',
-	allowHeaders: ['Content-Type', 'Authorization'],
+	origin: (origin) => origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:') ? origin : 'http://localhost:5173',
+	allowHeaders: ['Content-Type', 'Authorization', 'Range'],
 	allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 	credentials: true,
-	exposeHeaders: ['Set-Cookie'],
+	exposeHeaders: ['Set-Cookie', 'Accept-Ranges', 'Content-Range', 'Content-Length'],
 }));
 
 // =============================
@@ -206,7 +206,7 @@ app.get('/api/courses', async (c) => {
 			faculty_name: sql<string>`COALESCE((SELECT name FROM users WHERE id = ${courses.instructor_id}), ${courses.faculty_name}, 'Unassigned')`,
 			total_activities: sql<number>`COALESCE(${statsSub.total}, 0)`,
 			progress_sum: sql<number>`COALESCE(${progressSub.sum}, 0)`,
-			enrollment_count: sql<number>`(SELECT COUNT(*) FROM enrollments WHERE course_id = ${courses.id})`,
+			enrolled_count: sql<number>`(SELECT COUNT(*) FROM enrollments WHERE course_id = ${courses.id})`,
 			created_at: courses.created_at,
 			updated_at: courses.updated_at,
 		};
@@ -269,13 +269,15 @@ app.post('/api/progress', async (c) => {
 	const payload = await getAuthPayload(c);
 	if (!payload) return c.json({ success: false, message: 'Not authenticated' }, 401);
 	const body = await c.req.json();
+	const percent = Math.min(100, Math.max(0, Number(body.percent_complete || 0)));
+
 	const existing = await c.env.DB.prepare('SELECT id FROM progress WHERE user_id = ? AND course_id = ? AND lesson_id = ?').bind(payload.userId, body.course_id, body.lesson_id).first();
 
 	if (existing) {
-		await c.env.DB.prepare('UPDATE progress SET percent_complete = ?, updated_at = ? WHERE id = ?').bind(body.percent_complete, Math.floor(Date.now() / 1000), existing.id).run();
+		await c.env.DB.prepare('UPDATE progress SET percent_complete = ?, updated_at = ? WHERE id = ?').bind(percent, Math.floor(Date.now() / 1000), existing.id).run();
 	} else {
 		await c.env.DB.prepare('INSERT INTO progress (id, user_id, course_id, lesson_id, percent_complete, tenant_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-			.bind(crypto.randomUUID(), payload.userId, body.course_id, body.lesson_id, body.percent_complete, payload.tenant_id || body.tenant_id, Math.floor(Date.now() / 1000), Math.floor(Date.now() / 1000)).run();
+			.bind(crypto.randomUUID(), payload.userId, body.course_id, body.lesson_id, percent, payload.tenant_id || body.tenant_id, Math.floor(Date.now() / 1000), Math.floor(Date.now() / 1000)).run();
 	}
 
 	// Certificate Generation Logic
@@ -542,11 +544,26 @@ app.get('/api/courses/:courseId', jwtMiddleware, async (c) => {
 
 		const activitiesWithMeetLink = activityList.map(a => {
 			const s = activeLiveSessions.find(ls => ls.course_id === a.course_id);
-			const activityQuestions = questionsList.filter(q => q.activity_id === a.id);
+			const activityQuestions = questionsList.filter(q => q.activity_id === a.id).map(q => {
+				if (q.type === 'mcq') {
+					try {
+						const data = JSON.parse(q.text);
+						return {
+							...q,
+							text: data.text || q.text,
+							options: data.options || [],
+							correctOptionIndex: data.correctOptionIndex !== undefined ? data.correctOptionIndex : data.correctAnswerIndex,
+						};
+					} catch (e) {
+						return q;
+					}
+				}
+				return q;
+			});
 			return { 
 				...a, 
 				meetLink: s?.meet_link || a.meet_link,
-				questions: activityQuestions || [],
+				questions: activityQuestions,
 				fileUrl: a.file_url,
 				fileName: a.file_name,
 				fileType: a.file_type,
@@ -797,16 +814,21 @@ app.post(
 			fileType:    z.string().optional(),
 			fileSize:    z.number().optional(),
 			videoUrl:    z.string().optional(),
+			video_url:   z.string().optional(),
 			duration:    z.number().optional(),
 			scheduledAt: z.string().optional(),
 			meetLink:    z.string().optional(),
 			dueAt:       z.string().optional(),
 			order:       z.number().default(0),
 			orderIndex:  z.number().optional(),
+			maxScore:    z.number().optional().default(0),
 			questions:   z.array(z.object({
 				text: z.string(),
-				options: z.array(z.string()),
-				correctOptionIndex: z.number(),
+				type: z.string().optional().default('mcq'),
+				options: z.array(z.string()).optional(),
+				correctOptionIndex: z.number().optional(),
+				matchPairs: z.string().optional(),
+				sampleAnswer: z.string().optional(),
 			})).optional(),
 		});
 
@@ -834,12 +856,13 @@ app.post(
 				file_name:   parsed.data.fileName ?? null,
 				file_type:   parsed.data.fileType ?? null,
 				file_size:   parsed.data.fileSize ?? null,
-				video_url:   parsed.data.videoUrl ?? null,
+				video_url:   parsed.data.videoUrl || parsed.data.video_url || null,
 				duration_minutes: parsed.data.duration ?? 30,
 				scheduled_at: parsed.data.scheduledAt ?? null,
 				meet_link:    parsed.data.meetLink ?? null,
 				due_at:       parsed.data.dueAt ?? null,
 				order_index:  orderVal,
+				max_score:    parsed.data.maxScore ?? 0,
 				created_at: now,
 				updated_at: now,
 			});
@@ -848,21 +871,25 @@ app.post(
 			if ((parsed.data.type === 'quiz' || parsed.data.type === 'exam') && parsed.data.questions) {
 				for (const [qIdx, q] of parsed.data.questions.entries()) {
 					const qId = crypto.randomUUID();
-					// Store the entire question object as JSON in the 'text' field
-					const questionData = JSON.stringify({
+					
+					// Store the entire question object as JSON in the 'text' field for MCQ
+					// But also handle other types correctly in the columns
+					const questionData = q.type === 'mcq' ? JSON.stringify({
 						text: q.text,
 						options: q.options,
-						correctAnswerIndex: q.correctOptionIndex
-					});
+						correctOptionIndex: q.correctOptionIndex
+					}) : q.text;
 
 					await db.insert(questions).values({
 						id: qId,
 						activity_id: id,
 						tenant_id: user.tenant_id,
 						text: questionData,
-						type: 'mcq',
-						question_type: 'mcq',
+						type: q.type || 'mcq',
+						question_type: q.type || 'mcq',
 						order_index: qIdx,
+						sample_answer: q.sampleAnswer ?? null,
+						match_pairs: q.matchPairs ?? null,
 					});
 				}
 			}
@@ -903,15 +930,20 @@ app.put(
 			fileType:    z.string().nullable().optional(),
 			fileSize:    z.number().nullable().optional(),
 			videoUrl:    z.string().nullable().optional(),
+			video_url:   z.string().nullable().optional(),
 			duration:    z.number().nullable().optional(),
 			scheduledAt: z.string().nullable().optional(),
 			meetLink:    z.string().nullable().optional(),
 			dueAt:       z.string().nullable().optional(),
 			orderIndex:  z.number().optional(),
+			maxScore:    z.number().optional(),
 			questions:   z.array(z.object({
 				text: z.string(),
-				options: z.array(z.string()),
-				correctOptionIndex: z.number(),
+				type: z.string().optional().default('mcq'),
+				options: z.array(z.string()).optional(),
+				correctOptionIndex: z.number().optional(),
+				matchPairs: z.string().optional(),
+				sampleAnswer: z.string().optional(),
 			})).optional(),
 		});
 
@@ -934,12 +966,15 @@ app.put(
 			if (parsed.data.fileName !== undefined) updateData.file_name = parsed.data.fileName;
 			if (parsed.data.fileType !== undefined) updateData.file_type = parsed.data.fileType;
 			if (parsed.data.fileSize !== undefined) updateData.file_size = parsed.data.fileSize;
-			if (parsed.data.videoUrl !== undefined) updateData.video_url = parsed.data.videoUrl;
+			if (parsed.data.videoUrl !== undefined || parsed.data.video_url !== undefined) {
+				updateData.video_url = parsed.data.videoUrl || parsed.data.video_url || '';
+			}
 			if (parsed.data.duration !== undefined) updateData.duration_minutes = parsed.data.duration;
 			if (parsed.data.scheduledAt !== undefined) updateData.scheduled_at = parsed.data.scheduledAt;
 			if (parsed.data.meetLink !== undefined) updateData.meet_link = parsed.data.meetLink;
 			if (parsed.data.dueAt !== undefined) updateData.due_at = parsed.data.dueAt;
 			if (parsed.data.orderIndex !== undefined) updateData.order_index = parsed.data.orderIndex;
+			if (parsed.data.maxScore !== undefined) updateData.max_score = parsed.data.maxScore;
 
 			await db.update(activities)
 				.set(updateData)
@@ -965,20 +1000,23 @@ app.put(
 				// Re-create new questions
 				for (const [qIdx, q] of parsed.data.questions.entries()) {
 					const qId = crypto.randomUUID();
-					const questionData = JSON.stringify({
+					
+					const questionData = q.type === 'mcq' ? JSON.stringify({
 						text: q.text,
 						options: q.options,
-						correctAnswerIndex: q.correctOptionIndex
-					});
+						correctOptionIndex: q.correctOptionIndex
+					}) : q.text;
 
 					await db.insert(questions).values({
 						id: qId,
 						activity_id: activityId,
 						tenant_id: user.tenant_id,
 						text: questionData,
-						type: 'mcq',
-						question_type: 'mcq',
+						type: q.type || 'mcq',
+						question_type: q.type || 'mcq',
 						order_index: qIdx,
+						sample_answer: q.sampleAnswer ?? null,
+						match_pairs: q.matchPairs ?? null,
 					});
 				}
 			}
@@ -1093,6 +1131,30 @@ app.get('/api/admin/learners-by-course', jwtMiddleware, requireRole('admin'), as
 				}))
 		})).filter(c => c.learners.length > 0);
 
+		// Fetch all learners to find unenrolled ones
+		const allLearners = await db.select({
+			id: users.id,
+			name: users.name,
+			email: users.email,
+		})
+		.from(users)
+		.where(and(
+			eq(users.tenant_id, user.tenant_id),
+			eq(users.role, 'learner')
+		))
+		.all();
+
+		const enrolledUserIds = new Set(enrollmentList.map(e => e.user_id));
+		const unenrolledLearners = allLearners.filter(l => !enrolledUserIds.has(l.id));
+
+		if (unenrolledLearners.length > 0) {
+			coursesWithLearners.push({
+				id: 'unenrolled',
+				title: 'Unenrolled Learners (Not in any course)',
+				learners: unenrolledLearners
+			});
+		}
+
 		return c.json({ success: true, courses: coursesWithLearners });
 	} catch (err: any) {
 		console.error('[LearnersByCourse] failed:', err);
@@ -1154,11 +1216,34 @@ app.get('/api/files/*', async (c) => {
 	const headers = new Headers();
 	object.writeHttpMetadata(headers);
 	headers.set('etag', object.httpEtag);
+	headers.set('Accept-Ranges', 'bytes');
 
 	const contentType = headers.get('content-type');
-	const isInline = contentType && (contentType === 'application/pdf' || contentType.startsWith('image/'));
+	const isInline = contentType && (contentType === 'application/pdf' || contentType.startsWith('image/') || contentType.startsWith('video/'));
 	if (isInline) {
 		headers.set('Content-Disposition', 'inline');
+	}
+
+	// Handle Range requests for video streaming
+	const rangeHeader = c.req.header('Range');
+	if (rangeHeader && contentType?.startsWith('video/')) {
+		const parts = rangeHeader.replace(/bytes=/, "").split("-");
+		const start = parseInt(parts[0], 10);
+		const end = parts[1] ? parseInt(parts[1], 10) : object.size - 1;
+		const chunksize = (end - start) + 1;
+
+		const rangeObject = await c.env.R2.get(path, {
+			range: { offset: start, length: chunksize }
+		});
+
+		if (rangeObject) {
+			headers.set('Content-Range', `bytes ${start}-${end}/${object.size}`);
+			headers.set('Content-Length', chunksize.toString());
+			return new Response(rangeObject.body, { 
+				status: 206,
+				headers 
+			});
+		}
 	}
 
 	return new Response(object.body, { headers });
@@ -1304,8 +1389,19 @@ app.post('/api/live-sessions/create', jwtMiddleware, requireRole('instructor', '
 	const body = await c.req.json();
 	const db = getDb(c.env);
 
-		const courseId = body.courseId || body.course_id;
-		if (!courseId) return c.json({ success: false, error: 'Course ID required' }, 400);
+		let courseId = body.courseId || body.course_id;
+		const activityId = body.activityId || body.activity_id;
+
+		if (!courseId && activityId) {
+			// Look up courseId from activityId
+			const activity = await db.select({ course_id: activities.course_id })
+				.from(activities)
+				.where(eq(activities.id, activityId))
+				.get();
+			if (activity) courseId = activity.course_id;
+		}
+
+		if (!courseId) return c.json({ success: false, error: 'Course ID or valid Activity ID required' }, 400);
 
 		try {
 				const existing = await db.select().from(liveSessions)

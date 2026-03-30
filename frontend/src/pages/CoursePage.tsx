@@ -233,7 +233,7 @@ export default function CoursePage() {
                                 <span>•</span>
                                 <span>{course.section}</span>
                                 <span>•</span>
-                                <span className="flex items-center gap-1.5"><Users className="w-4 h-4" /> Enrolled</span>
+                                <span className="flex items-center gap-1.5"><Users className="w-4 h-4" /> {course.enrolledCount || 0} Enrolled</span>
                                 <span>•</span>
                                 <Link to={`/course/${course.id}/qna`} className="flex items-center gap-1.5 text-highlight hover:underline transition-all">
                                     <MessageSquare className="w-4 h-4" /> Course Q&A
@@ -351,8 +351,8 @@ export default function CoursePage() {
                                     <div key={activity.id} className="relative group/activity border border-transparent hover:border-border rounded-xl -ml-2 p-2 transition-all">
                                         
                                         {/* Activity Render Matrix block */}
-                                        <div onClick={() => !isInstructor && !['quiz', 'exam', 'submission'].includes(activity.type) && navigate(`/course/${course.id}/lesson/${activity.type}/${activity.id}`)}
-                                             className={cn("w-full transition-all", !isInstructor && !['quiz', 'exam', 'submission'].includes(activity.type) && "cursor-pointer hover:opacity-90")}>
+                                        <div onClick={() => !isInstructor && !['quiz', 'exam', 'submission'].includes(activity.type) && course.id && navigate(`/course/${course.id}/lesson/${activity.type}/${activity.id}`)}
+                                             className={cn("w-full transition-all", !isInstructor && !['quiz', 'exam', 'submission'].includes(activity.type) && course.id && "cursor-pointer hover:opacity-90")}>
                                             {activity.type === 'blog' && <BlogActivity activity={activity} />}
                                             {activity.type === 'file' && <FileActivity activity={activity} />}
                                             {activity.type === 'video' && <VideoActivity activity={activity} />}

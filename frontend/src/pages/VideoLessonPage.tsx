@@ -5,7 +5,7 @@ import { useProgressStore } from '../store/progressStore';
 import { Play, Pause, Volume2, VolumeX, ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useToast } from '../lib/useToast';
-import api from '../lib/api';
+import api, { API_URL } from '../lib/api';
 
 export default function VideoLessonPage() {
     const { activityId, courseId } = useParams();
@@ -172,7 +172,7 @@ export default function VideoLessonPage() {
                 <video
                     ref={videoRef}
                     className="w-full h-full object-contain pointer-events-none"
-                    src={activity.videoUrl || MOCK_VIDEO_URL}
+                    src={((activity.videoUrl || (activity as any).video_url)?.startsWith('/') ? `${API_URL}${activity.videoUrl || (activity as any).video_url}` : (activity.videoUrl || (activity as any).video_url)) || MOCK_VIDEO_URL}
                     onTimeUpdate={handleTimeUpdate}
                     onEnded={() => setIsPlaying(false)}
                     controls={false}

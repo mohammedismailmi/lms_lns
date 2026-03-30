@@ -32,8 +32,20 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
         setQuestions([...questions, {
             id: 'q' + Math.random().toString(36).substring(2),
             text: '',
+            type: 'mcq',
             options: ['', '', '', ''],
-            correctOptionIndex: 0
+            correctOptionIndex: 0,
+            sampleAnswer: '',
+            matchPairs: ''
+        }]);
+    };
+
+    const addOpenQuestion = (type: 'short_answer' | 'long_answer') => {
+        setQuestions([...questions, {
+            id: 'q' + Math.random().toString(36).substring(2),
+            text: '',
+            type,
+            sampleAnswer: ''
         }]);
     };
 
@@ -52,6 +64,12 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
     const setCorrectOption = (qIndex: number, oIndex: number) => {
         const copy = [...questions];
         copy[qIndex].correctOptionIndex = oIndex;
+        setQuestions(copy);
+    };
+
+    const updateSampleAnswer = (qIndex: number, text: string) => {
+        const copy = [...questions];
+        copy[qIndex].sampleAnswer = text;
         setQuestions(copy);
     };
 
@@ -289,6 +307,19 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
                                     className="w-full border border-[#D4CFC6] rounded-md px-3 py-2 text-sm"
                                   />
                                 </div>
+                                <div>
+                                  <label className="block text-xs font-semibold text-[#1B3A6B] uppercase tracking-wide mb-1">
+                                    Maximum Grade / Points
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    placeholder="100"
+                                    value={formData.maxScore ?? ''}
+                                    onChange={e => setFormData((p: any) => ({ ...p, maxScore: Number(e.target.value) }))}
+                                    className="w-full border border-[#D4CFC6] rounded-md px-3 py-2 text-sm"
+                                  />
+                                </div>
                               </div>
                             )}
 
@@ -431,13 +462,27 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
                     {isAssessment && (
                         <div className="border-t border-border pt-6 mt-6">
                             <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-lg font-serif font-bold text-navy">Question Builder (Legacy/Fallback)</h3>
-                                <button
-                                    onClick={addQuestion}
-                                    className="flex items-center gap-2 text-primary font-bold hover:bg-primary/5 px-3 py-1.5 rounded-lg transition-colors border border-primary/20"
-                                >
-                                    <Plus className="w-4 h-4" /> Add Legacy MCQ
-                                </button>
+                                <h3 className="text-lg font-serif font-bold text-navy">Question Builder</h3>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={addQuestion}
+                                        className="flex items-center gap-2 text-primary font-bold hover:bg-primary/5 px-3 py-1.5 rounded-lg transition-colors border border-primary/20"
+                                    >
+                                        <Plus className="w-4 h-4" /> Add MCQ
+                                    </button>
+                                    <button
+                                        onClick={() => addOpenQuestion('short_answer')}
+                                        className="flex items-center gap-2 text-primary font-bold hover:bg-primary/5 px-3 py-1.5 rounded-lg transition-colors border border-primary/20"
+                                    >
+                                        <Plus className="w-4 h-4" /> Add Short Answer
+                                    </button>
+                                    <button
+                                        onClick={() => addOpenQuestion('long_answer')}
+                                        className="flex items-center gap-2 text-primary font-bold hover:bg-primary/5 px-3 py-1.5 rounded-lg transition-colors border border-primary/20"
+                                    >
+                                        <Plus className="w-4 h-4" /> Add Long Answer
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="space-y-6">
@@ -449,40 +494,59 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </button>
-                                        <div className="mb-4 pr-8">
-                                            <label className="block text-xs font-bold text-navy mb-2 uppercase tracking-wide">Question {qIndex + 1}</label>
-                                            <input
-                                                value={q.text}
-                                                onChange={e => updateQuestionText(qIndex, e.target.value)}
-                                                className="w-full border-border border rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary shadow-sm bg-white"
-                                                placeholder="Enter question text..."
-                                            />
+                                        <div className="mb-4 pr-16 flex items-center gap-3">
+                                            <div className="flex-1">
+                                                <label className="block text-xs font-bold text-navy mb-2 uppercase tracking-wide">
+                                                  Question {qIndex + 1} ({q.type === 'mcq' ? 'MCQ' : q.type === 'short_answer' ? 'Short' : 'Long'})
+                                                </label>
+                                                <input
+                                                    value={q.text}
+                                                    onChange={e => updateQuestionText(qIndex, e.target.value)}
+                                                    className="w-full border-border border rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-primary shadow-sm bg-white font-medium"
+                                                    placeholder="Enter question text..."
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="space-y-2">
-                                            {q.options.map((opt: string, oIndex: number) => (
-                                                <div key={oIndex} className="flex items-center gap-3">
-                                                    <input
-                                                        type="radio"
-                                                        name={`correct-${q.id}`}
-                                                        checked={q.correctOptionIndex === oIndex}
-                                                        onChange={() => setCorrectOption(qIndex, oIndex)}
-                                                        className="text-primary focus:ring-primary w-4 h-4 cursor-pointer"
-                                                        title="Mark as correct answer"
-                                                    />
-                                                    <input
-                                                        value={opt}
-                                                        onChange={e => updateOption(qIndex, oIndex, e.target.value)}
-                                                        className={`flex-1 border-border border rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary shadow-sm bg-white ${q.correctOptionIndex === oIndex ? 'ring-1 ring-primary/50 bg-primary/5' : ''}`}
-                                                        placeholder={`Option ${oIndex + 1}`}
-                                                    />
-                                                </div>
-                                            ))}
-                                        </div>
+
+                                        {q.type === 'mcq' ? (
+                                          <div className="space-y-2">
+                                              {q.options?.map((opt: string, oIndex: number) => (
+                                                  <div key={oIndex} className="flex items-center gap-3">
+                                                      <input
+                                                          type="radio"
+                                                          name={`correct-${q.id}`}
+                                                          checked={q.correctOptionIndex === oIndex}
+                                                          onChange={() => setCorrectOption(qIndex, oIndex)}
+                                                          className="text-primary focus:ring-primary w-4 h-4 cursor-pointer"
+                                                          title="Mark as correct answer"
+                                                      />
+                                                      <input
+                                                          value={opt}
+                                                          onChange={e => updateOption(qIndex, oIndex, e.target.value)}
+                                                          className={`flex-1 border-border border rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary shadow-sm bg-white ${q.correctOptionIndex === oIndex ? 'ring-1 ring-primary/50 bg-primary/5' : ''}`}
+                                                          placeholder={`Option ${oIndex + 1}`}
+                                                      />
+                                                  </div>
+                                              ))}
+                                          </div>
+                                        ) : (
+                                          <div className="space-y-3">
+                                            <div>
+                                              <label className="block text-[10px] font-bold text-muted mb-1 uppercase">Sample Answer / Keywords</label>
+                                              <textarea
+                                                value={q.sampleAnswer || ''}
+                                                onChange={e => updateSampleAnswer(qIndex, e.target.value)}
+                                                placeholder="Enter sample answer for the evaluator..."
+                                                className="w-full border-border border rounded-lg px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-primary shadow-sm bg-white h-16 resize-none"
+                                              />
+                                            </div>
+                                          </div>
+                                        )}
                                     </div>
                                 ))}
                                 {questions.length === 0 && (
                                     <div className="text-center py-8 border-2 border-dashed border-border rounded-xl">
-                                        <p className="text-muted text-sm italic">You can add questions later.</p>
+                                        <p className="text-muted text-sm italic">Add questions above to populate your assessment.</p>
                                     </div>
                                 )}
                             </div>

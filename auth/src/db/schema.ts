@@ -120,6 +120,7 @@ export const activities = sqliteTable('lessons', {
     order_index: integer('order_index').notNull(),
     type: text('type', { enum: ['video', 'blog', 'file', 'quiz', 'exam', 'live_class', 'submission', 'announcement'] }).notNull().default('blog'),
     duration_minutes: integer('duration_minutes').default(0),
+    max_score: integer('max_score').default(0),
     created_at: integer('created_at').notNull(),
     updated_at: integer('updated_at').notNull(),
 });

@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { VideoActivity as VideoType } from '../../lib/mockData';
 import { useProgressStore } from '../../store/progressStore';
 import { PlayCircle, ShieldAlert } from 'lucide-react';
+import { API_URL } from '../../lib/api';
 
 interface Props {
     activity: VideoType;
@@ -80,7 +81,7 @@ export default function VideoActivity({ activity }: Props) {
 
                 <video
                     ref={videoRef}
-                    src={activity.videoUrl}
+                    src={(activity.videoUrl || (activity as any).video_url)?.startsWith('/') ? `${API_URL}${activity.videoUrl || (activity as any).video_url}` : (activity.videoUrl || (activity as any).video_url)}
                     controls
                     controlsList="nodownload"
                     onTimeUpdate={handleTimeUpdate}

@@ -251,7 +251,8 @@ export const useCourseStore = create<CourseState>((set, get) => ({
                             title: a.title,
                             type: a.type,
                             content: a.content,
-                            videoUrl: a.video_url || a.videoUrl,
+                            videoUrl: a.video_url || a.videoUrl || '',
+                            maxScore: a.max_score || a.maxScore || 0,
                             fileUrl: a.file_url || a.fileUrl,
                             fileName: a.file_name || a.fileName,
                             fileType: a.file_type || a.fileType,
@@ -289,12 +290,16 @@ export const useCourseStore = create<CourseState>((set, get) => ({
 
     addActivity: async (courseId, moduleId, activity) => {
         try {
-            const payload = { ...activity, moduleId };
-            const res = await api.post(`/api/courses/${courseId}/activities`, {
-                ...payload,
+            const payload = { 
+                ...activity, 
+                moduleId,
                 content: (activity as any).url || (activity as any).content || '',
-                orderIndex: 0 // Placeholder
-            });
+                videoUrl: (activity as any).videoUrl || (activity as any).video_url || '',
+                video_url: (activity as any).videoUrl || (activity as any).video_url || '',
+                maxScore: (activity as any).maxScore || (activity as any).max_score || 0,
+                orderIndex: (activity as any).orderIndex || 0
+            };
+            const res = await api.post(`/api/courses/${courseId}/activities`, payload);
             if (res.data.success) {
                 await get().fetchCourse(courseId);
             }
@@ -305,7 +310,14 @@ export const useCourseStore = create<CourseState>((set, get) => ({
 
     updateActivity: async (courseId, moduleId, activity) => {
         try {
-            const res = await api.put(`/api/courses/${courseId}/activities/${activity.id}`, activity);
+            const payload = {
+                ...activity,
+                videoUrl: (activity as any).videoUrl || (activity as any).video_url || '',
+                video_url: (activity as any).videoUrl || (activity as any).video_url || '',
+                maxScore: (activity as any).maxScore || (activity as any).max_score || 0,
+                content: (activity as any).url || (activity as any).content || ''
+            };
+            const res = await api.put(`/api/courses/${courseId}/activities/${activity.id}`, payload);
             if (res.data.success) {
                 await get().fetchCourse(courseId);
             }
