@@ -28,12 +28,12 @@ export default function AdminMeetingsPage() {
     }, []);
 
     return (
-        <div className="p-8 max-w-[1200px] mx-auto pb-24">
+        <div className="p-4 sm:p-8 max-w-[1200px] mx-auto pb-24">
             <div className="flex items-center gap-4 mb-8">
                 <Link to="/admin" className="p-2 hover:bg-slate-100 rounded-lg transition">
                     <ArrowLeft className="w-5 h-5 text-navy" />
                 </Link>
-                <h1 className="text-3xl font-serif font-bold text-navy">All Scheduled Meetings</h1>
+                <h1 className="text-2xl sm:text-3xl font-serif font-bold text-navy">All Scheduled Meetings</h1>
             </div>
 
             {loading ? (

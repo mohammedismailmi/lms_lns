@@ -22,7 +22,7 @@
         {
             "binding": "DB",
             "database_name": "lms-db",
-            "database_id": "local-db-id",
+            "database_id": "9fe2aa2f-477b-469b-b2e6-9cd92f2a7b73",
             "migrations_dir": "migrations"
         }
     ],

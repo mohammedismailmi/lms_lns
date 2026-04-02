@@ -115,7 +115,7 @@ export default function BlogLessonPage() {
 
             {/* Reading Layout */}
             <div className="max-w-prose mx-auto mt-12 px-6">
-                <h1 className="text-4xl md:text-5xl font-serif font-bold text-navy mb-8 leading-tight">
+                <h1 className="text-2xl sm:text-3xl sm:text-4xl md:text-5xl font-serif font-bold text-navy mb-8 leading-tight">
                     {activity.title}
                 </h1>
 

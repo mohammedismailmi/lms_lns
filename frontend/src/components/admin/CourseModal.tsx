@@ -116,87 +116,88 @@ export default function CourseModal({ isOpen, onClose, existingCourse }: Props) 
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-navy/50 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-        <div className="p-6 border-b border-border bg-surface">
-          <h2 className="text-2xl font-serif font-bold text-navy">
-            {existingCourse ? 'Edit Course' : 'Create New Course'}
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-navy/60 backdrop-blur-md p-0 sm:p-4 animate-in fade-in duration-300" onClick={onClose}>
+      <div className="bg-white rounded-none sm:rounded-3xl shadow-premium w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-2xl flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 border border-white/20" onClick={e => e.stopPropagation()}>
+        <div className="p-5 sm:p-7 border-b border-border/40 bg-surface shrink-0">
+          <h2 className="text-xl sm:text-2xl font-serif font-black text-navy tracking-tight leading-tight">
+            {existingCourse ? 'Course Configuration' : 'Establish New Course'}
           </h2>
+          <p className="text-[9px] font-black text-muted uppercase tracking-[0.2em] mt-0.5 opacity-60 italic">Academic Portfolio Management</p>
         </div>
         
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-5 max-h-[70vh] overflow-y-auto">
+        <form onSubmit={handleSubmit(onSubmit)} className="p-5 sm:p-7 space-y-6 flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top_right,_#1b3a6b05,_transparent)]">
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="col-span-1 md:col-span-2">
-                <label className="block text-sm font-bold text-navy mb-1.5 uppercase tracking-wider text-xs">Course Name</label>
+                <label className="block text-[9px] font-black text-muted mb-1.5 uppercase tracking-[0.2em] ml-3">Course Designation / Title</label>
                 <input 
                 {...register('name')} 
-                className="w-full bg-white border border-border rounded-lg px-4 py-2.5 focus:ring-1 focus:ring-primary outline-none transition-all shadow-sm"
-                placeholder="e.g. Introduction to Quantum Computing"
+                className="w-full bg-surface border border-border/40 rounded-xl px-4 py-3 focus:ring-4 focus:ring-primary/10 outline-none transition-all shadow-inner font-bold text-navy text-xs"
+                placeholder="e.g. Advanced Quantum Field Theory"
                 />
-                {errors.name && <p className="text-accent text-xs mt-1.5 font-bold">{errors.name.message}</p>}
+                {errors.name && <p className="text-accent text-[9px] mt-1 font-black uppercase tracking-wider ml-3">{errors.name.message}</p>}
             </div>
 
             <div>
-                <label className="block text-sm font-bold text-navy mb-1.5 uppercase tracking-wider text-xs">Section / Class</label>
+                <label className="block text-[9px] font-black text-muted mb-1.5 uppercase tracking-[0.2em] ml-3">Administrative Section</label>
                 <input 
                 {...register('section')} 
-                className="w-full bg-white border border-border rounded-lg px-4 py-2.5 focus:ring-1 focus:ring-primary outline-none transition-all shadow-sm"
-                placeholder="e.g. Section A · Fall 2026"
+                className="w-full bg-surface border border-border/40 rounded-xl px-4 py-3 focus:ring-4 focus:ring-primary/10 outline-none transition-all shadow-inner font-bold text-navy text-xs"
+                placeholder="e.g. Section 402 · AY 2026-27"
                 />
-                {errors.section && <p className="text-accent text-xs mt-1.5 font-bold">{errors.section.message}</p>}
+                {errors.section && <p className="text-accent text-[9px] mt-1 font-black uppercase tracking-wider ml-3">{errors.section.message}</p>}
             </div>
 
             <div>
-                <label className="block text-sm font-bold text-navy mb-1.5 uppercase tracking-wider text-xs">Category</label>
+                <label className="block text-[9px] font-black text-muted mb-1.5 uppercase tracking-[0.2em] ml-3">Subject Taxonomy</label>
                 <select 
                 {...register('category')} 
-                className="w-full bg-white border border-border rounded-lg px-4 py-2.5 focus:ring-1 focus:ring-primary outline-none transition-all shadow-sm"
+                className="w-full bg-surface border border-border/40 rounded-xl px-4 py-3 focus:ring-4 focus:ring-primary/10 outline-none transition-all shadow-inner font-bold text-navy cursor-pointer appearance-none text-xs"
                 >
-                    <option value="AI/ML">AI / ML</option>
-                    <option value="Science">Science</option>
-                    <option value="Arts">Arts</option>
-                    <option value="Business">Business</option>
-                    <option value="Default">Default</option>
+                    <option value="AI/ML">Artificial Intelligence</option>
+                    <option value="Science">Physical Sciences</option>
+                    <option value="Arts">Humanities & Arts</option>
+                    <option value="Business">Business Administration</option>
+                    <option value="Default">Unclassified</option>
                 </select>
-                {errors.category && <p className="text-accent text-xs mt-1.5 font-bold">{errors.category.message}</p>}
+                {errors.category && <p className="text-accent text-[9px] mt-1 font-black uppercase tracking-wider ml-3">{errors.category.message}</p>}
             </div>
 
             <div className="col-span-1 md:col-span-2">
-                <label className="block text-sm font-bold text-navy mb-1.5 uppercase tracking-wider text-xs">Assigned Instructor</label>
+                <label className="block text-[9px] font-black text-muted mb-1.5 uppercase tracking-[0.2em] ml-3">Lead Faculty Member</label>
                 <select 
                 {...register('instructorId')} 
-                className="w-full bg-white border border-border rounded-lg px-4 py-2.5 focus:ring-1 focus:ring-primary outline-none transition-all shadow-sm"
+                className="w-full bg-surface border border-border/40 rounded-xl px-4 py-3 focus:ring-4 focus:ring-primary/10 outline-none transition-all shadow-inner font-bold text-navy cursor-pointer appearance-none text-xs"
                 >
-                    <option value="">Select an instructor...</option>
+                    <option value="">Select qualifying instructor...</option>
                     {instructors.map(ins => (
-                        <option key={ins.id} value={ins.id}>{ins.name} ({ins.email})</option>
+                        <option key={ins.id} value={ins.id}>{ins.name} · {ins.email}</option>
                     ))}
                 </select>
-                {errors.instructorId && <p className="text-accent text-xs mt-1.5 font-bold">{errors.instructorId.message}</p>}
+                {errors.instructorId && <p className="text-accent text-[9px] mt-1 font-black uppercase tracking-wider ml-3">{errors.instructorId.message}</p>}
             </div>
 
             <div className="col-span-1 md:col-span-2">
-                <label className="block text-sm font-bold text-navy mb-1.5 uppercase tracking-wider text-xs">Course Description</label>
+                <label className="block text-[9px] font-black text-muted mb-1.5 uppercase tracking-[0.2em] ml-3">Course Curricular Synopsis</label>
                 <textarea 
                 {...register('description')} 
                 rows={3}
-                className="w-full bg-white border border-border rounded-lg px-4 py-2.5 focus:ring-1 focus:ring-primary outline-none transition-all shadow-sm resize-none"
-                placeholder="Enter a brief overview of what this course entails..."
+                className="w-full bg-surface border border-border/40 rounded-2xl px-4 py-3.5 focus:ring-4 focus:ring-primary/10 outline-none transition-all shadow-inner font-medium text-navy resize-none text-xs"
+                placeholder="Provide a comprehensive academic overview..."
                 />
             </div>
 
             <div className="col-span-1 md:col-span-2">
-                <label className="block text-sm font-bold text-navy mb-2 uppercase tracking-wider text-xs">Thumbnail Theme Color</label>
-                <div className="flex gap-3">
+                <label className="block text-[9px] font-black text-muted mb-3 uppercase tracking-[0.2em] ml-3">Course Visual Signature</label>
+                <div className="flex flex-wrap gap-2.5 px-1.5">
                     {PALETTE.map(color => (
                         <button
                             key={color}
                             type="button"
                             onClick={() => setSelectedColor(color)}
                             className={cn(
-                                "w-10 h-10 rounded-full border-2 transition-all flex items-center justify-center shadow-sm",
-                                selectedColor === color ? "border-navy scale-110" : "border-transparent hover:scale-105"
+                                "w-10 h-10 rounded-xl border-4 transition-all flex items-center justify-center shadow-lg transform active:scale-95",
+                                selectedColor === color ? "border-navy scale-110 shadow-primary/20" : "border-white hover:scale-105 hover:rotate-3 shadow-sm"
                             )}
                             style={{ backgroundColor: color }}
                         >
@@ -208,19 +209,19 @@ export default function CourseModal({ isOpen, onClose, existingCourse }: Props) 
 
           </div>
 
-          <div className="flex gap-3 justify-end pt-5 mt-6 border-t border-border">
+          <div className="flex flex-col sm:flex-row gap-3 justify-end pt-6 mt-8 border-t border-border/40 shrink-0">
             <button 
               type="button" 
               onClick={onClose}
-              className="px-6 py-2.5 rounded-xl font-bold text-slate-500 hover:bg-slate-100 transition-colors shadow-sm"
+              className="w-full sm:w-auto px-6 py-3 rounded-xl font-black text-muted hover:bg-slate-50 border border-border/40 transition-all text-[10px] uppercase tracking-widest active:scale-95 shadow-sm"
             >
-              Cancel
+              Discard Changes
             </button>
             <button 
               type="submit"
-              className="px-6 py-2.5 rounded-xl font-bold bg-primary text-white hover:bg-navy transition-colors shadow-sm"
+              className="w-full sm:w-auto px-8 py-3 rounded-xl font-black bg-navy text-white hover:bg-primary transition-all shadow-xl shadow-navy/20 hover:-translate-y-1 active:scale-95 text-[10px] uppercase tracking-widest"
             >
-              {existingCourse ? 'Save Changes' : 'Create Course'}
+              {existingCourse ? 'Commit Updates' : 'Launch Course'}
             </button>
           </div>
         </form>

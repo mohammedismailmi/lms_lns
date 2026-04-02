@@ -21,17 +21,12 @@ export default function Login() {
     const [tenantError, setTenantError] = useState(null);
     const [isSuperAdminMode, setIsSuperAdminMode] = useState(false);
 
-    // Pre-select tenant from signup redirect
     const preSelectedTenant = location.state?.tenantId;
     useEffect(() => {
         if (preSelectedTenant) setSelectedTenantId(preSelectedTenant);
     }, [preSelectedTenant]);
 
-    const {
-        register,
-        handleSubmit,
-        formState: { errors },
-    } = useForm({
+    const { register, handleSubmit, formState: { errors } } = useForm({
         resolver: zodResolver(loginSchema),
     });
 
@@ -64,95 +59,85 @@ export default function Login() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-            <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-slate-100">
-                <h2 className="text-3xl font-bold text-slate-800 mb-2">
-                    {isSuperAdminMode ? "Platform Admin" : "Sign In"}
-                </h2>
-                <p className="text-sm text-slate-500 mb-8 font-medium italic">
-                    {isSuperAdminMode
-                        ? "Sign in to the platform management console."
-                        : "Welcome back! Please enter your details."}
-                </p>
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-8 bg-[radial-gradient(circle_at_top_right,_#1b3a6b0a,_transparent),_radial-gradient(circle_at_bottom_left,_#1b3a6b05,_transparent)]">
+            <div className="w-full max-w-sm bg-white rounded-3xl shadow-premium p-6 md:p-8 border border-border/40 relative overflow-hidden group">
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary via-highlight to-primary opacity-20" />
+                
+                <div className="text-center mb-8">
+                    <div className="w-12 h-12 bg-navy rounded-xl flex items-center justify-center text-white text-2xl font-black font-serif mx-auto mb-5 shadow-xl shadow-navy/20 rotate-3 transition-transform group-hover:rotate-0">A</div>
+                    <h1 className="font-serif text-2xl md:text-3xl font-black text-navy tracking-tight leading-none mb-2">
+                        {isSuperAdminMode ? "Management" : "Welcome Back"}
+                    </h1>
+                    <p className="text-[10px] text-muted font-bold tracking-wide opacity-60 uppercase">
+                        {isSuperAdminMode ? "Platform Control" : "Sign in to your learning space"}
+                    </p>
+                </div>
 
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-                    {/* Tenant Selector — hidden in super admin mode */}
                     {!isSuperAdminMode && (
-                        <TenantSelector
-                            value={selectedTenantId}
-                            onChange={(id) => {
-                                setSelectedTenantId(id);
-                                setTenantError(null);
-                            }}
-                            error={tenantError}
-                        />
+                        <div className="space-y-1.5">
+                             <label className="text-[9px] font-black text-muted uppercase tracking-[0.2em] ml-3">Institution</label>
+                            <TenantSelector
+                                value={selectedTenantId}
+                                onChange={(id) => { setSelectedTenantId(id); setTenantError(null); }}
+                                error={tenantError}
+                            />
+                        </div>
                     )}
 
-                    <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-1">Email</label>
+                    <div className="space-y-1.5">
+                        <label className="text-[9px] font-black text-muted uppercase tracking-[0.2em] ml-3">Email Address</label>
                         <input
                             {...register("email")}
-                            className={`w-full px-4 py-2.5 bg-slate-50 border rounded-lg focus:outline-none focus:ring-2 transition ${errors.email ? "border-red-500 focus:ring-red-200" : "border-slate-200 focus:ring-indigo-500"
-                                }`}
-                            placeholder="you@example.com"
+                            type="email"
+                            className={`w-full bg-surface border rounded-xl px-4 py-3 text-xs focus:outline-none focus:ring-4 transition-all shadow-inner font-bold ${errors.email ? "border-accent focus:ring-accent/10" : "border-border focus:ring-primary/10"}`}
+                            placeholder="name@institution.edu"
                         />
-                        {errors.email && <p className="text-red-500 text-xs mt-1 font-medium">{errors.email.message}</p>}
+                        {errors.email && <p className="text-accent text-[9px] mt-1 font-black uppercase tracking-wider ml-3">{errors.email.message}</p>}
                     </div>
 
-                    <div>
-                        <div className="flex justify-between items-center mb-1">
-                            <label className="text-sm font-semibold text-slate-700">Password</label>
+                    <div className="space-y-1.5">
+                        <div className="flex justify-between items-center mb-0.5 px-3">
+                            <label className="text-[9px] font-black text-muted uppercase tracking-[0.2em]">Password</label>
                             <button
                                 type="button"
                                 onClick={() => navigate("/forgot-password")}
-                                className="text-xs text-indigo-600 hover:underline font-bold"
+                                className="text-[9px] text-primary hover:text-navy font-black uppercase tracking-widest transition-colors"
                             >
-                                Forgot?
+                                Recover
                             </button>
                         </div>
                         <input
                             type="password"
                             {...register("password")}
-                            className={`w-full px-4 py-2.5 bg-slate-50 border rounded-lg focus:outline-none focus:ring-2 transition ${errors.password ? "border-red-500 focus:ring-red-200" : "border-slate-200 focus:ring-indigo-500"
-                                }`}
+                            className={`w-full bg-surface border rounded-xl px-4 py-3 text-xs focus:outline-none focus:ring-4 transition-all shadow-inner font-bold ${errors.password ? "border-accent focus:ring-accent/10" : "border-border focus:ring-primary/10"}`}
                             placeholder="••••••••"
                         />
-                        {errors.password && <p className="text-red-500 text-xs mt-1 font-medium">{errors.password.message}</p>}
+                        {errors.password && <p className="text-accent text-[9px] mt-1 font-black uppercase tracking-wider ml-3">{errors.password.message}</p>}
                     </div>
 
                     <button
                         type="submit"
-                        className="w-full bg-indigo-600 text-white font-extrabold py-3 rounded-xl hover:bg-indigo-700 transition active:scale-[0.98] shadow-lg shadow-indigo-100 mt-2"
+                        className="w-full bg-navy hover:bg-primary text-white rounded-xl py-4 text-xs font-black transition-all shadow-lg hover:shadow-primary/30 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 mt-3 tracking-widest uppercase"
                     >
                         Sign In
                     </button>
-                    {apiError && <p className="text-red-600 text-sm font-bold text-center mt-4">{apiError}</p>}
+                    {apiError && <p className="text-accent text-[10px] font-black text-center mt-4 bg-accent/5 py-2.5 rounded-lg border border-accent/10 uppercase tracking-tight">{apiError}</p>}
                 </form>
 
-                <div className="mt-8 text-center text-sm font-medium">
-                    <span className="text-slate-500 uppercase tracking-widest text-[10px]">New here?</span>
-                    <button
-                        onClick={() => navigate("/signup")}
-                        className="ml-2 text-indigo-600 hover:underline font-bold"
-                    >
-                        Create Account
+                <div className="mt-8 pt-5 border-t border-border/40 text-center">
+                    <p className="text-muted text-[10px] font-bold mb-3">Don't have an account?</p>
+                    <button onClick={() => navigate("/signup")} className="w-full bg-white border border-slate-100 hover:border-primary/30 text-navy py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-md">
+                        Join System
                     </button>
                 </div>
 
-                {/* Super Admin Toggle */}
-                <div className="mt-4 text-center">
+                <div className="mt-6 text-center">
                     <button
                         type="button"
-                        onClick={() => {
-                            setIsSuperAdminMode(!isSuperAdminMode);
-                            setApiError("");
-                            setTenantError(null);
-                        }}
-                        className="text-[11px] text-slate-400 hover:text-slate-600 transition font-medium"
+                        onClick={() => { setIsSuperAdminMode(!isSuperAdminMode); setApiError(""); setTenantError(null); }}
+                        className="text-[9px] text-muted hover:text-primary transition-colors font-black uppercase tracking-[0.2em] opacity-40 hover:opacity-100"
                     >
-                        {isSuperAdminMode
-                            ? "← Back to regular sign in"
-                            : "Platform administrator? Sign in here"}
                     </button>
                 </div>
             </div>

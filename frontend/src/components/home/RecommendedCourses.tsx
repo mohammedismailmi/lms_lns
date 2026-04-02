@@ -25,12 +25,12 @@ export default function RecommendedCourses() {
     if (recommended.length === 0) return null;
 
     return (
-        <section className="mb-12">
-            <h2 className="text-2xl font-serif font-bold text-navy mb-6">Recommended for You</h2>
+        <section className="mb-8">
+            <h2 className="text-xl font-serif font-black text-navy mb-4.5 tracking-tight">Recommended for You</h2>
 
-            <div className="flex overflow-x-auto gap-6 pb-4 snap-x hide-scrollbar">
+            <div className="flex overflow-x-auto gap-4 pb-3 snap-x hide-scrollbar">
                 {recommended.map(course => (
-                    <div key={course.id} className="min-w-[320px] max-w-[360px] snap-start flex-shrink-0">
+                    <div key={course.id} className="min-w-[280px] max-w-[340px] snap-start flex-shrink-0">
                         <CourseCard course={course} />
                     </div>
                 ))}

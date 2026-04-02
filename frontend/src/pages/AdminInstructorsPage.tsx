@@ -42,7 +42,7 @@ export default function AdminInstructorsPage() {
 
     if (loading) {
         return (
-            <div className="p-8 max-w-7xl mx-auto space-y-8 flex items-center justify-center min-h-[400px]">
+            <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-8 flex items-center justify-center min-h-[400px]">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 <span className="ml-3 text-muted font-serif">Loading instructors...</span>
             </div>
@@ -50,12 +50,12 @@ export default function AdminInstructorsPage() {
     }
 
     return (
-        <div className="p-8 max-w-7xl mx-auto space-y-8 pb-24 font-sans">
+        <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-8 pb-24 font-sans">
             <div>
                 <Link to="/admin" className="text-xs font-bold text-primary hover:underline flex items-center gap-1 mb-2">
                     <ChevronLeft className="w-3 h-3" /> Back to Admin Hub
                 </Link>
-                <h1 className="text-4xl font-serif font-bold text-navy">Instructors</h1>
+                <h1 className="text-2xl sm:text-3xl sm:text-4xl font-serif font-bold text-navy">Instructors</h1>
                 <p className="text-muted mt-2">Manage and view all faculty members for this institution.</p>
             </div>
 

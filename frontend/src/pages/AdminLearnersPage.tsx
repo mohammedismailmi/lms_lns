@@ -50,7 +50,7 @@ export default function AdminLearnersPage() {
 
     if (loading) {
         return (
-            <div className="p-8 max-w-7xl mx-auto space-y-8 flex items-center justify-center min-h-[400px]">
+            <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-8 flex items-center justify-center min-h-[400px]">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 <span className="ml-3 text-muted font-serif text-lg animate-pulse tracking-wide">Orchestrating learner directory...</span>
             </div>
@@ -58,12 +58,12 @@ export default function AdminLearnersPage() {
     }
 
     return (
-        <div className="p-8 max-w-7xl mx-auto space-y-10 pb-24 font-sans">
+        <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-10 pb-24 font-sans">
             <div>
                 <Link to="/admin" className="text-xs font-bold text-primary hover:underline flex items-center gap-1 mb-2">
                     <ChevronLeft className="w-3 h-3" /> Back to Admin Hub
                 </Link>
-                <h1 className="text-4xl font-serif font-bold text-navy tracking-tight flex items-center gap-3">
+                <h1 className="text-2xl sm:text-3xl sm:text-4xl font-serif font-bold text-navy tracking-tight flex items-center gap-3">
                     <GraduationCap className="w-10 h-10 text-primary" />
                     Learner Directory
                 </h1>

@@ -16,15 +16,15 @@ export default function StarredCourses() {
     if (starredList.length === 0) return null;
 
     return (
-        <section className="mb-12">
-            <div className="flex items-center gap-2 mb-6">
-                <Star className="w-6 h-6 fill-highlight text-highlight" />
-                <h2 className="text-2xl font-serif font-bold text-highlight">Starred</h2>
+        <section className="mb-8">
+            <div className="flex items-center gap-2 mb-4.5">
+                <Star className="w-5 h-5 fill-highlight text-highlight" />
+                <h2 className="text-xl font-serif font-black text-highlight tracking-tight">Starred</h2>
             </div>
 
-            <div className="flex overflow-x-auto gap-6 pb-4 snap-x hide-scrollbar">
+            <div className="flex overflow-x-auto gap-4 pb-3 snap-x hide-scrollbar">
                 {starredList.map(course => (
-                    <div key={course.id} className="min-w-[320px] max-w-[360px] snap-start flex-shrink-0">
+                    <div key={course.id} className="min-w-[280px] max-w-[340px] snap-start flex-shrink-0">
                         <CourseCard course={course} />
                     </div>
                 ))}

@@ -80,47 +80,47 @@ export default function CertificatePage() {
                 </div>
 
                 <div className="w-full max-w-5xl bg-white p-4 shadow-2xl relative print:shadow-none print:w-full print:max-w-none print:m-0 aspect-[1.4/1] rounded-sm flex-shrink-0">
-                    <div className="absolute inset-4 border-[16px] border-double border-yellow-600/60 pointer-events-none" />
-                    <div className="absolute inset-8 border border-yellow-600/30 pointer-events-none" />
+                    <div className="absolute inset-4 border-[8px] sm:border-[16px] border-double border-yellow-600/60 pointer-events-none" />
+                    <div className="absolute inset-8 border border-yellow-600/30 pointer-events-none hidden sm:block" />
 
-                    <div className="h-full w-full flex flex-col items-center justify-center text-center p-16 bg-slate-50 relative overflow-hidden">
+                    <div className="h-full w-full flex flex-col items-center justify-center text-center p-6 sm:p-16 bg-slate-50 relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-yellow-700 via-yellow-400 to-yellow-700"></div>
                         <div className="absolute bottom-0 left-0 w-full h-2 bg-gradient-to-r from-yellow-700 via-yellow-400 to-yellow-700"></div>
 
-                        <Award className="w-20 h-20 text-yellow-600 mb-6 opacity-80" strokeWidth={1.5} />
+                        <Award className="w-12 h-12 sm:w-20 sm:h-20 text-yellow-600 mb-2 sm:mb-6 opacity-80 shrink-0" strokeWidth={1.5} />
                         
-                        <h2 className="text-2xl font-bold tracking-[0.2em] text-yellow-700 uppercase mb-4">
+                        <h2 className="text-base sm:text-2xl font-bold tracking-[0.2em] text-yellow-700 uppercase mb-2 sm:mb-4">
                             CERTIFICATE OF
                         </h2>
-                        <h1 className="text-6xl md:text-7xl font-serif font-bold text-navy mb-12">
+                        <h1 className="text-4xl sm:text-6xl md:text-7xl font-serif font-bold text-navy mb-4 sm:mb-12">
                             COMPLETION
                         </h1>
 
-                        <p className="text-xl text-slate-600 italic font-serif mb-6">This certifies that</p>
+                        <p className="text-sm sm:text-xl text-slate-600 italic font-serif mb-2 sm:mb-6">This certifies that</p>
 
-                        <p className="text-5xl font-serif font-bold text-navy border-b-2 border-yellow-600/40 pb-4 px-16 inline-block mb-10 text-center w-3/4 truncate">
+                        <p className="text-2xl sm:text-4xl md:text-5xl font-serif font-bold text-navy border-b-2 border-yellow-600/40 pb-2 sm:pb-4 px-4 sm:px-16 inline-block mb-4 sm:mb-10 text-center w-11/12 sm:w-3/4 truncate">
                             {user.name}
                         </p>
 
-                        <p className="text-xl text-slate-600 italic font-serif mb-6">has successfully completed</p>
+                        <p className="text-sm sm:text-xl text-slate-600 italic font-serif mb-2 sm:mb-6">has successfully completed</p>
 
-                        <h3 className="text-3xl font-serif font-bold text-slate-800 mb-12 w-3/4 leading-snug">
+                        <h3 className="text-xl sm:text-2xl md:text-3xl font-serif font-bold text-slate-800 mb-6 sm:mb-12 w-11/12 sm:w-3/4 leading-snug">
                             {course?.name}
                         </h3>
 
-                        <div className="flex justify-between items-center w-full max-w-3xl border-t border-slate-200 pt-8 mt-auto px-8 relative">
-                            <div className="text-center w-56 flex flex-col items-center">
-                                <p className="text-slate-800 font-bold mb-1 text-lg">{issueDateString}</p>
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Completed On</p>
+                        <div className="flex flex-row justify-between items-center w-full max-w-3xl border-t border-slate-200 pt-4 sm:pt-8 mt-auto px-2 sm:px-8 relative grid grid-cols-3 gap-2">
+                            <div className="text-center flex flex-col items-center col-span-1">
+                                <p className="text-slate-800 font-bold mb-0.5 sm:mb-1 text-[10px] sm:text-lg truncate w-full">{issueDateString}</p>
+                                <p className="text-[8px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest truncate w-full">Completed On</p>
                             </div>
 
-                            <div className="text-center flex flex-col items-center gap-1">
-                                <div className="text-2xl font-bold tracking-widest text-navy uppercase opacity-90">{tenant.name}</div>
+                            <div className="text-center flex flex-col items-center gap-1 col-span-1">
+                                <div className="text-[10px] sm:text-2xl font-bold tracking-widest text-navy uppercase opacity-90 truncate w-full">{tenant.name}</div>
                             </div>
                             
-                            <div className="text-center w-56 flex flex-col items-center">
-                                <p className="text-slate-800 font-mono text-xs mb-1 truncate w-full">{selectedCert.id}</p>
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Certificate ID</p>
+                            <div className="text-center flex flex-col items-center col-span-1">
+                                <p className="text-slate-800 font-mono text-[8px] sm:text-xs mb-0.5 sm:mb-1 truncate w-full">{selectedCert.id}</p>
+                                <p className="text-[8px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest truncate w-full">Certificate ID</p>
                             </div>
                         </div>
                     </div>
@@ -133,7 +133,7 @@ export default function CertificatePage() {
         <div className="min-h-screen bg-surface p-8 space-y-12">
             
             <div className="max-w-5xl mx-auto space-y-2 mb-8">
-                <h1 className="text-3xl font-serif font-bold text-navy">My Certificates</h1>
+                <h1 className="text-2xl sm:text-3xl font-serif font-bold text-navy">My Certificates</h1>
                 <p className="text-muted">You have successfully earned {certificates.length} certificates.</p>
             </div>
 

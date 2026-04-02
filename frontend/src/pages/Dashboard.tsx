@@ -47,64 +47,64 @@ export default function Dashboard() {
     };
 
     return (
-        <div className="p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="p-4 sm:p-5 max-w-7xl mx-auto space-y-6 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div>
-                <h1 className="text-3xl font-serif font-bold text-navy mb-2">Platform Dashboard</h1>
-                <p className="text-slate-500 font-medium tracking-wide">Welcome back, {user?.name}. Here's what's happening across your platform.</p>
+                <h1 className="text-xl sm:text-2xl font-serif font-black text-navy mb-1 tracking-tight">Platform Dashboard</h1>
+                <p className="text-slate-500 text-xs font-semibold tracking-wide opacity-80">Welcome back, {user?.name}. Global status overview matrix.</p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Column 1: Upcoming Events */}
-                <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white rounded-2xl shadow-sm border border-border p-6 md:p-8">
-                        <div className="flex items-center justify-between mb-8">
-                            <h2 className="text-xl font-serif font-bold text-navy flex items-center gap-2">
-                                <Video className="w-5 h-5 text-highlight" />
+                <div className="lg:col-span-2 space-y-5">
+                    <div className="bg-white rounded-3xl shadow-premium border border-border/40 p-5 sm:p-6 bg-[radial-gradient(circle_at_top_right,_#1b3a6b05,_transparent)]">
+                        <div className="flex items-center justify-between mb-6">
+                            <h2 className="text-lg font-serif font-black text-navy flex items-center gap-2 tracking-tight">
+                                <Video className="w-4.5 h-4.5 text-highlight" />
                                 Upcoming Scheduled Events
                             </h2>
                         </div>
 
                         {loading ? (
-                            <div className="py-8 text-center text-muted font-serif italic animate-pulse">
-                                Loading events...
+                            <div className="py-6 text-center text-muted font-serif italic animate-pulse text-xs">
+                                Initializing events matrix...
                             </div>
                         ) : sessions.length === 0 ? (
-                            <div className="text-center py-12">
-                                <CalendarIcon className="w-12 h-12 text-slate-200 mx-auto mb-3" />
-                                <p className="font-serif text-lg text-navy">No upcoming sessions scheduled</p>
-                                <p className="text-sm mt-1 text-muted">Sessions you schedule will appear here</p>
+                            <div className="text-center py-10 opacity-70">
+                                <CalendarIcon className="w-10 h-10 text-slate-200 mx-auto mb-2" />
+                                <p className="font-serif text-base text-navy font-bold">No upcoming sessions scheduled</p>
+                                <p className="text-[10px] mt-0.5 text-muted">Sessions you schedule will appear here</p>
                             </div>
                         ) : (
-                            <div className="space-y-4">
+                            <div className="space-y-3">
                                 {sessions.map((event) => {
                                     const dt = event.date_time ? formatEventDate(event.date_time) : null;
                                     return (
-                                        <div key={event.id} className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-5 rounded-xl border border-border hover:border-slate-300 hover:shadow-md transition-all bg-surface">
-                                            <div className="flex gap-4 items-start">
+                                        <div key={event.id} className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 p-4 rounded-xl border border-border/40 hover:border-primary/20 hover:shadow-md transition-all bg-surface/50 group">
+                                            <div className="flex gap-3.5 items-start">
                                                 {dt && (
-                                                    <div className="bg-white border border-border rounded-lg p-3 flex flex-col items-center justify-center min-w-[70px] shadow-sm">
-                                                        <span className="text-xs font-bold text-muted uppercase tracking-wider">{dt.month}</span>
-                                                        <span className="text-xl font-bold text-navy">{dt.day}</span>
+                                                    <div className="bg-white border border-border/40 rounded-lg p-2.5 flex flex-col items-center justify-center min-w-[64px] shadow-sm">
+                                                        <span className="text-[9px] font-black text-muted uppercase tracking-widest">{dt.month}</span>
+                                                        <span className="text-lg font-serif font-black text-navy">{dt.day}</span>
                                                     </div>
                                                 )}
                                                 <div>
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <h3 className="font-bold text-navy text-lg">{event.title}</h3>
+                                                    <div className="flex items-center gap-2 mb-0.5">
+                                                        <h3 className="font-black text-navy text-sm tracking-tight group-hover:text-primary transition-colors">{event.title}</h3>
                                                         {event.type && (
-                                                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                                            <span className={`px-1.5 py-0.5 rounded-full text-[8.5px] font-black uppercase tracking-wider ${
                                                                 event.type === 'submission' ? 'bg-red-50 text-red-500 border border-red-100' :
                                                                 (event.type === 'quiz' || event.type === 'exam') ? 'bg-orange-50 text-orange-500 border border-orange-100' :
                                                                 event.type === 'live_class' ? 'bg-blue-50 text-blue-500 border border-blue-100' :
-                                                                'bg-slate-100 text-slate-500 border border-slate-200'
+                                                                'bg-slate-50 text-slate-500 border border-slate-100'
                                                             }`}>
                                                                 {event.type.replace('_', ' ')}
                                                             </span>
                                                         )}
                                                     </div>
                                                     {dt && (
-                                                        <div className="flex items-center gap-4 text-sm text-muted mt-2 font-medium">
+                                                        <div className="flex items-center gap-3.5 text-[10px] text-muted mt-1.5 font-bold">
                                                             <span className="flex items-center gap-1.5">
-                                                                {event.type === 'live_class' ? <Video className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
+                                                                {event.type === 'live_class' ? <Video className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />}
                                                                 {dt.time}
                                                             </span>
                                                         </div>

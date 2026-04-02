@@ -40,7 +40,7 @@ export default function QuestionCard({ question, questionNumber, totalQuestions,
 
     return (
         <div className="bg-white rounded-xl shadow-sm border border-border flex flex-col h-full">
-            <div className="p-8 border-b border-border bg-slate-50 rounded-t-xl flex items-center justify-between">
+            <div className="p-4 sm:p-8 border-b border-border bg-slate-50 rounded-t-xl flex items-center justify-between">
                 <h2 className="text-xl font-bold text-navy">Question {questionNumber} of {totalQuestions}</h2>
                 {!readOnly && isMarked && (
                     <span className="flex items-center gap-1.5 text-highlight bg-highlight/10 px-3 py-1 rounded-full text-sm font-bold uppercase tracking-wider border border-highlight/20">
@@ -54,7 +54,7 @@ export default function QuestionCard({ question, questionNumber, totalQuestions,
                 )}
             </div>
 
-            <div className="p-8 flex-1 overflow-y-auto">
+            <div className="p-4 sm:p-8 flex-1 overflow-y-auto">
                 <div className="text-xl text-ink font-serif mb-8 leading-relaxed">
                     {question.text}
                 </div>

@@ -76,7 +76,7 @@ export default function QuizShell({ isExam }: Props) {
 
     if (!activity || (activity.type !== 'quiz' && activity.type !== 'exam')) {
         return (
-            <div className="p-8 font-serif text-2xl text-accent border border-accent bg-white min-h-screen text-center flex flex-col items-center justify-center gap-4">
+            <div className="p-4 sm:p-8 font-serif text-2xl text-accent border border-accent bg-white min-h-screen text-center flex flex-col items-center justify-center gap-4">
                 <p>Quiz not found.</p>
                 <button onClick={() => navigate(-1)} className="text-sm font-bold text-navy hover:underline">Go back</button>
             </div>
@@ -282,20 +282,20 @@ export default function QuizShell({ isExam }: Props) {
             {!readOnlyMode && <ProctoringOverlay isProctored={isExam} onAutoSubmit={handleAutoSubmit} />}
 
             {/* Top Bar */}
-            <header className="bg-navy text-white h-20 flex items-center justify-between px-8 shadow-md shrink-0">
-                <div>
-                    <h2 className="text-2xl font-serif font-bold leading-tight">{activity.title}</h2>
-                    <p className="text-sm text-slate-300 font-medium">{course?.name}</p>
+            <header className="bg-navy text-white py-4 md:h-20 flex flex-col md:flex-row items-center justify-between px-4 sm:px-8 shadow-md shrink-0 gap-4 md:gap-0">
+                <div className="text-center md:text-left">
+                    <h2 className="text-xl sm:text-2xl font-serif font-bold leading-tight break-words max-w-full px-2">{activity.title}</h2>
+                    <p className="text-xs sm:text-sm text-slate-300 font-medium truncate max-w-xs">{course?.name}</p>
                 </div>
 
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-3 sm:gap-6 w-full md:w-auto justify-center md:justify-end">
                     {readOnlyMode ? (
                         <button
                             onClick={() => {
                                 setViewState(existingResult ? 'intro' : 'summary');
                                 setReadOnlyMode(false);
                             }}
-                            className="bg-white text-navy font-bold px-6 py-2 rounded-lg hover:bg-slate-100"
+                            className="bg-white text-navy font-bold px-6 py-2 rounded-lg hover:bg-slate-100 min-h-[44px]"
                         >
                             Exit Review
                         </button>
@@ -304,9 +304,9 @@ export default function QuizShell({ isExam }: Props) {
                             <QuizTimer onTimeUp={handleAutoSubmit} />
                             <button
                                 onClick={handleAutoSubmit}
-                                className="bg-success hover:bg-green-700 text-white font-bold px-8 py-3 rounded-xl shadow-inner transition-colors border border-green-600"
+                                className="bg-success hover:bg-green-700 text-white text-sm sm:text-base font-bold px-4 sm:px-8 py-2.5 sm:py-3 rounded-xl shadow-inner transition-colors border border-green-600 min-h-[44px] shrink-0"
                             >
-                                Submit Assessment
+                                Submit<span className="hidden sm:inline"> Assessment</span>
                             </button>
                         </>
                     )}
@@ -314,23 +314,24 @@ export default function QuizShell({ isExam }: Props) {
             </header>
 
             {/* Main Execution Area */}
-            <main className="flex-1 overflow-hidden p-6 flex gap-6 max-w-[1600px] w-full mx-auto">
-                <div className="flex-[7] min-w-0 pointer-events-auto h-full relative">
+            <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 flex flex-col md:flex-row gap-6 max-w-[1600px] w-full mx-auto">
+                {/* On mobile, navigator goes first */}
+                <div className="md:order-2 flex-none md:flex-[3] min-w-0 md:min-w-[300px] md:h-full md:overflow-y-auto shrink-0 pr-0 md:pr-2 pb-2 md:pb-8">
+                    <QuestionNavigator
+                        questions={activity.questions}
+                        currentIndex={currentIndex}
+                        visitedSet={visitedSet}
+                        onNavigate={handleNavigate}
+                    />
+                </div>
+
+                <div className="md:order-1 flex-[7] min-w-0 pointer-events-auto h-full relative">
                     <QuestionCard
                         question={currentQuestion}
                         questionNumber={currentIndex + 1}
                         totalQuestions={activity.questions.length}
                         onNext={handleNext}
                         readOnly={readOnlyMode}
-                    />
-                </div>
-
-                <div className="flex-[3] min-w-[300px] h-full overflow-y-auto pr-2 pb-8">
-                    <QuestionNavigator
-                        questions={activity.questions}
-                        currentIndex={currentIndex}
-                        visitedSet={visitedSet}
-                        onNavigate={handleNavigate}
                     />
                 </div>
             </main>

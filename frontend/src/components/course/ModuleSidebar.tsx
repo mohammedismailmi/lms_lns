@@ -6,9 +6,10 @@ import { cn } from '../../lib/utils';
 
 interface Props {
     course: Course;
+    onActivityClick?: () => void;
 }
 
-export default function ModuleSidebar({ course }: Props) {
+export default function ModuleSidebar({ course, onActivityClick }: Props) {
     return (
         <aside className="w-[260px] flex-shrink-0 border-r border-border bg-surface h-[calc(100vh-64px)] overflow-y-auto sticky top-0 shadow-inner">
             <div className="p-4 border-b border-border bg-card sticky top-0 z-10">
@@ -16,14 +17,14 @@ export default function ModuleSidebar({ course }: Props) {
             </div>
             <div className="py-2">
                 {course.modules.map((mod) => (
-                    <ModuleRow key={mod.id} module={mod} />
+                    <ModuleRow key={mod.id} module={mod} onActivityClick={onActivityClick} />
                 ))}
             </div>
         </aside>
     );
 }
 
-function ModuleRow({ module }: { module: Module }) {
+function ModuleRow({ module, onActivityClick }: { module: Module, onActivityClick?: () => void }) {
     const [expanded, setExpanded] = useState(true);
     const { activityStatus } = useProgressStore();
 
@@ -51,13 +52,13 @@ function ModuleRow({ module }: { module: Module }) {
         <div className="border-b border-slate-200 last:border-0 relative">
             <button
                 onClick={() => setExpanded(!expanded)}
-                className="w-full flex items-center justify-between p-4 hover:bg-white transition-colors group"
+                className="w-full flex items-center justify-between p-4 px-5 hover:bg-white transition-all group min-h-[44px] rounded-2xl"
             >
-                <div className="flex items-center gap-2 text-left flex-1 min-w-0 pr-4">
-                    <div className="text-muted group-hover:text-primary transition-colors">
-                        {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                <div className="flex items-center gap-3 text-left flex-1 min-w-0 pr-4">
+                    <div className="text-muted group-hover:text-primary transition-colors min-w-[20px]">
+                        {expanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
                     </div>
-                    <span className="font-bold text-sm text-navy truncate">{module.title}</span>
+                    <span className="font-black text-sm text-navy truncate tracking-tight">{module.title}</span>
                 </div>
 
                 {/* Module Progress Circle */}
@@ -78,7 +79,10 @@ function ModuleRow({ module }: { module: Module }) {
                         <ActivityRow
                             key={act.id}
                             activity={act}
-                            onClick={() => handleScrollTo(act.id)}
+                            onClick={() => {
+                                handleScrollTo(act.id);
+                                onActivityClick?.();
+                            }}
                         />
                     ))}
                 </div>
@@ -127,14 +131,14 @@ function ActivityRow({ activity, onClick }: { activity: Activity; onClick: () =>
     return (
         <button
             onClick={onClick}
-            className="w-full pl-10 pr-4 py-2 flex items-center gap-3 hover:bg-white transition-colors group text-left"
+            className="w-[calc(100%-1rem)] ml-4 mr-0 py-2.5 px-4 flex items-center gap-4 hover:bg-white transition-all group text-left rounded-2xl mb-1"
         >
             <StatusRing />
-            <div className="flex items-center gap-2 flex-1 min-w-0">
-                <div className="bg-white p-1 rounded border border-border shadow-sm group-hover:border-primary/30 transition-colors shrink-0">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="bg-white p-1.5 rounded-xl border border-border shadow-sm group-hover:border-primary/30 transition-colors shrink-0">
                     {getTypeIcon()}
                 </div>
-                <p className="text-xs font-medium text-ink truncate group-hover:text-primary transition-colors">
+                <p className="text-xs font-bold text-ink truncate group-hover:text-primary transition-all">
                     {activity.title}
                 </p>
             </div>

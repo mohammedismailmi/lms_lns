@@ -81,7 +81,7 @@ export default function QuizResults({ activityId, title }: Props) {
         }
     };
 
-    if (loading) return <div className="p-8 text-center text-muted font-serif italic">Loading results...</div>;
+    if (loading) return <div className="p-4 sm:p-8 text-center text-muted font-serif italic">Loading results...</div>;
 
     return (
         <div className="flex-1 overflow-hidden flex flex-col p-6 max-w-[1600px] w-full mx-auto">

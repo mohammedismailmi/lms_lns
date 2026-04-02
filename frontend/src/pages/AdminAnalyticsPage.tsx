@@ -68,14 +68,14 @@ export default function AdminAnalyticsPage() {
     });
 
     return (
-        <div className="p-8 max-w-7xl mx-auto space-y-8 pb-24">
+        <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-8 pb-24">
             <div>
-                <h2 className="text-3xl font-serif font-bold text-navy">Platform Analytics</h2>
+                <h2 className="text-2xl sm:text-3xl font-serif font-bold text-navy">Platform Analytics</h2>
                 <p className="text-muted text-sm mt-1">High-level insights and performance metrics across all users and courses.</p>
             </div>
 
             {/* Top Stat Boxes */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 <StatCard icon={<Users className="w-5 h-5 text-primary" />} label="Total Active Users" value={totalUsers} />
                 <StatCard icon={<BookOpen className="w-5 h-5 text-highlight" />} label="Total Courses" value={totalCourses} />
                 <StatCard icon={<GraduationCap className="w-5 h-5 text-success" />} label="Total Enrolments" value={totalEnrolments} />
@@ -90,7 +90,7 @@ export default function AdminAnalyticsPage() {
                     <div className="p-5 border-b border-border bg-slate-50">
                         <h3 className="font-serif font-bold text-navy text-lg">Per-User Progress</h3>
                     </div>
-                    <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+                    <div className="overflow-x-auto min-w-full max-h-[500px] overflow-y-auto">
                         <table className="w-full text-left text-sm relative">
                             <thead className="bg-slate-50 border-b border-border text-navy uppercase font-bold tracking-wider text-[10px] sticky top-0 z-10 shadow-sm">
                                 <tr>
@@ -140,7 +140,7 @@ export default function AdminAnalyticsPage() {
                     <div className="p-5 border-b border-border bg-slate-50">
                         <h3 className="font-serif font-bold text-navy text-lg">Per-Course Stats</h3>
                     </div>
-                    <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
+                    <div className="overflow-x-auto min-w-full max-h-[500px] overflow-y-auto">
                         <table className="w-full text-left text-sm relative">
                             <thead className="bg-slate-50 border-b border-border text-navy uppercase font-bold tracking-wider text-[10px] sticky top-0 z-10 shadow-sm">
                                 <tr>
@@ -193,7 +193,7 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
                 {icon}
             </div>
             <div>
-                <p className="text-3xl font-bold font-serif text-navy leading-none mb-1">{value}</p>
+                <p className="text-2xl sm:text-3xl font-bold font-serif text-navy leading-none mb-1">{value}</p>
                 <p className="text-xs text-muted font-bold uppercase tracking-wider">{label}</p>
             </div>
         </div>

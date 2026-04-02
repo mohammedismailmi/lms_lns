@@ -22,14 +22,9 @@ export default function SignUp() {
     const [apiError, setApiError] = useState("");
     const [apiSuccess, setApiSuccess] = useState("");
     const [selectedTenantId, setSelectedTenantId] = useState(null);
-    const [selectedTenantName, setSelectedTenantName] = useState("");
     const [tenantError, setTenantError] = useState(null);
 
-    const {
-        register,
-        handleSubmit,
-        formState: { errors },
-    } = useForm({
+    const { register, handleSubmit, formState: { errors } } = useForm({
         resolver: zodResolver(signUpSchema),
     });
 
@@ -62,94 +57,102 @@ export default function SignUp() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-            <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border border-slate-100">
-                <h2 className="text-3xl font-bold text-slate-800 mb-2 font-display uppercase tracking-tight">Create Account</h2>
-                <p className="text-sm text-slate-400 mb-8 font-medium">Join our learning community today.</p>
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-8 bg-[radial-gradient(circle_at_top_right,_#1b3a6b0a,_transparent),_radial-gradient(circle_at_bottom_left,_#1b3a6b05,_transparent)]">
+            <div className="w-full max-w-md bg-white rounded-3xl shadow-premium p-6 md:p-8 border border-border/40 relative overflow-hidden group">
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary via-highlight to-primary opacity-20" />
+                
+                <div className="text-center mb-8">
+                    <div className="w-12 h-12 bg-navy rounded-xl flex items-center justify-center text-white text-2xl font-black font-serif mx-auto mb-5 shadow-xl shadow-navy/20 -rotate-3 transition-transform group-hover:rotate-0">A</div>
+                    <h1 className="font-serif text-2xl md:text-3xl font-black text-navy tracking-tight leading-none mb-2.5">
+                        Create Account
+                    </h1>
+                    <p className="text-[10px] text-muted font-bold tracking-wide opacity-60 uppercase">
+                        Join your digital campus
+                    </p>
+                </div>
 
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                    {/* Institution Selector */}
-                    <TenantSelector
-                        value={selectedTenantId}
-                        onChange={(id) => {
-                            setSelectedTenantId(id);
-                            setTenantError(null);
-                            // We don't have access to the tenant name here directly,
-                            // but we can derive it from TenantSelector's internal state.
-                            // For now, let's use a simple approach.
-                        }}
-                        error={tenantError}
-                    />
+                    <div className="space-y-1.5">
+                        <label className="text-[9px] font-black text-muted uppercase tracking-[0.2em] ml-3">Institution</label>
+                        <TenantSelector
+                            value={selectedTenantId}
+                            onChange={(id) => { setSelectedTenantId(id); setTenantError(null); }}
+                            error={tenantError}
+                        />
+                    </div>
 
                     {selectedTenantId && (
-                        <p className="text-xs text-indigo-600 font-medium bg-indigo-50 px-3 py-2 rounded-lg">
-                            ✓ You are registering as a student at the selected institution.
-                        </p>
+                        <div className="bg-success/5 border border-success/20 px-3.5 py-2 rounded-xl flex items-center gap-2.5 animate-in fade-in slide-in-from-top-2">
+                            <div className="w-1.5 h-1.5 bg-success rounded-full animate-pulse" />
+                            <p className="text-[9px] text-success font-black uppercase tracking-widest leading-relaxed">
+                                Learner Registration Active
+                            </p>
+                        </div>
                     )}
 
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Full Name</label>
-                        <input
-                            {...register("name")}
-                            className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl focus:outline-none focus:ring-2 transition ${errors.name ? "border-red-500 focus:ring-red-100" : "border-slate-200 focus:ring-indigo-500"
-                                }`}
-                            placeholder="Jane Doe"
-                        />
-                        {errors.name && <p className="text-red-500 text-[11px] mt-1 font-bold">{errors.name.message}</p>}
-                    </div>
+                    <div className="grid grid-cols-1 gap-4">
+                        <div className="space-y-1.5">
+                            <label className="text-[9px] font-black text-muted uppercase tracking-[0.2em] ml-3">Full Name</label>
+                            <input
+                                {...register("name")}
+                                className={`w-full bg-surface border rounded-xl px-4 py-3 text-xs focus:outline-none focus:ring-4 transition-all shadow-inner font-bold ${errors.name ? "border-accent focus:ring-accent/10" : "border-border focus:ring-primary/10"}`}
+                                placeholder="Enter full name"
+                            />
+                            {errors.name && <p className="text-accent text-[9px] mt-1 font-black uppercase tracking-wider ml-3">{errors.name.message}</p>}
+                        </div>
 
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Email</label>
-                        <input
-                            {...register("email")}
-                            className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl focus:outline-none focus:ring-2 transition ${errors.email ? "border-red-500 focus:ring-red-100" : "border-slate-200 focus:ring-indigo-500"
-                                }`}
-                            placeholder="jane@example.com"
-                        />
-                        {errors.email && <p className="text-red-500 text-[11px] mt-1 font-bold">{errors.email.message}</p>}
-                    </div>
+                        <div className="space-y-1.5">
+                            <label className="text-[9px] font-black text-muted uppercase tracking-[0.2em] ml-3">Email Address</label>
+                            <input
+                                {...register("email")}
+                                className={`w-full bg-surface border rounded-xl px-4 py-3 text-xs focus:outline-none focus:ring-4 transition-all shadow-inner font-bold ${errors.email ? "border-accent focus:ring-accent/10" : "border-border focus:ring-primary/10"}`}
+                                placeholder="name@institution.edu"
+                            />
+                            {errors.email && <p className="text-accent text-[9px] mt-1 font-black uppercase tracking-wider ml-3">{errors.email.message}</p>}
+                        </div>
 
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Password</label>
-                        <input
-                            type="password"
-                            {...register("password")}
-                            className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl focus:outline-none focus:ring-2 transition ${errors.password ? "border-red-500 focus:ring-red-100" : "border-slate-200 focus:ring-indigo-500"
-                                }`}
-                            placeholder="••••••••"
-                        />
-                        {errors.password && <p className="text-red-500 text-[11px] mt-1 font-bold">{errors.password.message}</p>}
-                    </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                                <label className="text-[9px] font-black text-muted uppercase tracking-[0.2em] ml-3">Password</label>
+                                <input
+                                    type="password"
+                                    {...register("password")}
+                                    className={`w-full bg-surface border rounded-xl px-4 py-3 text-xs focus:outline-none focus:ring-4 transition-all shadow-inner font-bold ${errors.password ? "border-accent focus:ring-accent/10" : "border-border focus:ring-primary/10"}`}
+                                    placeholder="••••••••"
+                                />
+                            </div>
 
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Confirm Password</label>
-                        <input
-                            type="password"
-                            {...register("confirmPassword")}
-                            className={`w-full px-4 py-2.5 bg-slate-50 border rounded-xl focus:outline-none focus:ring-2 transition ${errors.confirmPassword ? "border-red-500 focus:ring-red-100" : "border-slate-200 focus:ring-indigo-500"
-                                }`}
-                            placeholder="••••••••"
-                        />
-                        {errors.confirmPassword && (
-                            <p className="text-red-500 text-[11px] mt-1 font-bold">{errors.confirmPassword.message}</p>
+                            <div className="space-y-1.5">
+                                <label className="text-[9px] font-black text-muted uppercase tracking-[0.2em] ml-3">Confirm</label>
+                                <input
+                                    type="password"
+                                    {...register("confirmPassword")}
+                                    className={`w-full bg-surface border rounded-xl px-4 py-3 text-xs focus:outline-none focus:ring-4 transition-all shadow-inner font-bold ${errors.confirmPassword ? "border-accent focus:ring-accent/10" : "border-border focus:ring-primary/10"}`}
+                                    placeholder="••••••••"
+                                />
+                            </div>
+                        </div>
+                        {(errors.password || errors.confirmPassword) && (
+                            <p className="text-accent text-[9px] font-black uppercase tracking-wider ml-3">
+                                {errors.password?.message || errors.confirmPassword?.message}
+                            </p>
                         )}
                     </div>
 
                     <button
                         type="submit"
-                        className="w-full bg-slate-900 text-white font-bold py-3.5 rounded-xl hover:bg-black transition active:scale-[0.98] shadow-lg shadow-slate-200 mt-4 text-sm"
+                        className="w-full bg-navy hover:bg-primary text-white rounded-xl py-4 text-xs font-black transition-all shadow-lg hover:shadow-primary/30 hover:-translate-y-0.5 active:scale-95 disabled:opacity-50 mt-2 tracking-widest uppercase"
                     >
-                        Get Started
+                        Create Account
                     </button>
-                    {apiError && <p className="text-red-600 text-sm font-bold text-center mt-4">{apiError}</p>}
-                    {apiSuccess && <p className="text-green-600 text-sm font-bold text-center mt-4">{apiSuccess}</p>}
+                    {apiError && <p className="text-accent text-[10px] font-black text-center mt-4 bg-accent/5 py-2.5 rounded-lg border border-accent/10 uppercase tracking-tight">{apiError}</p>}
+                    {apiSuccess && <p className="text-success text-[10px] font-black text-center mt-4 bg-success/5 py-2.5 rounded-lg border border-success/10 uppercase tracking-tight">{apiSuccess}</p>}
                 </form>
 
-                <div className="mt-8 pt-6 border-t border-slate-100 text-center">
-                    <p className="text-sm text-slate-500 font-medium italic">
-                        Already have an account?{" "}
-                        <button onClick={() => navigate("/login")} className="text-indigo-600 hover:underline font-bold not-italic">Sign In</button>
-                    </p>
+                <div className="mt-8 pt-5 border-t border-border/40 text-center">
+                    <button onClick={() => navigate("/login")} className="w-full bg-white border border-slate-100 hover:border-primary/30 text-navy py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all hover:shadow-md">
+                        Sign In
+                    </button>
                 </div>
             </div>
         </div>

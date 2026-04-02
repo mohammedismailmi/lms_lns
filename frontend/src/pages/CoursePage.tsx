@@ -59,6 +59,7 @@ export default function CoursePage() {
         activity: undefined
     });
     const [activeTab, setActiveTab] = useState<'content' | 'progress'>('content');
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     const fetchCourse = React.useCallback(() => {
         setLoading(true);
@@ -107,10 +108,10 @@ export default function CoursePage() {
 
     // Safety check
     if (loading) {
-        return <div className="p-8 text-center text-muted font-serif text-2xl">Loading course...</div>;
+        return <div className="p-4 sm:p-8 text-center text-muted font-serif text-2xl">Loading course...</div>;
     }
     if (!course || !user) {
-        return <div className="p-8 text-center text-accent font-serif text-2xl">Course not found.</div>;
+        return <div className="p-4 sm:p-8 text-center text-accent font-serif text-2xl">Course not found.</div>;
     }
 
     const certificateReady = instructorCompleted.has(course.id) && progress === 100 && !isInstructor;
@@ -153,45 +154,45 @@ export default function CoursePage() {
     if (!isEnrolled) {
         // ENROLLMENT GATE
         return (
-            <div className="flex h-full items-center justify-center p-8 bg-surface">
-                <div className="bg-white rounded-3xl shadow-xl max-w-2xl w-full overflow-hidden border border-border">
-                    <div className="bg-navy p-10 text-center relative overflow-hidden">
-                        <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #0F2040 1px, transparent 1px)', backgroundSize: '16px 16px' }} />
-                        <Lock className="w-12 h-12 text-highlight mx-auto mb-4 relative z-10" />
-                        <h1 className="text-3xl md:text-4xl font-serif font-bold text-white relative z-10 leading-tight">
+            <div className="flex h-full items-center justify-center p-4 sm:p-5 bg-surface">
+                <div className="bg-white rounded-3xl shadow-premium max-w-xl w-full overflow-hidden border border-border/40">
+                    <div className="bg-navy p-7 sm:p-8 text-center relative overflow-hidden">
+                        <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '16px 16px' }} />
+                        <Lock className="w-10 h-10 text-highlight mx-auto mb-3 relative z-10" />
+                        <h1 className="text-xl sm:text-2xl md:text-3xl font-serif font-black text-white relative z-10 leading-tight tracking-tight">
                             {course.name}
                         </h1>
-                        <p className="text-slate-300 mt-4 relative z-10 max-w-xl mx-auto">{course.section}</p>
+                        <p className="text-slate-300/80 mt-3 relative z-10 max-w-lg mx-auto text-xs font-medium">{course.section}</p>
                     </div>
-                    <div className="p-10 space-y-8">
+                    <div className="p-7 sm:p-8 space-y-6">
                         <div>
-                            <h3 className="text-lg font-bold font-serif text-navy mb-2">About this Course</h3>
-                            <p className="text-muted leading-relaxed">
+                            <h3 className="text-base font-black font-serif text-navy mb-2 tracking-wide uppercase">Institutional Overview</h3>
+                            <p className="text-muted leading-relaxed text-xs">
                                 {course.description || "Unlock your potential through detailed rigorous tutelage by enrolling. You will gain instantaneous access to all curated course material, live webinars, and exams constructed by our high calibre instructors."}
                             </p>
                         </div>
-                        <div className="grid grid-cols-2 gap-4 border-y border-border py-6">
-                            <div className="flex items-center gap-3">
-                                <Users className="w-5 h-5 text-primary" />
+                        <div className="grid grid-cols-2 gap-4 border-y border-border/40 py-4">
+                            <div className="flex items-center gap-2.5">
+                                <Users className="w-4 h-4 text-primary" />
                                 <div>
-                                    <p className="text-xs font-bold text-muted uppercase tracking-wider">Faculty</p>
-                                    <p className="font-bold text-navy">{course.faculty}</p>
+                                    <p className="text-[8.5px] font-black text-muted uppercase tracking-widest">Faculty</p>
+                                    <p className="font-bold text-navy text-xs">{course.faculty}</p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-3">
-                                <BookOpen className="w-5 h-5 text-success" />
+                            <div className="flex items-center gap-2.5">
+                                <BookOpen className="w-4 h-4 text-success" />
                                 <div>
-                                    <p className="text-xs font-bold text-muted uppercase tracking-wider">Modules</p>
-                                    <p className="font-bold text-navy">{course.modules.length}</p>
+                                    <p className="text-[8.5px] font-black text-muted uppercase tracking-widest">Modules</p>
+                                    <p className="font-bold text-navy text-xs">{course.modules.length} Segments</p>
                                 </div>
                             </div>
                         </div>
                         <button 
                             onClick={handleEnroll}
-                            className="w-full bg-primary hover:bg-navy text-white text-lg font-bold py-4 rounded-xl transition-colors shadow-sm flex items-center justify-center gap-2 group"
+                            className="w-full bg-navy hover:bg-primary text-white text-base font-black py-3 rounded-xl transition-all shadow-lg shadow-navy/10 flex items-center justify-center gap-2 group active:scale-[0.98] uppercase tracking-widest text-[11px]"
                         >
-                            <CheckCircle className="w-6 h-6 group-hover:scale-110 transition-transform" /> 
-                            Enroll in Course
+                            <CheckCircle className="w-5 h-5 group-hover:scale-110 transition-transform" /> 
+                            Establish Enrollment
                         </button>
                     </div>
                 </div>
@@ -200,83 +201,114 @@ export default function CoursePage() {
     }
 
     return (
-        <div className="flex h-full relative">
-            {!isInstructor && <ModuleSidebar course={course} />}
+        <div className="flex flex-col md:flex-row h-full relative w-full overflow-hidden">
+            {!isInstructor && (
+                <>
+                    {/* Mobile sidebar toggle button */}
+                    <button
+                        onClick={() => setSidebarOpen(!sidebarOpen)}
+                        className="md:hidden fixed bottom-6 right-6 z-40 bg-primary text-white px-5 py-3 rounded-full shadow-2xl text-sm font-bold flex items-center gap-2 transition-transform active:scale-95"
+                    >
+                        {sidebarOpen ? '✕ Close' : '☰ Modules'}
+                    </button>
 
-            <div className="flex-1 overflow-y-auto w-full relative">
-                
-                <div className="bg-navy text-white px-10 py-12 border-b-4 border-highlight shadow-sm">
+                    {/* Mobile overlay */}
+                    {sidebarOpen && (
+                        <div className="fixed inset-0 bg-black/60 z-20 md:hidden transition-opacity"
+                             onClick={() => setSidebarOpen(false)} />
+                    )}
+
+                    <aside className={`
+                        fixed md:sticky top-0 left-0 h-full md:h-[calc(100vh-4rem)]
+                        w-72 md:w-64 bg-navy z-30 overflow-y-auto shadow-2xl md:shadow-none
+                        transform transition-transform duration-300 ease-in-out
+                        md:translate-x-0 md:flex-shrink-0
+                        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+                    `}>
+                        <ModuleSidebar course={course} onActivityClick={() => setSidebarOpen(false)} />
+                    </aside>
+                </>
+            )}
+
+            <div className="flex-1 overflow-y-auto w-full min-w-0 pb-24 md:pb-0 relative space-y-6 md:space-y-10 group">
+                <div className="mx-2 md:mx-6 mt-4 md:mt-6 bg-gradient-to-br from-navy via-[#162a50] to-navy text-white px-5 md:px-8 py-6 md:py-9 rounded-3xl shadow-premium border-b-4 border-highlight/80 relative overflow-hidden transition-all duration-500">
+                    <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '16px 16px' }} />
                     {certificateReady && (
-                        <div className="mb-6 inline-flex bg-highlight text-navy px-4 py-2 rounded-lg font-bold items-center gap-2 shadow-lg animate-in slide-in-from-top cursor-pointer hover:bg-yellow-500 transition-colors"
+                        <div className="mb-3 inline-flex bg-highlight text-navy px-2 py-1 rounded-lg font-black items-center gap-1.5 shadow-lg animate-in slide-in-from-top cursor-pointer hover:bg-yellow-500 transition-colors text-[8.5px] uppercase tracking-widest"
                             onClick={() => navigate(`/certificates`)}>
-                            <Award className="w-5 h-5" />
-                            Certificate Available! Click to view.
+                            <Award className="w-3.5 h-3.5" />
+                            Certificate Provisioned
                         </div>
                     )}
 
-                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-                        <div className="max-w-3xl">
-                            <span className="text-highlight font-bold tracking-widest uppercase text-sm mb-3 block">
-                                {course.category}
-                            </span>
-                            <h1 className="text-4xl md:text-5xl font-serif font-bold leading-tight mb-4">
+                    <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-5 relative z-10">
+                        <div className="max-w-xl min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className="bg-highlight/20 text-highlight font-black tracking-[0.2em] uppercase text-[8px] px-2 py-0.5 rounded-md border border-highlight/30">
+                                    {course.category}
+                                </span>
+                            </div>
+                            <h1 className="text-xl sm:text-2xl md:text-3xl font-serif font-black leading-[1.1] mb-3 break-words tracking-tight">
                                 {course.name}
                             </h1>
 
-                            <div className="flex items-center gap-6 text-slate-300 font-medium">
-                                <span className="flex items-center gap-2">
-                                    <span className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center text-xs text-white border border-slate-600">
+                            <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-slate-300 font-bold text-[9px] sm:text-[10px]">
+                                <span className="flex items-center gap-2 group/fac cursor-default">
+                                    <span className="w-6 h-6 sm:w-7 sm:h-7 rounded-xl bg-white/10 flex items-center justify-center text-[9px] sm:text-[10px] text-highlight border border-white/20 shrink-0 shadow-inner group-hover/fac:scale-110 transition-transform font-black">
                                         {course.facultyInitial}
                                     </span>
-                                    {course.faculty}
+                                    <span className="truncate max-w-[100px] sm:max-w-none text-white">{course.faculty}</span>
                                 </span>
-                                <span>•</span>
-                                <span>{course.section}</span>
-                                <span>•</span>
-                                <span className="flex items-center gap-1.5"><Users className="w-4 h-4" /> {course.enrolledCount || 0} Enrolled</span>
-                                <span>•</span>
-                                <Link to={`/course/${course.id}/qna`} className="flex items-center gap-1.5 text-highlight hover:underline transition-all">
-                                    <MessageSquare className="w-4 h-4" /> Course Q&A
+                                <span className="text-slate-600 font-thin opacity-30">|</span>
+                                <span className="truncate max-w-[80px] sm:max-w-none opacity-70 tracking-wide">{course.section}</span>
+                                <span className="text-slate-600 font-thin opacity-30">|</span>
+                                <span className="flex items-center gap-1.5 whitespace-nowrap opacity-70"><Users className="w-3 h-3 text-highlight" /> {course.enrolledCount || 0} Nodes</span>
+                                <span className="text-slate-600 font-thin opacity-30">|</span>
+                                <Link to={`/course/${course.id}/qna`} className="flex items-center gap-1.5 text-highlight hover:text-white transition-all underline decoration-highlight/30 underline-offset-4 decoration-1 hover:decoration-white font-black uppercase tracking-tighter">
+                                    <MessageSquare className="w-3 h-3" /> Q&A Index
                                 </Link>
                             </div>
                         </div>
 
                         {isInstructor && (
-                            <div className="flex flex-col gap-3 min-w-[240px]">
+                            <div className="flex flex-col gap-2.5 min-w-[200px] relative z-10">
                                 <button
                                     onClick={() => setShowAnnouncementForm(!showAnnouncementForm)}
-                                    className="flex items-center justify-center gap-2 w-full bg-primary hover:bg-blue-800 text-white font-bold py-2.5 rounded-xl transition-colors border border-primary">
-                                    <Plus className="w-5 h-5" /> Post Announcement
+                                    className="flex items-center justify-center gap-2 w-full bg-white/10 hover:bg-white text-white hover:text-navy font-black py-2.5 rounded-xl transition-all shadow-md backdrop-blur-sm border border-white/20 group/ann text-[9px] uppercase tracking-widest">
+                                    <Plus className="w-3.5 h-3.5 group-hover/ann:rotate-90 transition-transform" /> Dispatch Broadcast
                                 </button>
                                 {showAnnouncementForm && (
-                                    <div className="bg-white p-4 rounded-xl border border-border shadow-sm">
+                                    <div className="bg-card p-4 rounded-2xl border border-border shadow-2xl text-navy animate-in slide-in-from-right-4">
+                                        <h4 className="font-serif font-black mb-2 text-sm tracking-wide uppercase">Broadcast Matrix</h4>
                                         <textarea
                                             value={announcementText}
                                             onChange={e => setAnnouncementText(e.target.value)}
-                                            placeholder="Write your announcement..."
-                                            className="w-full border border-border rounded-lg p-3 text-sm resize-none h-24 mb-3 focus:outline-none focus:border-primary text-navy"
+                                            placeholder="Write message..."
+                                            className="w-full bg-surface border border-border rounded-xl p-2.5 text-[10px] resize-none h-20 mb-2 focus:outline-none focus:border-primary transition-all shadow-inner font-bold"
                                         />
-                                        <div className="flex justify-end gap-2">
-                                            <button onClick={() => setShowAnnouncementForm(false)} className="px-3 py-1.5 text-sm text-slate-600 font-bold hover:bg-slate-100 rounded-lg transition-colors">Cancel</button>
-                                            <button onClick={handlePostAnnouncement} disabled={postingAnnouncement} className="px-4 py-1.5 text-sm bg-primary text-white font-bold rounded-lg transition-colors disabled:opacity-50">
-                                                {postingAnnouncement ? 'Posting...' : 'Post'}
+                                        <div className="flex justify-end gap-1.5">
+                                            <button onClick={() => setShowAnnouncementForm(false)} className="px-3 py-1.5 text-[9px] text-slate-600 font-black hover:bg-slate-100 rounded-lg transition-all uppercase">Cancel</button>
+                                            <button onClick={handlePostAnnouncement} disabled={postingAnnouncement} className="px-4 py-1.5 text-[9px] bg-primary text-white font-black rounded-lg transition-all shadow-lg hover:shadow-primary/30 disabled:opacity-50 uppercase">
+                                                {postingAnnouncement ? '...' : 'Commit'}
                                             </button>
                                         </div>
                                     </div>
                                 )}
-                                <div className="flex gap-2 w-full">
+                                <div className="grid grid-cols-2 gap-2 w-full">
                                     <button 
                                         onClick={() => setAddModuleOpen(true)}
-                                        className="flex-1 flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 rounded-xl transition-colors border border-slate-700"
+                                        className="flex items-center justify-center gap-1.5 bg-navy/40 hover:bg-navy/80 text-white font-black py-2.5 rounded-xl transition-all border border-white/10 text-[9px] min-h-[36px] shadow-lg backdrop-blur-sm group/mod uppercase tracking-widest"
                                     >
-                                        <LayoutList className="w-5 h-5" /> Add Module
+                                        <LayoutList className="w-3 h-3 group-hover/mod:scale-110 transition-transform" /> Module+
                                     </button>
                                     <button 
                                         onClick={() => setActiveTab('progress')}
-                                        className="flex-1 flex items-center justify-center gap-2 bg-highlight text-navy font-bold py-2.5 rounded-xl hover:opacity-90 transition-all border border-highlight"
+                                        className="flex items-center justify-center gap-1.5 bg-highlight text-navy font-black py-2.5 rounded-xl hover:bg-yellow-500 transition-all border-b-2 border-yellow-700 text-[9px] min-h-[36px] shadow-lg group/prog uppercase tracking-widest"
                                     >
-                                        <Users className="w-5 h-5" /> Student Progress
+                                        <Users className="w-3 h-3 group-hover/prog:-translate-y-0.5 transition-transform" /> Metrics
                                     </button>
+                                </div>
+                                <div className="w-full scale-95 origin-right">
                                     <CourseCompleteButton courseId={course.id} />
                                 </div>
                             </div>
@@ -284,22 +316,22 @@ export default function CoursePage() {
                     </div>
                 </div>
 
-                <div className="px-10 py-12 max-w-4xl mx-auto space-y-12 pb-32">
+                <div className="px-5 py-7 max-w-4xl mx-auto space-y-7 pb-20">
 
                     {/* Tab bar for instructor/admin */}
                     {isInstructor && (
-                        <div className="flex gap-2 border-b border-border mb-6">
+                        <div className="flex gap-1.5 border-b border-border/40 mb-5">
                             <button
                                 onClick={() => setActiveTab('content')}
-                                className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${activeTab === 'content' ? 'border-primary text-primary' : 'border-transparent text-muted hover:text-navy'}`}
+                                className={`px-3 py-1.5 text-xs font-black uppercase tracking-widest border-b-2 transition-all ${activeTab === 'content' ? 'border-primary text-primary' : 'border-transparent text-muted hover:text-navy'}`}
                             >
-                                Course Content
+                                Curriculum Matrix
                             </button>
                             <button
                                 onClick={() => setActiveTab('progress')}
-                                className={`px-4 py-2 text-sm font-bold border-b-2 transition-colors ${activeTab === 'progress' ? 'border-primary text-primary' : 'border-transparent text-muted hover:text-navy'}`}
+                                className={`px-3 py-1.5 text-xs font-black uppercase tracking-widest border-b-2 transition-all ${activeTab === 'progress' ? 'border-primary text-primary' : 'border-transparent text-muted hover:text-navy'}`}
                             >
-                                Student Progress
+                                Analytical Metrics
                             </button>
                         </div>
                     )}
@@ -311,42 +343,42 @@ export default function CoursePage() {
 
                     {/* Announcements Section */}
                     {course.announcements && course.announcements.length > 0 && (
-                        <div className="mb-10 space-y-4">
-                            <h3 className="text-xl font-serif font-bold text-navy flex items-center gap-2">
-                                <Award className="w-5 h-5 text-primary" /> Announcements
+                        <div className="mb-8 space-y-4">
+                            <h3 className="text-lg font-serif font-black text-navy flex items-center gap-2 uppercase tracking-wide">
+                                <Award className="w-4 h-4 text-primary" /> Bulletins
                             </h3>
                             {course.announcements.map((ann: any) => (
-                                <div key={ann.id} className="bg-blue-50/50 border border-blue-100 p-5 rounded-xl">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <h4 className="font-bold text-navy">{ann.title}</h4>
-                                        <span className="text-xs text-muted">{new Date(ann.createdAt).toLocaleDateString()}</span>
+                                <div key={ann.id} className="bg-surface border border-border/40 p-4 rounded-xl shadow-sm">
+                                    <div className="flex justify-between items-start mb-1.5">
+                                        <h4 className="font-bold text-navy text-sm">{ann.title}</h4>
+                                        <span className="text-[8px] font-black text-muted uppercase tracking-widest">{new Date(ann.createdAt).toLocaleDateString()}</span>
                                     </div>
-                                    <p className="text-sm text-slate-700 whitespace-pre-wrap">{ann.content}</p>
+                                    <p className="text-[11px] text-slate-700 whitespace-pre-wrap font-medium">{ann.content}</p>
                                 </div>
                             ))}
                         </div>
                     )}
                     {course.modules.length === 0 && (
-                        <div className="py-20 text-center border-2 border-dashed border-border rounded-2xl bg-surface">
-                            <p className="font-serif text-xl text-navy">Curriculum is empty.</p>
-                            {isInstructor && <p className="text-muted mt-2">Add a module to begin constructing your course.</p>}
+                        <div className="py-14 text-center border-2 border-dashed border-border/40 rounded-2xl bg-surface">
+                            <p className="font-serif text-lg text-navy font-black opacity-40">Matrix curriculum is currently void.</p>
+                            {isInstructor && <p className="text-[9px] font-black text-muted mt-2 uppercase tracking-widest">Provision a module to begin construction.</p>}
                         </div>
                     )}
 
                     {course.modules.map((module: any) => (
-                        <div key={module.id} className="pt-4 first:pt-0 relative">
+                        <div key={module.id} className="pt-3 first:pt-0 relative">
 
-                            <div className="sticky top-0 z-10 bg-surface/90 backdrop-blur-md py-4 mb-6 border-b border-border flex items-center justify-between">
-                                <h2 className="text-xl font-serif font-bold text-navy truncate flex-1 pr-6 tracking-wide">
-                                    <span className="text-muted mr-3 font-sans opacity-50">Module {module.order}</span>
+                            <div className="sticky top-0 z-10 bg-surface/95 backdrop-blur-md py-3 mb-5 border-b border-border/40 flex items-center justify-between">
+                                <h2 className="text-lg font-serif font-black text-navy truncate flex-1 pr-6 tracking-tight">
+                                    <span className="text-muted mr-2 font-sans opacity-40 text-[9px] uppercase tracking-widest leading-none">Segment {module.order}</span>
                                     {module.title}
                                 </h2>
-                                <span className="text-sm font-bold text-muted bg-card px-3 py-1 rounded-lg border border-border shrink-0">
-                                    {module.activities.length} Activities
+                                <span className="text-[8.5px] font-black text-muted bg-white px-2 py-0.5 rounded-md border border-border/40 shrink-0 uppercase tracking-widest">
+                                    {module.activities.length} Nodes
                                 </span>
                             </div>
 
-                            <div className="space-y-6 pl-4 md:pl-8 border-l-2 border-slate-200">
+                            <div className="space-y-4 pl-3 md:pl-6 border-l-[1px] border-slate-200">
                                 {module.activities.map((activity: any) => (
                                     <div key={activity.id} className="relative group/activity border border-transparent hover:border-border rounded-xl -ml-2 p-2 transition-all">
                                         
@@ -354,7 +386,7 @@ export default function CoursePage() {
                                         <div onClick={() => !isInstructor && !['quiz', 'exam', 'submission'].includes(activity.type) && course.id && navigate(`/course/${course.id}/lesson/${activity.type}/${activity.id}`)}
                                              className={cn("w-full transition-all", !isInstructor && !['quiz', 'exam', 'submission'].includes(activity.type) && course.id && "cursor-pointer hover:opacity-90")}>
                                             {activity.type === 'blog' && <BlogActivity activity={activity} />}
-                                            {activity.type === 'file' && <FileActivity activity={activity} />}
+                                            {activity.type === 'file' && <FileActivity activity={activity} courseId={course.id} />}
                                             {activity.type === 'video' && <VideoActivity activity={activity} />}
                                             {activity.type === 'live_class' && <LiveClassActivity activity={activity} courseFaculty={course.faculty} />}
                                             {(activity.type === 'quiz' || activity.type === 'exam') && <AssessmentActivity activity={activity} courseId={course.id} />}
@@ -391,9 +423,9 @@ export default function CoursePage() {
                                 {isInstructor && (
                                     <button 
                                         onClick={() => setModalState({ isOpen: true, moduleId: module.id, activity: undefined })}
-                                        className="w-full py-4 mt-4 border-2 border-dashed border-border rounded-xl text-primary font-bold hover:bg-primary/5 hover:border-primary/30 transition-all flex items-center justify-center gap-2"
+                                        className="w-full py-2.5 mt-3 border-2 border-dashed border-border/30 rounded-xl text-primary/60 font-black hover:bg-primary/5 hover:border-primary/40 hover:text-primary transition-all flex items-center justify-center gap-2 text-[10px] uppercase tracking-widest"
                                     >
-                                        <Plus className="w-5 h-5" /> Add Activity to Module {module.order}
+                                        <Plus className="w-3.5 h-3.5" /> Append Node to Segment {module.order}
                                     </button>
                                 )}
                             </div>
@@ -403,42 +435,42 @@ export default function CoursePage() {
 
                     {/* Add Module Inline Expansion */}
                     {isInstructor && (
-                        <div className="pt-8 mt-8 border-t border-border">
+                        <div className="pt-6 mt-6 border-t border-border/40">
                             {isAddModuleOpen ? (
-                                <div className="bg-slate-50 border border-border p-6 rounded-2xl shadow-inner animate-in fade-in slide-in-from-bottom-2">
-                                    <h3 className="font-serif font-bold text-navy mb-4">Create New Module</h3>
-                                    <div className="flex gap-4">
+                                <div className="bg-surface border border-border/40 p-5 rounded-2xl shadow-inner animate-in fade-in slide-in-from-bottom-2">
+                                    <h3 className="font-serif font-black text-navy mb-3 text-sm uppercase tracking-wide">Provision New Segment</h3>
+                                    <div className="flex gap-3">
                                         <input 
                                             value={newModuleTitle}
                                             onChange={e => setNewModuleTitle(e.target.value)}
-                                            placeholder="e.g. Advanced Thermodynamics"
-                                            className="flex-1 px-4 py-2.5 rounded-xl border border-border focus:ring-1 focus:ring-primary outline-none"
+                                            placeholder="Segment Identifier..."
+                                            className="flex-1 px-4 py-2 rounded-xl border border-border/40 focus:ring-4 focus:ring-primary/10 outline-none text-xs font-bold"
                                             autoFocus
                                             onKeyDown={e => e.key === 'Enter' && handleAddModule()}
                                         />
                                         <button 
                                             onClick={() => setAddModuleOpen(false)}
-                                            className="px-6 py-2.5 rounded-xl font-bold text-muted hover:bg-white hover:border border border-transparent transition-all"
+                                            className="px-4 py-2 rounded-xl font-black text-[9px] text-muted hover:bg-white transition-all uppercase tracking-widest"
                                         >
                                             Cancel
                                         </button>
                                         <button 
                                             onClick={handleAddModule}
-                                            className="px-8 py-2.5 rounded-xl font-bold bg-primary text-white hover:bg-navy transition-all shadow-sm"
+                                            className="px-6 py-2 rounded-xl font-black bg-primary text-white hover:bg-navy transition-all shadow-lg shadow-primary/20 text-[9px] uppercase tracking-widest"
                                         >
-                                            Save Module
+                                            Commit Segment
                                         </button>
                                     </div>
                                 </div>
                             ) : (
                                 <button 
                                     onClick={() => setAddModuleOpen(true)}
-                                    className="w-full py-6 border-2 border-dashed border-border rounded-2xl text-navy font-bold hover:bg-white hover:shadow-sm hover:border-slate-300 transition-all flex flex-col items-center justify-center gap-2 group"
+                                    className="w-full py-4 border-2 border-dashed border-border/30 rounded-2xl text-navy/40 font-black hover:bg-white hover:text-navy hover:shadow-premium hover:border-slate-300 transition-all flex flex-col items-center justify-center gap-1.5 group"
                                 >
-                                    <div className="w-10 h-10 rounded-full bg-slate-100 group-hover:bg-primary/10 flex items-center justify-center transition-colors">
-                                        <Plus className="w-5 h-5 text-muted group-hover:text-primary transition-colors" />
+                                    <div className="w-8 h-8 rounded-full bg-slate-100 group-hover:bg-primary/10 flex items-center justify-center transition-colors">
+                                        <Plus className="w-4 h-4 text-muted group-hover:text-primary transition-colors" />
                                     </div>
-                                    Create New Module
+                                    <span className="text-[10px] uppercase tracking-widest">Provision New curriculum Segment</span>
                                 </button>
                             )}
                         </div>

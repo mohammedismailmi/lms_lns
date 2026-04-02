@@ -25,7 +25,11 @@ type Variables = {
 const app = new Hono<{ Bindings: Bindings, Variables: Variables }>();
 
 app.use('*', cors({
-	origin: (origin) => origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:') ? origin : 'http://localhost:5173',
+	origin: (origin) => {
+		if (!origin) return 'https://auth.mohammedismailmi.workers.dev';
+		if (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:')) return origin;
+		return origin;
+	},
 	allowHeaders: ['Content-Type', 'Authorization', 'Range'],
 	allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 	credentials: true,
@@ -134,7 +138,8 @@ app.post('/api/auth/login', zValidator('json', loginSchema), async (c) => {
 
 		const payload = { userId: superAdmin.id, email: superAdmin.email, role: superAdmin.role, tenant_id: 'system', exp: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60 };
 		const token = await sign(payload, c.env.JWT_SECRET);
-		setCookie(c, 'auth_token', token, { path: '/', httpOnly: true, secure: false, sameSite: 'Lax', maxAge: 7 * 24 * 60 * 60 });
+		const isLocal = c.req.url.includes('localhost') || c.req.url.includes('127.0.0.1');
+		setCookie(c, 'auth_token', token, { path: '/', httpOnly: true, secure: !isLocal, sameSite: isLocal ? 'Lax' : 'None', maxAge: 7 * 24 * 60 * 60 });
 
 		return c.json({ 
 			success: true, 
@@ -151,7 +156,8 @@ app.post('/api/auth/login', zValidator('json', loginSchema), async (c) => {
 
 	const payload = { userId: user.id, email: user.email, role: user.role, tenant_id: user.tenant_id, exp: Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60 };
 	const token = await sign(payload, c.env.JWT_SECRET);
-	setCookie(c, 'auth_token', token, { path: '/', httpOnly: true, secure: false, sameSite: 'Lax', maxAge: 7 * 24 * 60 * 60 });
+	const isLocal = c.req.url.includes('localhost') || c.req.url.includes('127.0.0.1');
+	setCookie(c, 'auth_token', token, { path: '/', httpOnly: true, secure: !isLocal, sameSite: isLocal ? 'Lax' : 'None', maxAge: 7 * 24 * 60 * 60 });
 
 	return c.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role, tenantId: user.tenant_id, avatarUrl: user.avatar_url } });
 });
@@ -2047,7 +2053,7 @@ app.post('/api/ai/chat', jwtMiddleware, async (c) => {
 	const body = await c.req.json();
 	const user = c.get('user');
 	
-	const groqApiKey = c.env.GROQ_API_KEY;
+	const groqApiKey = c.env.GROQ_API_KEY?.trim();
 	if (!groqApiKey) {
 		return c.json({ success: false, message: 'AI is not configured on the server.' });
 	}
@@ -2066,7 +2072,7 @@ User Message: ${body.message}`;
 				'Content-Type': 'application/json'
 			},
 			body: JSON.stringify({
-				model: 'llama-3.3-70b-versatile',
+				model: 'llama-3.1-8b-instant',
 				messages: [
 					{ role: 'system', content: 'You are an AI assistant in an LMS platform.' },
 					{ role: 'user', content: prompt }
@@ -2077,8 +2083,12 @@ User Message: ${body.message}`;
 		});
 
 		if (!response.ok) {
-			const text = await response.text();
-			console.error('Groq Error:', text);
+			const errorData: any = await response.json().catch(() => ({}));
+			console.error('Groq API Error Detail:', {
+				status: response.status,
+				statusText: response.statusText,
+				message: errorData?.error?.message || 'Unknown error'
+			});
 			return c.json({ success: false, message: 'AI service error. Please try again later.' });
 		}
 

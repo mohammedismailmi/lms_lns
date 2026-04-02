@@ -38,28 +38,28 @@ export default function BlogActivity({ activity }: Props) {
     }, [activity.id, activityStatus, markDone]);
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-border p-8 relative" id={`activity-${activity.id}`}>
-            <div className="flex items-start justify-between mb-6">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-slate-100 rounded-lg text-primary">
-                        <FileText className="w-6 h-6" />
+        <div className="bg-white rounded-3xl shadow-premium border border-border/40 p-5 sm:p-7 md:p-8 relative hover:shadow-2xl transition-all duration-500 group/blog" id={`activity-${activity.id}`}>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 mb-8 border-b border-border/30 pb-6 transition-colors group-hover/blog:border-primary/20">
+                <div className="flex items-start sm:items-center gap-3.5 min-w-0 w-full">
+                    <div className="p-2.5 bg-primary/5 rounded-xl text-primary shrink-0 border border-primary/10 group-hover/blog:scale-110 transition-transform shadow-inner">
+                        <FileText className="w-5 h-5 sm:w-6 sm:h-6" />
                     </div>
-                    <h2 className="text-2xl font-serif font-bold text-navy">{activity.title}</h2>
+                    <h2 className="text-xl sm:text-2xl font-serif font-black text-navy truncate break-words whitespace-normal tracking-tight leading-tight">{activity.title}</h2>
                 </div>
                 {isRead ? (
-                    <span className="flex items-center gap-1.5 text-sm font-bold text-success bg-success/10 px-3 py-1 rounded-full border border-success/20">
+                    <span className="flex items-center gap-1.5 text-[10px] sm:text-xs font-black text-success bg-success/10 px-3 py-1.5 rounded-full border border-success/20 shrink-0 shadow-sm uppercase tracking-widest">
                         <CheckCircle2 className="w-4 h-4" /> Completed
                     </span>
                 ) : (
-                    <span className="text-sm font-medium text-muted bg-slate-100 px-3 py-1 rounded-full border border-border">
-                        Keep reading to mark as complete
+                    <span className="text-[10px] sm:text-xs font-black text-muted bg-slate-50 px-3 py-1.5 rounded-full border border-border/60 shrink-0 text-center w-auto self-stretch sm:self-auto shadow-inner uppercase tracking-widest">
+                        Read System
                     </span>
                 )}
             </div>
 
             {/* Render mock HTML safely for the demo */}
             <div
-                className="prose prose-slate max-w-none text-ink text-lg leading-relaxed font-sans"
+                className="prose prose-slate max-w-none text-ink text-base leading-relaxed font-sans font-medium"
                 dangerouslySetInnerHTML={{ __html: activity.content }}
             />
 

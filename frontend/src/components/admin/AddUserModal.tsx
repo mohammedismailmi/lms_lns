@@ -48,69 +48,70 @@ export default function AddUserModal({ isOpen, onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-navy/40 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-        <div className="p-6 border-b border-border">
-          <h2 className="text-2xl font-serif font-bold text-navy">Add New User</h2>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-navy/60 backdrop-blur-md p-0 sm:p-4 animate-in fade-in duration-300" onClick={onClose}>
+      <div className="bg-white rounded-none sm:rounded-3xl shadow-premium w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-sm flex flex-col overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 border border-white/20" onClick={e => e.stopPropagation()}>
+        <div className="p-5 sm:p-6 border-b border-border/40 bg-surface shrink-0">
+          <h2 className="text-xl sm:text-2xl font-serif font-black text-navy tracking-tight">Provision User</h2>
+          <p className="text-[9px] font-black text-muted uppercase tracking-[0.2em] mt-0.5 opacity-60 italic">Identity & Access Management</p>
         </div>
         
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-navy mb-1">Full Name</label>
+        <form onSubmit={handleSubmit(onSubmit)} className="p-5 sm:p-7 space-y-5 flex-1 overflow-y-auto bg-[radial-gradient(circle_at_top_right,_#1b3a6b05,_transparent)]">
+          <div className="space-y-1.5">
+            <label className="block text-[9px] font-black text-muted uppercase tracking-[0.2em] ml-3">Full Identity Name</label>
             <input 
               {...register('name')} 
-              className="w-full bg-surface border border-border rounded-lg px-4 py-2 focus:ring-1 focus:ring-primary outline-none transition-all"
-              placeholder="e.g. Jane Doe"
+              className="w-full bg-surface border border-border/40 rounded-xl px-4 py-2.5 focus:ring-4 focus:ring-primary/10 outline-none transition-all shadow-inner font-bold text-navy text-xs"
+              placeholder="e.g. Dr. Jane Smith"
             />
-            {errors.name && <p className="text-accent text-xs mt-1">{errors.name.message}</p>}
+            {errors.name && <p className="text-accent text-[9px] mt-1 font-black uppercase tracking-wider ml-3">{errors.name.message}</p>}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-navy mb-1">Email Address</label>
+          <div className="space-y-1.5">
+            <label className="block text-[9px] font-black text-muted uppercase tracking-[0.2em] ml-3">Corporate Email Address</label>
             <input 
               {...register('email')} 
-              className="w-full bg-surface border border-border rounded-lg px-4 py-2 focus:ring-1 focus:ring-primary outline-none transition-all"
-              placeholder="jane@example.com"
+              className="w-full bg-surface border border-border/40 rounded-xl px-4 py-2.5 focus:ring-4 focus:ring-primary/10 outline-none transition-all shadow-inner font-bold text-navy text-xs"
+              placeholder="jane.smith@institution.edu"
             />
-            {errors.email && <p className="text-accent text-xs mt-1">{errors.email.message}</p>}
+            {errors.email && <p className="text-accent text-[9px] mt-1 font-black uppercase tracking-wider ml-3">{errors.email.message}</p>}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-navy mb-1">System Role</label>
+          <div className="space-y-1.5">
+            <label className="block text-[9px] font-black text-muted uppercase tracking-[0.2em] ml-3">System Classification</label>
             <select 
               {...register('role')} 
-              className="w-full bg-surface border border-border rounded-lg px-4 py-2 focus:ring-1 focus:ring-primary outline-none transition-all"
+              className="w-full bg-surface border border-border/40 rounded-xl px-4 py-2.5 focus:ring-4 focus:ring-primary/10 outline-none transition-all shadow-inner font-bold text-navy cursor-pointer appearance-none text-xs"
             >
-              <option value="learner">Learner</option>
-              <option value="instructor">Instructor</option>
-              <option value="admin">Administrator</option>
+              <option value="learner">Learner / Student</option>
+              <option value="instructor">Faculty / Instructor</option>
+              <option value="admin">System Administrator</option>
             </select>
-            {errors.role && <p className="text-accent text-xs mt-1">{errors.role.message}</p>}
+            {errors.role && <p className="text-accent text-[9px] mt-1 font-black uppercase tracking-wider ml-3">{errors.role.message}</p>}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-navy mb-1">Tenant ID</label>
+          <div className="space-y-1.5">
+            <label className="block text-[9px] font-black text-muted uppercase tracking-[0.2em] ml-3">Institutional Tenant ID</label>
             <input 
               {...register('tenantId')} 
-              className="w-full bg-surface border border-border rounded-lg px-4 py-2 focus:ring-1 focus:ring-primary outline-none transition-all"
-              placeholder="e.g. uni1"
+              className="w-full bg-surface border border-border/40 rounded-xl px-4 py-2.5 focus:ring-4 focus:ring-primary/10 outline-none transition-all shadow-inner font-bold text-navy text-xs"
+              placeholder="e.g. UNIVERSITY_GLOBAL_01"
             />
-            {errors.tenantId && <p className="text-accent text-xs mt-1">{errors.tenantId.message}</p>}
+            {errors.tenantId && <p className="text-accent text-[9px] mt-1 font-black uppercase tracking-wider ml-3">{errors.tenantId.message}</p>}
           </div>
 
-          <div className="flex gap-3 justify-end pt-4 mt-6 border-t border-border">
+          <div className="flex flex-col sm:flex-row gap-3 justify-end pt-6 mt-8 border-t border-border/40 shrink-0">
             <button 
               type="button" 
               onClick={onClose}
-              className="px-5 py-2 rounded-lg font-medium text-slate-500 hover:bg-slate-100 transition-colors"
+              className="w-full sm:w-auto px-5 py-3 rounded-xl font-black text-muted hover:bg-slate-50 border border-border/40 transition-all text-[10px] uppercase tracking-widest active:scale-95 shadow-sm"
             >
               Cancel
             </button>
             <button 
               type="submit"
-              className="px-5 py-2 rounded-lg font-medium bg-primary text-white hover:bg-navy transition-colors"
+              className="w-full sm:w-auto px-7 py-3 rounded-xl font-black bg-navy text-white hover:bg-primary transition-all shadow-xl shadow-navy/20 hover:-translate-y-1 active:scale-95 text-[10px] uppercase tracking-widest"
             >
-              Add User
+              Provision User
             </button>
           </div>
         </form>
