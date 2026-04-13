@@ -23,7 +23,7 @@ export default function Layout() {
         <div className="min-h-screen bg-surface flex flex-col text-ink font-sans">
             <Navbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
             
-            <div className="flex flex-1 overflow-hidden relative">
+            <div className="flex flex-1 relative">
                 {/* Mobile overlay */}
                 {sidebarOpen && (
                     <div
@@ -34,7 +34,7 @@ export default function Layout() {
 
                 {/* Sidebar */}
                 <aside className={`
-                    fixed md:sticky top-0 h-[calc(100vh-4rem)]
+                    fixed md:sticky top-16 md:top-[4.5rem] h-[calc(100vh-4rem)] md:h-[calc(100vh-4.5rem)]
                     w-64 bg-navy z-40 transform transition-transform duration-300 ease-in-out shadow-xl md:shadow-none
                     md:translate-x-0 md:flex-shrink-0 left-0
                     ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -43,7 +43,7 @@ export default function Layout() {
                 </aside>
 
                 {/* Main content */}
-                <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+                <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8">
                     <Outlet />
                 </main>
             </div>

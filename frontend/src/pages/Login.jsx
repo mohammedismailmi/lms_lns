@@ -136,8 +136,9 @@ export default function Login() {
                     <button
                         type="button"
                         onClick={() => { setIsSuperAdminMode(!isSuperAdminMode); setApiError(""); setTenantError(null); }}
-                        className="text-[9px] text-muted hover:text-primary transition-colors font-black uppercase tracking-[0.2em] opacity-40 hover:opacity-100"
+                        className="text-[9px] text-muted hover:text-primary transition-colors font-black uppercase tracking-[0.2em] opacity-40 hover:opacity-100 cursor-pointer"
                     >
+                        System Administration
                     </button>
                 </div>
             </div>

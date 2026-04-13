@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useCourseStore } from '../store/courseStore';
 import { useProgressStore } from '../store/progressStore';
 import { FileText, Download, ArrowLeft, CheckCircle2, Loader2, Maximize2, Minimize2, FileIcon, Image as ImageIcon, FileVideo, Presentation, AlertCircle } from 'lucide-react';
-import api from '../lib/api';
+import api, { resolveMediaUrl } from '../lib/api';
 import * as mammoth from 'mammoth/mammoth.browser';
 import * as XLSX from 'xlsx';
 
@@ -112,18 +112,19 @@ export default function FileLessonPage() {
 
     // Parse various file types locally
     useEffect(() => {
-        if (!activity?.fileUrl) return;
-        const fileUrl = activity.fileUrl || activity.file_url;
+        if (!activity?.fileUrl && !activity?.file_url) return;
+        const rawUrl = activity.fileUrl || activity.file_url;
+        const resolvedUrl = resolveMediaUrl(rawUrl);
         const cat = getFileCategory(activity.fileType, activity.fileName || activity.title);
         
         const fetchFileArrayBuffer = async () => {
-            const res = await fetch(fileUrl);
+            const res = await fetch(resolvedUrl);
             if (!res.ok) throw new Error('Network response not ok');
             return await res.arrayBuffer();
         };
 
         if (cat === 'text') {
-            fetch(fileUrl)
+            fetch(resolvedUrl)
                 .then(r => r.text())
                 .then(setTextContent)
                 .catch(() => setTextContent('Unable to load file content.'));
@@ -151,7 +152,7 @@ export default function FileLessonPage() {
                     setParsedXlsxHtml('<p class="text-red-500 font-bold p-4">Error previewing Spreadsheet locally. Please use the download button.</p>');
                 });
         }
-    }, [activity?.fileUrl, activity?.fileType, activity?.fileName, activity?.title]);
+    }, [activity?.fileUrl, activity?.file_url, activity?.fileType, activity?.fileName, activity?.title]);
 
     if (loading) {
         return (
@@ -172,7 +173,8 @@ export default function FileLessonPage() {
         );
     }
 
-    const fileUrl = activity.fileUrl || activity.file_url || '';
+    const rawFileUrl = activity.fileUrl || activity.file_url || '';
+    const fileUrl = rawFileUrl ? resolveMediaUrl(rawFileUrl) : '';
     const fileName = activity.fileName || activity.file_name || activity.title;
     const fileType = activity.fileType || activity.file_type || '';
     const fileSize = activity.fileSize || activity.file_size;

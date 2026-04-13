@@ -3,7 +3,7 @@ import { AssessmentActivity as AssessmentType } from '../../lib/mockData';
 import { useProgressStore } from '../../store/progressStore';
 import { useAuthStore } from '../../store/authStore';
 import { useNavigate } from 'react-router-dom';
-import { FileQuestion, Clock, CheckCircle2, AlertCircle, BarChart3 } from 'lucide-react';
+import { Clock, CheckCircle2, AlertCircle, BarChart3, ClipboardList, Target } from 'lucide-react';
 
 interface Props {
     activity: AssessmentType;
@@ -24,7 +24,7 @@ export default function AssessmentActivity({ activity, courseId }: Props) {
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5 sm:gap-6 w-full lg:w-auto overflow-hidden">
                 <div className={`p-3.5 sm:p-5 rounded-2xl sm:rounded-3xl shadow-lg shrink-0 flex items-center justify-center w-14 h-14 sm:w-20 sm:h-20 group-hover/assess:scale-110 transition-transform ${isExam ? 'bg-accent text-white shadow-accent/20' : 'bg-navy text-white shadow-navy/20'}`}>
-                    <FileQuestion className="w-7 h-7 sm:w-10 sm:h-10" />
+                    {isExam ? <ClipboardList className="w-7 h-7 sm:w-10 sm:h-10" /> : <Target className="w-7 h-7 sm:w-10 sm:h-10" />}
                 </div>
 
                 <div className="min-w-0 flex-1 w-full">

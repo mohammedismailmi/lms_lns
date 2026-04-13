@@ -40,7 +40,16 @@ app.use('*', cors({
 // Helper: verify JWT and return payload
 // =============================
 async function getAuthPayload(c: any) {
-	const token = getCookie(c, 'auth_token');
+	let token = getCookie(c, 'auth_token');
+	
+	// Fallback to Bearer token for strict cross-origin tracking preventions (e.g., Safari/iOS)
+	if (!token) {
+		const authHeader = c.req.header('Authorization');
+		if (authHeader && authHeader.startsWith('Bearer ')) {
+			token = authHeader.replace('Bearer ', '');
+		}
+	}
+	
 	if (!token) return null;
 	try {
 		return await verify(token, c.env.JWT_SECRET, 'HS256');
@@ -143,6 +152,7 @@ app.post('/api/auth/login', zValidator('json', loginSchema), async (c) => {
 
 		return c.json({ 
 			success: true, 
+			token,
 			user: { id: superAdmin.id, name: superAdmin.name, email: superAdmin.email, role: superAdmin.role, tenantId: 'system' } 
 		});
 	}
@@ -159,7 +169,7 @@ app.post('/api/auth/login', zValidator('json', loginSchema), async (c) => {
 	const isLocal = c.req.url.includes('localhost') || c.req.url.includes('127.0.0.1');
 	setCookie(c, 'auth_token', token, { path: '/', httpOnly: true, secure: !isLocal, sameSite: isLocal ? 'Lax' : 'None', maxAge: 7 * 24 * 60 * 60 });
 
-	return c.json({ success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role, tenantId: user.tenant_id, avatarUrl: user.avatar_url } });
+	return c.json({ success: true, token, user: { id: user.id, name: user.name, email: user.email, role: user.role, tenantId: user.tenant_id, avatarUrl: user.avatar_url } });
 });
 
 app.get('/api/auth/me', async (c) => {
@@ -193,7 +203,7 @@ app.get('/api/courses', async (c) => {
 			course_id: activities.course_id,
 			total: sql<number>`COUNT(DISTINCT ${activities.id})`.as('total')
 		}).from(activities)
-		.where(ne(activities.type, 'announcement'))
+		.where(and(ne(activities.type, 'announcement'), ne(activities.type, 'live_class')))
 		.groupBy(activities.course_id).as('stats');
 
 		const progressSub = db.select({
@@ -597,7 +607,7 @@ app.get('/api/courses/:courseId', jwtMiddleware, async (c) => {
 		}));
 
 		const announcementActivities = activitiesWithMeetLink.filter(a => a.type === 'announcement');
-		const totalNonAnnouncements = activitiesWithMeetLink.filter(a => a.type !== 'announcement').length;
+		const totalNonAnnouncements = activitiesWithMeetLink.filter(a => a.type !== 'announcement' && a.type !== 'live_class').length;
 
 		const announcementsList = activitiesWithMeetLink
 			.filter(a => a.type === 'announcement')
@@ -1191,8 +1201,11 @@ app.get('/api/admin/learners-by-course', jwtMiddleware, requireRole('admin'), as
 	}
 });
 
-app.post('/api/upload/lesson-file', jwtMiddleware, requireRole('instructor', 'admin'), async (c) => {
+// File upload for activities
+app.post('/api/upload/lesson-file', jwtMiddleware, requireRole('instructor', 'admin', 'super_admin'), async (c) => {
 	const user = c.get('user');
+	const tid = user.tenant_id;
+	
 	const formData = await c.req.formData();
 	const file = formData.get('file') as File;
 
@@ -1238,7 +1251,7 @@ app.post('/api/upload/tenant-logo', jwtMiddleware, requireRole('super_admin'), a
 });
 
 app.get('/api/files/*', async (c) => {
-	const path = c.req.path.replace('/api/files/', '');
+	const path = decodeURIComponent(c.req.path.replace('/api/files/', ''));
 	const object = await c.env.R2.get(path);
 	if (!object) return c.json({ error: 'Not found' }, 404);
 	
@@ -1490,10 +1503,16 @@ app.post('/api/quizzes/:quizId/submit', jwtMiddleware, requireRole('learner'), a
 					try {
 						qData = JSON.parse(q.text || '{}');
 					} catch(e) {
-						qData = { options: [], correctAnswerIndex: 0 };
+						qData = { type: 'mcq', options: [], correctAnswerIndex: 0 };
 					}
-					const correctStr = qData.options[qData.correctAnswerIndex];
-					if (body.answers && body.answers[q.id] === correctStr) {
+					
+					if (qData.type === 'short_answer' || qData.type === 'long_answer') {
+						// Open answers are given a default 0. Instructor must review and override score.
+						return;
+					}
+
+					const correctStr = qData.options ? qData.options[qData.correctAnswerIndex] : undefined;
+					if (correctStr && body.answers && body.answers[q.id] === correctStr) {
 							score++;
 					}
 			});
@@ -1869,7 +1888,17 @@ app.post('/api/superadmin/tenants', jwtMiddleware, requireRole('super_admin'), a
       return c.json({ success: false, message: 'Tenant with this slug already exists' }, 409);
     }
 
-    const tenantId = crypto.randomUUID();
+    // Generate short readable tenant ID e.g., t3, t4 based on count
+    const tCountResult = await db.select({ count: sql`count(*)` }).from(tenants).get();
+    const countVal = tCountResult ? Number(tCountResult.count) : 0;
+    let tenantId = `t${countVal + 1}`;
+    
+    // Ensure uniqueness just in case
+    const checkId = await db.select().from(tenants).where(sql`${tenants.id} = ${tenantId}`).get();
+    if (checkId) {
+      tenantId = `t${countVal + 1}_${Math.random().toString(36).substring(2, 6)}`;
+    }
+
     const now = Math.floor(Date.now() / 1000);
 
     await db.insert(tenants).values({
@@ -2072,7 +2101,7 @@ User Message: ${body.message}`;
 				'Content-Type': 'application/json'
 			},
 			body: JSON.stringify({
-				model: 'llama-3.1-8b-instant',
+				model: 'llama-3.3-70b-versatile',
 				messages: [
 					{ role: 'system', content: 'You are an AI assistant in an LMS platform.' },
 					{ role: 'user', content: prompt }

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { useProgressStore } from '../../store/progressStore';
 import { Upload, FileText, CheckCircle, Clock, AlertCircle } from 'lucide-react';
-import api from '../../lib/api';
+import api, { resolveMediaUrl } from '../../lib/api';
 import { useToast } from '../../lib/useToast';
 
 interface Props {
@@ -33,13 +33,25 @@ export default function SubmissionActivity({ activity, courseId }: Props) {
         if (isInstructor) {
             setLoadingSubmissions(true);
             api.get(`/api/activities/${activity.id}/submissions`)
-                .then(res => setSubmissions(res.data.submissions || []))
+                .then(res => {
+                    const mapped = (res.data.submissions || []).map((s: any) => ({
+                        ...s,
+                        fileUrl: resolveMediaUrl(s.file_url || s.fileUrl)
+                    }));
+                    setSubmissions(mapped);
+                })
                 .catch(() => toast.error('Failed to load submissions'))
                 .finally(() => setLoadingSubmissions(false));
         } else {
             setLoadingMySub(true);
             api.get(`/api/activities/${activity.id}/my-submission`)
-                .then(res => setMySubmission(res.data.submission))
+                .then(res => {
+                    const sub = res.data.submission;
+                    if (sub) {
+                        sub.fileUrl = resolveMediaUrl(sub.file_url || sub.fileUrl);
+                        setMySubmission(sub);
+                    }
+                })
                 .catch(() => console.error('Failed to load my submission'))
                 .finally(() => setLoadingMySub(false));
         }
@@ -130,7 +142,7 @@ export default function SubmissionActivity({ activity, courseId }: Props) {
                                     <div className="flex items-center gap-2">
                                         {sub.grade ? (
                                             <div className="text-right bg-success/5 px-3 py-1.5 rounded-xl border border-success/10 shadow-sm">
-                                                <p className="text-xs font-black text-success">Grade: {sub.grade}</p>
+                                                <p className="text-xs font-black text-success">Grade: {sub.grade} / 100</p>
                                             </div>
                                         ) : (
                                             <div className="flex gap-1.5">
@@ -181,24 +193,78 @@ export default function SubmissionActivity({ activity, courseId }: Props) {
             </div>
 
             {submitted || mySubmission ? (
-                <div className="bg-success/[0.03] border-2 border-dashed border-success/20 rounded-[1.75rem] p-6 md:p-10 text-center animate-in zoom-in-95 duration-500 shadow-inner">
-                    <div className="w-14 h-14 bg-success rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-lg shadow-success/20">
-                        <CheckCircle className="w-7 h-7 text-white" />
+                <div className="space-y-5">
+                    {/* Success header */}
+                    <div className="flex items-center gap-3 bg-success/5 border border-success/15 rounded-2xl px-5 py-4">
+                        <div className="w-10 h-10 bg-success rounded-xl flex items-center justify-center shadow-md shadow-success/20 shrink-0">
+                            <CheckCircle className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                            <h3 className="text-base font-serif font-black text-navy tracking-tight">Assignment Submitted</h3>
+                            <p className="text-muted text-[11px] font-medium">
+                                Received on {new Date(mySubmission?.submittedAt || Date.now()).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                            </p>
+                        </div>
                     </div>
-                    <h3 className="text-xl sm:text-2xl font-serif font-black text-navy mb-2 tracking-tight">Assignment Submitted</h3>
-                    <p className="text-muted text-xs sm:text-sm mb-6 font-medium">
-                        Received on {new Date(mySubmission?.submittedAt || Date.now()).toLocaleDateString()}
-                    </p>
+
+                    {/* Submitted File Card */}
+                    {mySubmission?.fileUrl && (
+                        <div className="bg-white border border-border/40 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
+                            <p className="text-[9px] font-black text-muted uppercase tracking-widest mb-3 opacity-50">Your Submission</p>
+                            <div className="flex items-center justify-between gap-4">
+                                <div className="flex items-center gap-3.5 min-w-0">
+                                    <div className="w-12 h-12 bg-primary/5 border border-primary/10 rounded-xl flex items-center justify-center shrink-0">
+                                        <FileText className="w-6 h-6 text-primary" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-black text-navy truncate">{mySubmission.fileName || mySubmission.file_name || 'Submitted File'}</p>
+                                        <p className="text-[10px] text-muted font-medium mt-0.5">Uploaded • {new Date(mySubmission.submittedAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                    </div>
+                                </div>
+                                <a
+                                    href={mySubmission.fileUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2 px-4 py-2.5 bg-navy hover:bg-primary text-white text-xs font-black rounded-xl transition-all shadow-sm hover:shadow-md shrink-0 uppercase tracking-wider"
+                                >
+                                    <FileText className="w-3.5 h-3.5" />
+                                    View
+                                </a>
+                            </div>
+                        </div>
+                    )}
                     
+                    {/* Grade Card */}
                     {mySubmission?.grade ? (
-                        <div className="bg-white p-5 md:p-7 rounded-2xl border border-success/20 shadow-premium inline-block transition-transform hover:scale-105 duration-300">
-                            <p className="text-[9px] text-muted uppercase tracking-widest font-black mb-1.5 opacity-60">Result</p>
-                            <p className="text-3xl sm:text-4xl font-serif font-black text-success capitalize tracking-tighter mb-1.5">{mySubmission.grade}</p>
-                            {mySubmission.feedback && <p className="text-xs text-muted italic font-medium">"{mySubmission.feedback}"</p>}
+                        <div className="bg-white border border-success/20 rounded-2xl p-6 shadow-sm">
+                            <p className="text-[9px] font-black text-muted uppercase tracking-widest mb-3 opacity-50">Evaluation</p>
+                            <div className="flex items-center gap-5">
+                                <div className="w-16 h-16 bg-success/10 border-2 border-success/20 rounded-2xl flex items-center justify-center">
+                                    <span className="text-2xl font-serif font-black text-success">
+                                        {mySubmission.grade}
+                                        <span className="text-lg opacity-60 ml-0.5">/ 100</span>
+                                    </span>
+                                </div>
+                                {mySubmission.feedback && (
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[9px] font-black text-muted uppercase tracking-widest mb-1 opacity-50">Instructor Feedback</p>
+                                        <p className="text-sm text-navy font-medium italic leading-relaxed">"{mySubmission.feedback}"</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     ) : (
-                        <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white border border-success/30 rounded-full text-success text-[10px] font-black uppercase tracking-widest shadow-md">
-                            <Clock className="w-3.5 h-3.5" /> REVIEW PENDING
+                        <div className="bg-surface border border-border/40 rounded-2xl px-5 py-4 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-highlight/10 rounded-lg flex items-center justify-center">
+                                    <Clock className="w-4 h-4 text-highlight" />
+                                </div>
+                                <div>
+                                    <p className="text-xs font-black text-navy">Awaiting Review</p>
+                                    <p className="text-[10px] text-muted font-medium">Your instructor will grade this soon.</p>
+                                </div>
+                            </div>
+                            <span className="text-[9px] font-black text-highlight uppercase tracking-widest bg-highlight/10 px-3 py-1 rounded-lg border border-highlight/15">Pending</span>
                         </div>
                     )}
                 </div>

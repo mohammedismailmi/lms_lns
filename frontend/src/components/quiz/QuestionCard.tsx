@@ -60,7 +60,7 @@ export default function QuestionCard({ question, questionNumber, totalQuestions,
                 </div>
 
                 <div className="space-y-4">
-                    {question.options.map((option, index) => {
+                    {(!question.type || question.type === 'mcq') && question.options?.map((option, index) => {
                         const isSelected = selectedAnswer === option;
                         const isCorrect = option === correctAnswer;
                         const letter = String.fromCharCode(65 + index); // A, B, C, D
@@ -118,6 +118,41 @@ export default function QuestionCard({ question, questionNumber, totalQuestions,
                             </button>
                         );
                     })}
+
+                    {question.type === 'short_answer' && (
+                        <input
+                            type="text"
+                            placeholder="Type your short answer here..."
+                            value={selectedAnswer || ''}
+                            onChange={(e) => handleSelect(e.target.value)}
+                            disabled={readOnly}
+                            className={cn(
+                                "w-full p-4 rounded-xl border-2 transition-all text-lg focus:outline-none focus:ring-4 focus:ring-primary/20",
+                                readOnly ? "bg-slate-50 border-slate-200 text-slate-800" : "bg-white border-border hover:border-slate-300 focus:border-primary text-ink"
+                            )}
+                        />
+                    )}
+
+                    {question.type === 'long_answer' && (
+                        <textarea
+                            placeholder="Type your detailed answer here..."
+                            value={selectedAnswer || ''}
+                            onChange={(e) => handleSelect(e.target.value)}
+                            disabled={readOnly}
+                            rows={8}
+                            className={cn(
+                                "w-full p-5 rounded-xl border-2 transition-all text-lg leading-relaxed focus:outline-none focus:ring-4 focus:ring-primary/20 resize-y min-h-[200px]",
+                                readOnly ? "bg-slate-50 border-slate-200 text-slate-800 cursor-not-allowed" : "bg-white border-border hover:border-slate-300 focus:border-primary text-ink"
+                            )}
+                        />
+                    )}
+
+                    {readOnly && (question.type === 'short_answer' || question.type === 'long_answer') && (question as any).sampleAnswer && (
+                        <div className="mt-6 p-4 bg-primary/5 border border-primary/20 rounded-xl">
+                            <h4 className="text-xs font-bold text-primary uppercase tracking-widest mb-2">Sample Answer / Rubric</h4>
+                            <p className="text-sm text-ink/80 whitespace-pre-wrap">{(question as any).sampleAnswer}</p>
+                        </div>
+                    )}
                 </div>
             </div>
 

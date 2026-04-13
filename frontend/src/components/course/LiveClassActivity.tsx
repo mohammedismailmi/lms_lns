@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { LiveClassActivity as LiveType } from '../../lib/mockData';
 import { useAuthStore } from '../../store/authStore';
 import { useProgressStore } from '../../store/progressStore';
-import { Video, Calendar, Clock, Download, Upload, ExternalLink, FileText } from 'lucide-react';
+import { Video, Calendar, Clock, Download, Upload, ExternalLink, FileText, CheckCircle2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import api from '../../lib/api';
 
@@ -114,10 +114,26 @@ export default function LiveClassActivity({ activity, courseFaculty }: Props) {
                                 <ExternalLink className="w-6 h-6 group-hover/call:translate-x-1 group-hover/call:-translate-y-1 transition-transform" />
                                 {loading ? 'Provisioning...' : (meetLink ? 'Resume Session' : 'Activate Live Stream')}
                             </button>
+                        ) : isCompleted ? (
+                            <button
+                                disabled
+                                className="w-full bg-success/10 text-success border-2 border-success/20 px-8 py-5 rounded-2xl font-black flex items-center justify-center gap-3 text-lg cursor-default"
+                            >
+                                <CheckCircle2 className="w-6 h-6" />
+                                Session Attended
+                            </button>
+                        ) : isPast ? (
+                            <button
+                                onClick={() => { markDone(activity.id); }}
+                                className="w-full bg-navy hover:bg-primary text-white px-8 py-5 rounded-2xl font-black transition-all shadow-xl hover:shadow-primary/30 flex items-center justify-center gap-3 text-lg"
+                            >
+                                <CheckCircle2 className="w-6 h-6" />
+                                Mark as Attended
+                            </button>
                         ) : (
                             <button
                                 onClick={handleJoinClass}
-                                disabled={!isLive || !meetLink || isPast}
+                                disabled={!isLive || !meetLink}
                                 className="w-full disabled:bg-slate-100 disabled:text-muted disabled:cursor-not-allowed bg-highlight hover:bg-yellow-500 text-navy px-8 py-5 rounded-2xl font-black transition-all shadow-xl hover:shadow-highlight/30 flex items-center justify-center gap-3 text-lg group/join"
                             >
                                 <ExternalLink className="w-6 h-6 group-hover/join:translate-x-1 group-hover/join:-translate-y-1 transition-transform" />

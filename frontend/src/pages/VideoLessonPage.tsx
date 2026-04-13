@@ -5,7 +5,7 @@ import { useProgressStore } from '../store/progressStore';
 import { Play, Pause, Volume2, VolumeX, ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useToast } from '../lib/useToast';
-import api, { API_URL } from '../lib/api';
+import api, { API_URL, resolveMediaUrl } from '../lib/api';
 
 export default function VideoLessonPage() {
     const { activityId, courseId } = useParams();
@@ -61,8 +61,6 @@ export default function VideoLessonPage() {
     const [progress, setProgress] = useState(0);
     const [isMuted, setIsMuted] = useState(false);
     const [maxProgressReached, setMaxProgressReached] = useState(0);
-
-    const MOCK_VIDEO_URL = "https://www.w3schools.com/html/mov_bbb.mp4";
 
     useEffect(() => {
         if (!videoRef.current) return;
@@ -172,7 +170,7 @@ export default function VideoLessonPage() {
                 <video
                     ref={videoRef}
                     className="w-full h-full object-contain pointer-events-none"
-                    src={((activity.videoUrl || (activity as any).video_url)?.startsWith('/') ? `${API_URL}${activity.videoUrl || (activity as any).video_url}` : (activity.videoUrl || (activity as any).video_url)) || MOCK_VIDEO_URL}
+                    src={resolveMediaUrl((activity.videoUrl || (activity as any).video_url) || '')}
                     onTimeUpdate={handleTimeUpdate}
                     onEnded={() => setIsPlaying(false)}
                     controls={false}

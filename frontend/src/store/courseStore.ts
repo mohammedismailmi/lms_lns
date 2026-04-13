@@ -37,7 +37,7 @@ interface CourseState {
 
 const initialEnrolled: Record<string, string[]> = {};
 
-import api from '../lib/api';
+import api, { resolveMediaUrl } from '../lib/api';
 import { useAuthStore } from './authStore';
 
 export const useCourseStore = create<CourseState>((set, get) => ({
@@ -251,9 +251,9 @@ export const useCourseStore = create<CourseState>((set, get) => ({
                             title: a.title,
                             type: a.type,
                             content: a.content,
-                            videoUrl: a.video_url || a.videoUrl || '',
+                            videoUrl: resolveMediaUrl(a.video_url || a.videoUrl),
                             maxScore: a.max_score || a.maxScore || 0,
-                            fileUrl: a.file_url || a.fileUrl,
+                            fileUrl: resolveMediaUrl(a.file_url || a.fileUrl),
                             fileName: a.file_name || a.fileName,
                             fileType: a.file_type || a.fileType,
                             fileSize: a.file_size || a.fileSize,

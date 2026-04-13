@@ -90,6 +90,14 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
 
     const isAssessment = formData.type === 'quiz' || formData.type === 'exam';
 
+    const toLocalISO = (isoString?: string) => {
+        if (!isoString) return '';
+        const d = new Date(isoString);
+        if (isNaN(d.getTime())) return '';
+        const tzo = d.getTimezoneOffset() * 60000;
+        return new Date(d.getTime() - tzo).toISOString().slice(0, 16);
+    };
+
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-navy/60 backdrop-blur-md p-0 sm:p-4 overflow-hidden animate-in fade-in duration-300">
             <div className="bg-white rounded-none sm:rounded-3xl shadow-premium w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-2xl my-0 animate-in zoom-in-95 slide-in-from-bottom-10 duration-500 flex flex-col border border-white/20 relative">
@@ -183,7 +191,14 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
                                             fd.append('file', file);
                                             const res = await fetch(
                                               `${(import.meta as any).env.VITE_API_URL || ''}/api/upload/lesson-file`,
-                                              { method: 'POST', credentials: 'include', body: fd }
+                                              { 
+                                                  method: 'POST', 
+                                                  credentials: 'include', 
+                                                  headers: {
+                                                      'Authorization': `Bearer ${localStorage.getItem('auth_token') || ''}`
+                                                  },
+                                                  body: fd 
+                                              }
                                             );
                                             const data = await res.json();
                                             setFormData((p: any) => ({ ...p, videoUrl: data.fileUrl, fileName: file.name }));
@@ -248,8 +263,21 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
                                           fd.append('file', file);
                                           const res = await fetch(
                                             `${(import.meta as any).env.VITE_API_URL || ''}/api/upload/lesson-file`,
-                                            { method: 'POST', credentials: 'include', body: fd }
+                                            { 
+                                                method: 'POST', 
+                                                credentials: 'include', 
+                                                headers: {
+                                                    'Authorization': `Bearer ${localStorage.getItem('auth_token') || ''}`
+                                                },
+                                                body: fd 
+                                            }
                                           );
+                                          
+                                          if (!res.ok) {
+                                            const errorData = await res.json().catch(() => ({}));
+                                            throw new Error(errorData.message || errorData.error || `Upload failed with status ${res.status}`);
+                                          }
+                                          
                                           const data = await res.json();
                                           setFormData((p: any) => ({
                                             ...p,
@@ -345,19 +373,36 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
                                     className="w-full bg-surface border border-border/40 rounded-xl px-4 py-2 text-xs h-16 resize-none focus:ring-4 focus:ring-primary/10 transition-all font-medium text-navy shadow-inner"
                                   />
                                 </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                   <div>
                                     <label className="block text-[8.5px] font-black text-muted uppercase tracking-[0.15em] mb-1 ml-3">
                                       Launch Schedule
                                     </label>
                                     <input
                                       type="datetime-local"
-                                      value={formData.scheduledAt ? new Date(formData.scheduledAt).toISOString().slice(0, 16) : ''}
-                                      onChange={e => setFormData((p: any) => ({
-                                        ...p,
-                                        scheduledAt: e.target.value ? new Date(e.target.value).toISOString() : undefined
-                                      }))}
+                                      value={toLocalISO(formData.scheduledAt)}
+                                      onChange={e => {
+                                        if (!e.target.value) {
+                                          setFormData((p: any) => ({ ...p, scheduledAt: undefined }));
+                                          return;
+                                        }
+                                        setFormData((p: any) => ({ ...p, scheduledAt: new Date(e.target.value).toISOString() }));
+                                      }}
                                       className="w-full bg-surface border border-border/40 rounded-xl px-4 py-2 text-[10px] font-black text-navy focus:ring-4 focus:ring-primary/10 transition-all font-mono shadow-sm"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-[8.5px] font-black text-muted uppercase tracking-[0.15em] mb-1 ml-3">
+                                      Session Duration (Min)
+                                    </label>
+                                    <input
+                                      type="number"
+                                      min="5"
+                                      max="480"
+                                      placeholder="60"
+                                      value={formData.duration ?? ''}
+                                      onChange={e => setFormData((p: any) => ({ ...p, duration: Number(e.target.value) || undefined }))}
+                                      className="w-full bg-surface border border-border/40 rounded-xl px-4 py-2 text-xs font-black text-navy focus:ring-4 focus:ring-primary/10 transition-all"
                                     />
                                   </div>
                                   <div className="space-y-2">
@@ -592,7 +637,7 @@ export default function ActivityModal({ isOpen, onClose, onSave, existingActivit
                     <button onClick={onClose} className="w-full sm:w-auto px-5 py-2.5 bg-white border border-border/60 hover:bg-slate-50 text-navy font-black rounded-xl transition-all shadow-sm active:scale-95 text-[9px] uppercase tracking-widest">
                         Decline
                     </button>
-                    <button onClick={handleSave} className="w-full sm:w-auto px-6 py-2.5 bg-navy hover:bg-primary text-white font-black rounded-xl shadow-xl shadow-navy/20 transition-all hover:-translate-y-0.5 active:scale-95 text-[9px] uppercase tracking-widest">
+                    <button onClick={handleSave} disabled={uploadingFile} className="w-full sm:w-auto px-6 py-2.5 bg-navy hover:bg-primary text-white font-black rounded-xl shadow-xl shadow-navy/20 transition-all hover:-translate-y-0.5 active:scale-95 text-[9px] uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed">
                         Commit Resource
                     </button>
                 </div>

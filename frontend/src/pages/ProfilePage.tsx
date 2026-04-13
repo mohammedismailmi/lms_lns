@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '../store/authStore';
-import api from '../lib/api';
+import api, { resolveMediaUrl } from '../lib/api';
 import { Camera, Save, Loader2, User as UserIcon } from 'lucide-react';
 import { useToast } from '../lib/useToast';
 
@@ -53,11 +53,13 @@ export default function ProfilePage() {
         try {
             const res = await api.post('/api/profile/avatar', formData);
             if (res.data.success) {
-                setProfile({ ...profile, avatar_url: res.data.avatarUrl });
-                toast.success('Avatar updated');
+                const newAvatarUrl = resolveMediaUrl(res.data.avatarUrl);
+                setProfile({ ...profile, avatar_url: newAvatarUrl });
+                // Also update the global auth store so the navbar updates instantly
                 if (user) {
-                    useAuthStore.setState({ user: { ...user, avatarUrl: res.data.avatarUrl } });
+                    useAuthStore.setState({ user: { ...user, avatarUrl: newAvatarUrl } });
                 }
+                toast.success('Avatar updated');
             }
         } catch (err: any) {
             const msg = err.response?.data?.error || err.response?.data?.message || 'Failed to upload avatar';
@@ -85,10 +87,13 @@ export default function ProfilePage() {
                 </div>
             </div>
 
-            <div className="bg-white rounded-3xl shadow-premium border border-border/40 overflow-hidden relative group">
-                <div className="h-24 sm:h-28 bg-gradient-to-br from-navy via-primary to-highlight relative overflow-hidden">
+            <div className="bg-white rounded-3xl shadow-premium border border-border/40 relative group">
+                <div className="h-32 sm:h-40 bg-gradient-to-br from-navy via-primary to-highlight relative overflow-hidden rounded-t-3xl">
                     <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_2px_2px,_white_1px,_transparent_0)] bg-[size:20px_20px]" />
-                    <div className="absolute -bottom-12 sm:-bottom-14 left-4 sm:left-8 flex items-end gap-4 sm:gap-5 w-[calc(100%-2rem)] sm:w-auto">
+                </div>
+
+                <div className="px-4 sm:px-8 -mt-12 sm:-mt-14 relative z-10">
+                    <div className="flex items-end gap-4 sm:gap-5">
                         <div className="relative group shrink-0">
                             <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-[3px] border-white bg-surface overflow-hidden shadow-premium flex items-center justify-center text-slate-300 transition-transform group-hover:scale-[1.02]">
                                 {profile.avatar_url ? (
@@ -106,17 +111,17 @@ export default function ProfilePage() {
                             </button>
                             <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleAvatarUpload} />
                         </div>
-                        <div className="pb-4 min-w-0 flex-1">
-                            <h2 className="text-lg sm:text-xl font-black text-white drop-shadow-md truncate tracking-tight">{profile.name}</h2>
+                        <div className="pb-1 pt-14 sm:pt-16 min-w-0 flex-1">
+                            <h2 className="text-lg sm:text-xl font-black text-navy truncate tracking-tight">{profile.name}</h2>
                             <div className="flex items-center gap-2 mt-1">
-                                <span className="px-2 py-0.5 bg-white/20 backdrop-blur-md rounded-md text-[8.5px] font-black text-white uppercase tracking-wider border border-white/20">{profile.role}</span>
-                                <span className="text-[8.5px] font-bold text-white/60 uppercase tracking-wider truncate max-w-[120px]">{profile.email}</span>
+                                <span className="px-2 py-0.5 bg-primary/10 backdrop-blur-md rounded-md text-[8.5px] font-black text-primary uppercase tracking-wider border border-primary/20">{profile.role}</span>
+                                <span className="text-[8.5px] font-bold text-muted uppercase tracking-wider truncate max-w-[180px]">{profile.email}</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <form onSubmit={handleSave} className="p-5 sm:p-7 pt-16 sm:pt-20 space-y-5 bg-[radial-gradient(circle_at_top_right,_#1b3a6b05,_transparent)]">
+                <form onSubmit={handleSave} className="p-5 sm:p-7 pt-4 sm:pt-5 space-y-5 bg-[radial-gradient(circle_at_top_right,_#1b3a6b05,_transparent)]">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4.5">
                         <div className="col-span-1 md:col-span-2">
                             <label className="block text-[8.5px] font-black text-muted mb-1 uppercase tracking-[0.15em] ml-3">Academic Name</label>

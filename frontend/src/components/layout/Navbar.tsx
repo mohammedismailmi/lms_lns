@@ -40,7 +40,7 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
     }, []);
 
     return (
-        <nav className="bg-navy text-white h-12 md:h-14 flex items-center justify-between px-3 md:px-5 shadow-sm border-b border-slate-700/30 z-50 sticky top-0 backdrop-blur-sm">
+        <nav className="bg-navy text-white h-16 md:h-[4.5rem] flex items-center justify-between px-3 md:px-5 shadow-sm border-b border-slate-700/30 z-50 sticky top-0 backdrop-blur-sm">
             {/* Left: Hamburger (Mobile) + Logo */}
             <div className="flex items-center gap-1.5 md:gap-2.5">
                 {/* Mobile Menu Toggle */}
@@ -75,10 +75,15 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted group-focus-within:text-highlight transition-colors" />
                     <input
                         type="text"
-                        placeholder="Search workspace..."
+                        placeholder="Search courses..."
                         className="w-full bg-slate-800/40 text-white placeholder:text-muted rounded-xl py-1 pl-9 pr-4 border border-slate-700/50 focus:outline-none focus:bg-slate-800/60 focus:border-highlight/50 focus:ring-4 focus:ring-highlight/10 text-xs transition-all min-h-[34px] shadow-inner"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && search.trim()) {
+                                navigate(`/home?q=${encodeURIComponent(search.trim())}`);
+                            }
+                        }}
                     />
                 </div>
             </div>

@@ -11,4 +11,18 @@ export const api = axios.create({
     withCredentials: true,
 });
 
+api.interceptors.request.use((config) => {
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+});
+
+export const resolveMediaUrl = (url?: string | null): string => {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    return `${API_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+};
+
 export default api;

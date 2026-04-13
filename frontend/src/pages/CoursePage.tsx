@@ -41,7 +41,7 @@ export default function CoursePage() {
     const { courseId } = useParams();
     const navigate = useNavigate();
     const { user } = useAuthStore();
-    const { getCourseProgress, recalculateCourseProgress, hydrateProgress } = useProgressStore();
+    const { getCourseProgress, recalculateCourseProgress, hydrateProgress, markDone } = useProgressStore();
     const { coursesList, enrolledCourseIds, instructorCompleted, enrollUser, addModule, addActivity, updateActivity, deleteActivity } = useCourseStore();
     const toast = useToast();
 
@@ -219,7 +219,7 @@ export default function CoursePage() {
                     )}
 
                     <aside className={`
-                        fixed md:sticky top-0 left-0 h-full md:h-[calc(100vh-4rem)]
+                        fixed md:sticky top-16 md:top-[4.5rem] left-0 h-full md:h-[calc(100vh-4.5rem)]
                         w-72 md:w-64 bg-navy z-30 overflow-y-auto shadow-2xl md:shadow-none
                         transform transition-transform duration-300 ease-in-out
                         md:translate-x-0 md:flex-shrink-0
@@ -383,8 +383,15 @@ export default function CoursePage() {
                                     <div key={activity.id} className="relative group/activity border border-transparent hover:border-border rounded-xl -ml-2 p-2 transition-all">
                                         
                                         {/* Activity Render Matrix block */}
-                                        <div onClick={() => !isInstructor && !['quiz', 'exam', 'submission'].includes(activity.type) && course.id && navigate(`/course/${course.id}/lesson/${activity.type}/${activity.id}`)}
-                                             className={cn("w-full transition-all", !isInstructor && !['quiz', 'exam', 'submission'].includes(activity.type) && course.id && "cursor-pointer hover:opacity-90")}>
+                                        <div onClick={() => {
+                                                if (['live_class', 'submission'].includes(activity.type)) {
+                                                    markDone(activity.id, course.id);
+                                                }
+                                                if (!isInstructor && !['quiz', 'exam', 'submission', 'live_class'].includes(activity.type) && course.id) {
+                                                    navigate(`/course/${course.id}/lesson/${activity.type}/${activity.id}`);
+                                                }
+                                             }}
+                                             className={cn("w-full transition-all", !isInstructor && !['quiz', 'exam', 'submission', 'live_class'].includes(activity.type) && course.id && "cursor-pointer hover:opacity-90")}>
                                             {activity.type === 'blog' && <BlogActivity activity={activity} />}
                                             {activity.type === 'file' && <FileActivity activity={activity} courseId={course.id} />}
                                             {activity.type === 'video' && <VideoActivity activity={activity} />}

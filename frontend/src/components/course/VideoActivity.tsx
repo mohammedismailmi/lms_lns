@@ -19,20 +19,21 @@ export default function VideoActivity({ activity }: Props) {
     const isCompleted = activityStatus[activity.id] === 'completed';
 
     useEffect(() => {
-        if (activity.durationSeconds > 0) {
-            furthestWatchedRef.current = (percent / 100) * activity.durationSeconds;
+        if (videoRef.current?.duration && videoRef.current.duration > 0) {
+            furthestWatchedRef.current = (percent / 100) * videoRef.current.duration;
         }
-    }, [activity.id]);
+    }, [activity.id, percent]);
 
     const handleTimeUpdate = () => {
-        if (!videoRef.current || activity.durationSeconds === 0) return;
+        if (!videoRef.current || !videoRef.current.duration) return;
         const current = videoRef.current.currentTime;
+        const totalDuration = videoRef.current.duration;
 
         // Only update deepest if we are actually progressing linearly
         if (current > furthestWatchedRef.current && current - furthestWatchedRef.current < 3) {
             furthestWatchedRef.current = current;
 
-            const newPercent = Math.min(100, Math.round((furthestWatchedRef.current / activity.durationSeconds) * 100));
+            const newPercent = Math.min(100, Math.round((furthestWatchedRef.current / totalDuration) * 100));
             if (newPercent !== percent) {
                 setPercent(newPercent);
                 updateVideoProgress(activity.id, newPercent);

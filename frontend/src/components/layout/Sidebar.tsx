@@ -59,9 +59,12 @@ export default function Sidebar({ onClose }: SidebarProps) {
             </div>
 
             <div className="p-3 border-t border-slate-700/50">
-                <div className="bg-slate-800/40 p-4 rounded-2xl text-[10px] space-y-0.5">
+                <div className="bg-slate-800/40 p-4 rounded-2xl text-[10px] space-y-1.5">
                     <p className="text-surface font-semibold font-serif text-xs">Academia LMS</p>
                     <p className="opacity-80">v2.0.1</p>
+                    <p className="opacity-80 leading-relaxed">
+                        Built by <a href="https://www.linkedin.com/in/mohammedismail1454/" target="_blank" rel="noreferrer" className="text-primary hover:text-highlight transition-colors font-bold">Mohammed Ismail</a> &amp; <a href="https://www.linkedin.com/in/cjsakshi1029/" target="_blank" rel="noreferrer" className="text-primary hover:text-highlight transition-colors font-bold">CJ Sakshi</a>
+                    </p>
                     <p className="opacity-40 text-highlight font-bold tracking-widest">© 2026</p>
                 </div>
             </div>

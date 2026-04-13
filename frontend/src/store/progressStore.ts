@@ -139,12 +139,13 @@ export const useProgressStore = create<ProgressState>((set, get) => ({
     },
 
     getCourseProgress: (courseId, activities) => {
-        if (activities.length === 0) return 0;
+        const trackableActivities = activities.filter(a => (a.type as string) !== 'announcement' && (a.type as string) !== 'live_class');
+        if (trackableActivities.length === 0) return 0;
         const state = get();
-        const completedCount = activities.filter(
+        const completedCount = trackableActivities.filter(
             (a) => state.activityStatus[a.id] === 'completed'
         ).length;
-        return Math.round((completedCount / activities.length) * 100);
+        return Math.round((completedCount / trackableActivities.length) * 100);
     },
 
     recalculateCourseProgress: (courseId, activities) => {

@@ -11,7 +11,7 @@ interface Props {
 
 export default function ModuleSidebar({ course, onActivityClick }: Props) {
     return (
-        <aside className="w-[260px] flex-shrink-0 border-r border-border bg-surface h-[calc(100vh-64px)] overflow-y-auto sticky top-0 shadow-inner">
+        <aside className="w-[260px] flex-shrink-0 border-r border-border bg-surface h-[calc(100vh-4.5rem)] overflow-y-auto sticky top-[4.5rem] shadow-inner">
             <div className="p-4 border-b border-border bg-card sticky top-0 z-10">
                 <h3 className="font-serif font-bold text-navy text-lg leading-tight">Course Modules</h3>
             </div>
