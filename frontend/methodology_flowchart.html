@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LMS Methodology Flowchart</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 18px;
+    background: #fff;
+    color: #1a1a2e;
+    padding: 36px 40px 40px 40px;
+    width: 1100px;
+  }
+  h1 {
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 28px;
+    text-align: center;
+    margin-bottom: 6px;
+    font-weight: bold;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 18px;
+    color: #555;
+    margin-bottom: 32px;
+    font-style: italic;
+  }
+  .flowchart {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  /* Terminal (Start/End) - Rounded pill */
+  .terminal {
+    border: 2.5px solid #1a1a2e;
+    border-radius: 40px;
+    padding: 14px 50px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 18px;
+    background: #e8e8e8;
+    min-width: 260px;
+  }
+
+  /* Process box */
+  .process {
+    border: 2.5px solid #1a1a2e;
+    border-radius: 4px;
+    padding: 16px 28px;
+    text-align: center;
+    font-size: 18px;
+    background: #fff;
+    min-width: 420px;
+    max-width: 580px;
+    position: relative;
+  }
+  .process-title {
+    font-weight: bold;
+    font-size: 18px;
+    margin-bottom: 3px;
+  }
+  .process-desc {
+    font-size: 18px;
+    color: #444;
+  }
+
+  /* Decision diamond */
+  .diamond-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    width: 100%;
+    min-height: 110px;
+  }
+  .diamond {
+    width: 320px;
+    height: 110px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .diamond-shape {
+    position: absolute;
+    width: 320px;
+    height: 110px;
+    background: #fff;
+    border: 2.5px solid #1a1a2e;
+    transform: rotate(45deg);
+    transform-origin: center;
+    /* Scale to make it wider than tall */
+    transform: scaleX(1.5) rotate(45deg);
+    width: 100px;
+    height: 100px;
+  }
+  /* Better diamond using clip-path */
+  .diamond-box {
+    width: 340px;
+    height: 120px;
+    background: #fff;
+    border: 2.5px solid #1a1a2e;
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+    position: relative;
+  }
+  .diamond-text {
+    font-size: 18px;
+    font-weight: bold;
+    padding: 0 40px;
+    z-index: 2;
+  }
+  .diamond-yes {
+    position: absolute;
+    right: -60px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 18px;
+    font-style: italic;
+    color: #1e8449;
+    font-weight: bold;
+  }
+  .diamond-no {
+    position: absolute;
+    left: -50px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 18px;
+    font-style: italic;
+    color: #c0392b;
+    font-weight: bold;
+  }
+
+  /* Arrow connector */
+  .arrow-down {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .arrow-line {
+    width: 2.5px;
+    height: 22px;
+    background: #1a1a2e;
+  }
+  .arrow-head {
+    width: 0; height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 10px solid #1a1a2e;
+  }
+  .arrow-line-short {
+    width: 2.5px;
+    height: 14px;
+    background: #1a1a2e;
+  }
+
+  /* Phase label */
+  .phase-label {
+    font-size: 18px;
+    font-weight: bold;
+    color: #7d3c98;
+    letter-spacing: 1px;
+    margin-top: 4px;
+    margin-bottom: 2px;
+    text-transform: uppercase;
+  }
+
+  /* Side annotations */
+  .annotated-row {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    width: 100%;
+    justify-content: center;
+  }
+  .side-annotation {
+    font-size: 18px;
+    color: #666;
+    font-style: italic;
+    max-width: 220px;
+    text-align: left;
+    border-left: 3px solid #bbb;
+    padding-left: 12px;
+  }
+  .side-annotation-right {
+    font-size: 18px;
+    color: #666;
+    font-style: italic;
+    max-width: 220px;
+    text-align: right;
+    border-right: 3px solid #bbb;
+    padding-right: 12px;
+  }
+
+  .caption {
+    font-size: 18px;
+    color: #666;
+    text-align: center;
+    margin-top: 24px;
+    border-top: 1px solid #ccc;
+    padding-top: 10px;
+  }
+
+  /* Color coding for phases */
+  .phase1 { border-color: #2c3e50; background: #eaf2f8; }
+  .phase2 { border-color: #1a5276; background: #d6eaf8; }
+  .phase3 { border-color: #7d3c98; background: #f4ecf7; }
+  .phase4 { border-color: #c0392b; background: #fdedec; }
+  .phase5 { border-color: #1e8449; background: #eafaf1; }
+  .phase6 { border-color: #b7950b; background: #fef9e7; }
+</style>
+</head>
+<body>
+
+<h1>Custom LMS Build &mdash; Methodology Flowchart</h1>
+<p class="subtitle">Development Lifecycle of the Academia Learning Management System</p>
+
+<div class="flowchart">
+
+  <!-- START -->
+  <div class="terminal">Start</div>
+  <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+  <!-- Phase 1 -->
+  <div class="phase-label">Phase 1: Planning</div>
+  <div class="arrow-down"><div class="arrow-line-short"></div><div class="arrow-head"></div></div>
+
+  <div class="annotated-row">
+    <div class="side-annotation-right">Stakeholders: Admin, Instructor, Learner</div>
+    <div class="process phase1">
+      <div class="process-title">Requirement Analysis</div>
+      <div class="process-desc">Identify user roles, core features (courses, quizzes, video lectures, certificates), and multi-tenancy requirements</div>
+    </div>
+    <div class="side-annotation">Output: Feature Specification Document</div>
+  </div>
+  <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+  <div class="annotated-row">
+    <div class="side-annotation-right">Criteria: Serverless, edge-native, low latency</div>
+    <div class="process phase1">
+      <div class="process-title">Technology Stack Selection</div>
+      <div class="process-desc">React + Vite (Frontend), Hono.js (Backend), Cloudflare Workers, D1, R2, KV</div>
+    </div>
+    <div class="side-annotation">Output: Architecture Blueprint</div>
+  </div>
+  <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+  <!-- Phase 2 -->
+  <div class="phase-label">Phase 2: Backend Development</div>
+  <div class="arrow-down"><div class="arrow-line-short"></div><div class="arrow-head"></div></div>
+
+  <div class="process phase2">
+    <div class="process-title">Database Schema Design</div>
+    <div class="process-desc">Define tables (Users, Courses, Modules, Activities, Quizzes, Progress, Certificates) using Drizzle ORM with D1</div>
+  </div>
+  <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+  <div class="process phase2">
+    <div class="process-title">RESTful API Development</div>
+    <div class="process-desc">Implement Authentication (JWT), Course CRUD, Quiz Submission &amp; Grading, Progress Tracking, File Upload/Streaming endpoints</div>
+  </div>
+  <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+  <!-- Decision 1 -->
+  <div class="diamond-wrapper">
+    <div class="diamond-box">
+      <div class="diamond-text">API Testing<br>Passed?</div>
+    </div>
+    <div class="diamond-no">No &rarr; Debug</div>
+    <div class="diamond-yes">Yes &darr;</div>
+  </div>
+  <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+  <!-- Phase 3 -->
+  <div class="phase-label">Phase 3: Frontend Development</div>
+  <div class="arrow-down"><div class="arrow-line-short"></div><div class="arrow-head"></div></div>
+
+  <div class="process phase3">
+    <div class="process-title">UI/UX Implementation</div>
+    <div class="process-desc">Build responsive React components: Dashboard, Course Viewer, Quiz Shell, Video Player, Admin Panel with Zustand state management</div>
+  </div>
+  <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+  <div class="process phase3">
+    <div class="process-title">Frontend-Backend Integration</div>
+    <div class="process-desc">Connect stores to REST API via Axios; implement role-based routing, JWT token handling, and real-time data hydration</div>
+  </div>
+  <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+  <!-- Phase 4 -->
+  <div class="phase-label">Phase 4: AI Proctoring Integration</div>
+  <div class="arrow-down"><div class="arrow-line-short"></div><div class="arrow-head"></div></div>
+
+  <div class="annotated-row">
+    <div class="side-annotation-right">Runs entirely on client browser using WebGL</div>
+    <div class="process phase4">
+      <div class="process-title">AI Proctoring Engine</div>
+      <div class="process-desc">Integrate TensorFlow.js + MediaPipe Face Mesh for real-time face detection, gaze tracking, head pose estimation, and audio monitoring</div>
+    </div>
+    <div class="side-annotation">Logs stored as JSON in D1 database</div>
+  </div>
+  <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+  <div class="process phase4">
+    <div class="process-title">Pre-Exam Identity Verification</div>
+    <div class="process-desc">Mandatory camera check with single-face validation before exam access; continuous multi-face monitoring during the exam</div>
+  </div>
+  <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+  <!-- Decision 2 -->
+  <div class="diamond-wrapper">
+    <div class="diamond-box">
+      <div class="diamond-text">Integration<br>Testing?</div>
+    </div>
+    <div class="diamond-no">No &rarr; Fix Bugs</div>
+    <div class="diamond-yes">Yes &darr;</div>
+  </div>
+  <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+  <!-- Phase 5 -->
+  <div class="phase-label">Phase 5: Deployment</div>
+  <div class="arrow-down"><div class="arrow-line-short"></div><div class="arrow-head"></div></div>
+
+  <div class="annotated-row">
+    <div class="side-annotation-right">Frontend: Cloudflare Pages; Backend: Cloudflare Workers</div>
+    <div class="process phase5">
+      <div class="process-title">Production Deployment</div>
+      <div class="process-desc">Deploy frontend via Wrangler Pages, backend via Wrangler Workers; configure D1 migrations, R2 buckets, and KV namespaces</div>
+    </div>
+    <div class="side-annotation">CI/CD via Wrangler CLI</div>
+  </div>
+  <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+  <!-- Phase 6 -->
+  <div class="phase-label">Phase 6: Validation &amp; Reporting</div>
+  <div class="arrow-down"><div class="arrow-line-short"></div><div class="arrow-head"></div></div>
+
+  <div class="process phase6">
+    <div class="process-title">Cross-Device Testing &amp; Instructor Reporting</div>
+    <div class="process-desc">Validate camera compatibility across devices; verify proctoring log persistence and instructor dashboard visualization of violation reports</div>
+  </div>
+  <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+  <!-- Decision 3 -->
+  <div class="diamond-wrapper">
+    <div class="diamond-box">
+      <div class="diamond-text">All Features<br>Validated?</div>
+    </div>
+    <div class="diamond-no">No &rarr; Iterate</div>
+    <div class="diamond-yes">Yes &darr;</div>
+  </div>
+  <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+
+  <!-- END -->
+  <div class="terminal">System Ready for Production Use</div>
+
+</div>
+
+<p class="caption">
+  Figure 2: Methodology flowchart for the custom-built Academia LMS. The development follows a six-phase iterative lifecycle,
+  with decision checkpoints after API testing, integration testing, and final feature validation.
+</p>
+
+</body>
+</html>

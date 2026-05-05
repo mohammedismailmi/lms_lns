@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '../../lib/useToast';
-import { Users, FileDiff, CheckCircle, Save } from 'lucide-react';
+import { Users, FileDiff, CheckCircle, Save, AlertCircle } from 'lucide-react';
 import api from '../../lib/api';
 
 interface Props {
@@ -188,6 +188,55 @@ export default function QuizResults({ activityId, title }: Props) {
                                     </div>
                                 </div>
                                 
+                                <div className="mb-6">
+                                    <h4 className="font-bold text-navy uppercase tracking-widest text-xs mb-4">Proctoring Report</h4>
+                                    {selectedAttempt.proctoringLogsJson ? (() => {
+                                        try {
+                                            const logs = JSON.parse(selectedAttempt.proctoringLogsJson);
+                                            const totalViolations = (logs.headTurns || 0) + (logs.multipleFaces || 0) + (logs.noFace || 0) + (logs.gazeViolations || 0) + (logs.audioViolations || 0);
+                                            return (
+                                                <div className="bg-white border border-border p-5 rounded-xl shadow-sm">
+                                                    <div className="flex items-center gap-3 mb-4 pb-4 border-b border-border">
+                                                        <AlertCircle className={`w-6 h-6 ${totalViolations > 10 ? 'text-red-500' : totalViolations > 0 ? 'text-amber-500' : 'text-green-500'}`} />
+                                                        <div>
+                                                            <span className="block font-bold text-navy text-base">Total AI Infractions: {totalViolations}</span>
+                                                            <span className="text-xs text-muted">A high number of infractions indicates potential academic misconduct.</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                                                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                                            <span className="block text-muted text-xs uppercase font-bold tracking-wider mb-1">Head Turns</span>
+                                                            <span className="text-lg font-bold text-navy">{logs.headTurns || 0}</span>
+                                                        </div>
+                                                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                                            <span className="block text-muted text-xs uppercase font-bold tracking-wider mb-1">Gaze Deviations</span>
+                                                            <span className="text-lg font-bold text-navy">{logs.gazeViolations || 0}</span>
+                                                        </div>
+                                                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                                            <span className="block text-muted text-xs uppercase font-bold tracking-wider mb-1">Multiple Faces</span>
+                                                            <span className="text-lg font-bold text-navy">{logs.multipleFaces || 0}</span>
+                                                        </div>
+                                                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                                            <span className="block text-muted text-xs uppercase font-bold tracking-wider mb-1">Missing Face</span>
+                                                            <span className="text-lg font-bold text-navy">{logs.noFace || 0}</span>
+                                                        </div>
+                                                        <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                                            <span className="block text-muted text-xs uppercase font-bold tracking-wider mb-1">Audio Spikes</span>
+                                                            <span className="text-lg font-bold text-navy">{logs.audioViolations || 0}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        } catch (e) {
+                                            return <p className="text-sm text-muted">Invalid log data format.</p>;
+                                        }
+                                    })() : (
+                                        <div className="bg-slate-50 p-4 rounded-xl border border-border text-center">
+                                            <p className="text-sm text-muted italic">No AI proctoring logs were recorded for this attempt.</p>
+                                        </div>
+                                    )}
+                                </div>
+
                                 <div>
                                     <h4 className="font-bold text-navy uppercase tracking-widest text-xs mb-4">Student Answers</h4>
                                     {Object.keys(answers).length > 0 ? (

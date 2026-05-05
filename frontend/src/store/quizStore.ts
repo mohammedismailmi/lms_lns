@@ -1,10 +1,19 @@
 import { create } from 'zustand';
 import api from '../lib/api';
 
+export interface ProctoringLogs {
+    headTurns: number;
+    multipleFaces: number;
+    noFace: number;
+    gazeViolations: number;
+    audioViolations: number;
+}
+
 interface QuizState {
     answers: Record<string, string>;
     markedForReview: Set<string>;
     tabSwitchCount: number;
+    proctoringLogs: ProctoringLogs;
     timeRemaining: number;
     isTerminated: boolean;
 
@@ -12,6 +21,7 @@ interface QuizState {
     loadAnswers: (answers: Record<string, string>) => void;
     toggleMarkForReview: (questionId: string) => void;
     incrementTabSwitch: () => void;
+    incrementProctoringLog: (key: keyof ProctoringLogs) => void;
     terminateQuiz: () => void;
     tickTimer: () => void;
     setTimer: (seconds: number) => void;
@@ -23,6 +33,7 @@ export const useQuizStore = create<QuizState>((set, get) => ({
     answers: {},
     markedForReview: new Set<string>(),
     tabSwitchCount: 0,
+    proctoringLogs: { headTurns: 0, multipleFaces: 0, noFace: 0, gazeViolations: 0, audioViolations: 0 },
     timeRemaining: 0,
     isTerminated: false,
 
@@ -47,6 +58,14 @@ export const useQuizStore = create<QuizState>((set, get) => ({
     incrementTabSwitch: () =>
         set((state) => ({ tabSwitchCount: state.tabSwitchCount + 1 })),
 
+    incrementProctoringLog: (key) =>
+        set((state) => ({
+            proctoringLogs: {
+                ...state.proctoringLogs,
+                [key]: state.proctoringLogs[key] + 1
+            }
+        })),
+
     terminateQuiz: () => set({ isTerminated: true }),
 
     tickTimer: () =>
@@ -61,14 +80,15 @@ export const useQuizStore = create<QuizState>((set, get) => ({
             answers: {},
             markedForReview: new Set<string>(),
             tabSwitchCount: 0,
+            proctoringLogs: { headTurns: 0, multipleFaces: 0, noFace: 0, gazeViolations: 0, audioViolations: 0 },
             timeRemaining: 0,
             isTerminated: false,
         }),
 
     submitQuiz: async (activityId) => {
-        const { answers, tabSwitchCount } = get();
+        const { answers, tabSwitchCount, proctoringLogs } = get();
         try {
-            const response = await api.post(`/api/quizzes/${activityId}/submit`, { answers, tabSwitchCount });
+            const response = await api.post(`/api/quizzes/${activityId}/submit`, { answers, tabSwitchCount, proctoringLogs });
             const data = response.data;
             if (data.success) {
                 get().resetQuiz();

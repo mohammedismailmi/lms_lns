@@ -151,6 +151,7 @@ export const quizAttempts = sqliteTable('quiz_attempts', {
     is_published: integer('is_published').notNull().default(0),
     modified_score: integer('modified_score'),
     instructor_note: text('instructor_note'),
+    proctoring_logs_json: text('proctoring_logs_json'),
     created_at: integer('created_at').notNull(),
     updated_at: integer('updated_at').notNull(),
 });

@@ -12,6 +12,7 @@ import QuizTimer from './QuizTimer';
 import QuestionCard from './QuestionCard';
 import QuestionNavigator from './QuestionNavigator';
 import QuizSummary from './QuizSummary';
+import PreExamCameraCheck from './PreExamCameraCheck';
 
 interface Props {
     isExam: boolean;
@@ -29,6 +30,7 @@ export default function QuizShell({ isExam }: Props) {
     const [viewState, setViewState] = useState<'intro' | 'active' | 'summary'>('intro');
     const [readOnlyMode, setReadOnlyMode] = useState(false);
     const [computedScore, setComputedScore] = useState<number | null>(null);
+    const [cameraVerified, setCameraVerified] = useState(false);
 
     const { user } = useAuthStore();
     const isInstructor = user?.role === 'admin' || user?.role === 'instructor';
@@ -161,7 +163,27 @@ export default function QuizShell({ isExam }: Props) {
         );
     }
 
-    const handleStart = () => {
+    const exitFullscreen = () => {
+        if (document.fullscreenElement && document.exitFullscreen) {
+            document.exitFullscreen().catch(() => {});
+        }
+    };
+
+    const handleStart = async () => {
+        if (isExam && !cameraVerified) {
+            alert("Camera must be verified before starting the exam.");
+            return;
+        }
+        
+        if (isExam) {
+            try {
+                if (document.documentElement.requestFullscreen) {
+                    await document.documentElement.requestFullscreen();
+                }
+            } catch (err) {
+                console.log("Fullscreen request failed", err);
+            }
+        }
         setViewState('active');
     };
 
@@ -179,6 +201,7 @@ export default function QuizShell({ isExam }: Props) {
     };
 
     const handleAutoSubmit = () => {
+        exitFullscreen();
         setViewState('summary');
 
         // Compute score if it's a quiz
@@ -193,15 +216,18 @@ export default function QuizShell({ isExam }: Props) {
     };
 
     const handleFinalSubmit = () => {
+        exitFullscreen();
         // Fire-and-forget API call without touching quiz store state
         // This avoids the race condition where resetQuiz() in submitQuiz
         // would clear the state of the next quiz/exam that mounts
         const currentAnswers = { ...useQuizStore.getState().answers };
         const currentTabSwitchCount = useQuizStore.getState().tabSwitchCount;
+        const currentProctoringLogs = { ...useQuizStore.getState().proctoringLogs };
         import('../../lib/api').then(({ default: apiClient }) => {
             apiClient.post(`/api/quizzes/${activity.id}/submit`, {
                 answers: currentAnswers,
-                tabSwitchCount: currentTabSwitchCount
+                tabSwitchCount: currentTabSwitchCount,
+                proctoringLogs: currentProctoringLogs
             }).catch(() => {});
         });
         markDone(activity.id, courseId);
@@ -231,17 +257,20 @@ export default function QuizShell({ isExam }: Props) {
                     <p className="text-lg text-muted mb-8">This assessment is strictly timed for {activity.duration} minutes.</p>
 
                     {isExam && (
-                        <div className="bg-accent/10 border border-accent/20 p-6 rounded-xl text-left mb-8 shadow-inner">
-                            <h3 className="font-bold text-accent mb-2">⚠ Strict Proctoring Rules</h3>
-                            <ul className="list-disc pl-5 text-sm text-ink space-y-2 font-medium">
-                                <li>You may not switch tabs, minimize the browser, or open other applications.</li>
-                                <li>Doing so will issue a severe warning.</li>
-                                <li>After 3 violations, your exam will be automatically terminated and submitted as-is.</li>
-                            </ul>
-                        </div>
+                        <>
+                            <div className="bg-accent/10 border border-accent/20 p-6 rounded-xl text-left mb-6 shadow-inner">
+                                <h3 className="font-bold text-accent mb-2">⚠ Strict Proctoring Rules</h3>
+                                <ul className="list-disc pl-5 text-sm text-ink space-y-2 font-medium">
+                                    <li>You may not switch tabs, minimize the browser, or open other applications.</li>
+                                    <li>Doing so will issue a severe warning.</li>
+                                    <li>After 3 violations, your exam will be automatically terminated and submitted as-is.</li>
+                                </ul>
+                            </div>
+                            <PreExamCameraCheck onVerified={setCameraVerified} />
+                        </>
                     )}
 
-                    <div className="flex justify-center gap-4">
+                    <div className="flex justify-center gap-4 mt-6">
                         <button
                             onClick={() => navigate(`/course/${course?.id}`)}
                             className="px-6 py-3 rounded-xl font-bold text-navy bg-slate-100 hover:bg-slate-200 transition-colors"
@@ -250,7 +279,10 @@ export default function QuizShell({ isExam }: Props) {
                         </button>
                         <button
                             onClick={handleStart}
-                            className={`px-8 py-3 rounded-xl font-bold text-white shadow-md transition-all hover:-translate-y-0.5 ${isExam ? 'bg-accent hover:bg-red-800' : 'bg-success hover:bg-green-800'}`}
+                            disabled={isExam && !cameraVerified}
+                            className={`px-8 py-3 rounded-xl font-bold text-white shadow-md transition-all 
+                                ${isExam && !cameraVerified ? 'bg-slate-400 cursor-not-allowed opacity-50' : 
+                                isExam ? 'bg-accent hover:bg-red-800 hover:-translate-y-0.5' : 'bg-success hover:bg-green-800 hover:-translate-y-0.5'}`}
                         >
                             Begin Attempt
                         </button>

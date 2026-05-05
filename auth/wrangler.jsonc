@@ -3,60 +3,67 @@
  * https://developers.cloudflare.com/workers/wrangler/configuration/
  */
 {
-    "$schema": "node_modules/wrangler/config-schema.json",
-    "name": "auth",
-    "main": "src/index.ts",
-    "compatibility_date": "2026-03-01",
-    "compatibility_flags": [
-        "nodejs_compat",
-        "global_fetch_strictly_public"
-    ],
-    "assets": {
-        // The path to the directory containing the `index.html` file to be served at `/`
-        "directory": "./public"
-    },
-    "observability": {
-        "enabled": true
-    },
-    "d1_databases": [
-        {
-            "binding": "DB",
-            "database_name": "lms-db",
-            "database_id": "9fe2aa2f-477b-469b-b2e6-9cd92f2a7b73",
-            "migrations_dir": "migrations"
-        }
-    ],
-    "vars": {
-        "JWT_SECRET": "super-secret-local-jwt-key",
-        "GROQ_API_KEY": "your_groq_api_key_here"
-    },
-    "r2_buckets": [
-        {
-            "binding": "R2",
-            "bucket_name": "lms-files"
-        }
-    ]
-    /**
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "auth",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-03-01",
+	"compatibility_flags": [
+		"nodejs_compat",
+		"global_fetch_strictly_public"
+	],
+	"assets": {
+		// The path to the directory containing the `index.html` file to be served at `/`
+		"directory": "./public"
+	},
+	"observability": {
+		"enabled": true
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "lms-db",
+			"database_id": "9fe2aa2f-477b-469b-b2e6-9cd92f2a7b73",
+			"migrations_dir": "migrations"
+		}
+	],
+	"vars": {
+		"JWT_SECRET": "super-secret-local-jwt-key",
+		"GROQ_API_KEY": "your_groq_api_key_here",
+		"CLOUDFLARE_ACCOUNT_ID": "59714f04f3ecdca2c6d0e7656b62e1da"
+	},
+	"r2_buckets": [
+		{
+			"binding": "R2",
+			"bucket_name": "lms-files"
+		}
+	],
+	"kv_namespaces": [
+		{
+			"binding": "LMS_CACHE",
+			"id": "2fe4ddaa8da643d58f448e4e7d7228f2"
+		}
+	]
+	/**
      * Smart Placement
      * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
      */
-    // "placement": {  "mode": "smart" }
-    /**
+	// "placement": {  "mode": "smart" }
+	/**
      * Bindings
      * Bindings allow your Worker to interact with resources on the Cloudflare Developer Platform, including
      * databases, object storage, AI inference, real-time communication and more.
      * https://developers.cloudflare.com/workers/runtime-apis/bindings/
      */
-    /**
+	/**
      * Environment Variables
      * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
      * Note: Use secrets to store sensitive data.
      * https://developers.cloudflare.com/workers/configuration/secrets/
      */
-    // "vars": {  "MY_VARIABLE": "production_value" }
-    /**
+	// "vars": {  "MY_VARIABLE": "production_value" }
+	/**
      * Service Bindings (communicate between multiple Workers)
      * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
      */
-    // "services": [  {   "binding": "MY_SERVICE",   "service": "my-service"  } ]
+	// "services": [  {   "binding": "MY_SERVICE",   "service": "my-service"  } ]
 }

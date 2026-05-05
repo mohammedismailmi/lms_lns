@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { VideoActivity as VideoType } from '../../lib/mockData';
 import { useProgressStore } from '../../store/progressStore';
 import { PlayCircle, ShieldAlert } from 'lucide-react';
@@ -13,30 +13,63 @@ export default function VideoActivity({ activity }: Props) {
     const { updateVideoProgress, markDone, videoProgress, activityStatus } = useProgressStore();
 
     const furthestWatchedRef = useRef(0);
-    const [percent, setPercent] = useState(videoProgress[activity.id] || 0);
+    const percentRef = useRef(videoProgress[activity.id] || 0);
+    const [displayPercent, setDisplayPercent] = useState(videoProgress[activity.id] || 0);
     const [warning, setWarning] = useState('');
+    const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const lastSyncedPercent = useRef(videoProgress[activity.id] || 0);
+    const metadataLoadedRef = useRef(false);
 
     const isCompleted = activityStatus[activity.id] === 'completed';
 
+    // Re-sync from store when activity changes (navigating between videos)
     useEffect(() => {
-        if (videoRef.current?.duration && videoRef.current.duration > 0) {
-            furthestWatchedRef.current = (percent / 100) * videoRef.current.duration;
-        }
-    }, [activity.id, percent]);
+        const storePercent = videoProgress[activity.id] || 0;
+        percentRef.current = storePercent;
+        lastSyncedPercent.current = storePercent;
+        setDisplayPercent(storePercent);
+        metadataLoadedRef.current = false;
+        furthestWatchedRef.current = 0;
+    }, [activity.id]);
+
+    // Debounced sync to backend - only saves every 5 seconds to avoid race conditions
+    const scheduleSyncToBackend = useCallback((activityId: string, newPercent: number) => {
+        if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+        syncTimerRef.current = setTimeout(() => {
+            if (newPercent > lastSyncedPercent.current) {
+                lastSyncedPercent.current = newPercent;
+                updateVideoProgress(activityId, newPercent);
+            }
+        }, 3000);
+    }, [updateVideoProgress]);
+
+    // Cleanup sync timer on unmount - flush any pending progress
+    useEffect(() => {
+        return () => {
+            if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+            // Flush final progress on unmount
+            const finalPercent = percentRef.current;
+            if (finalPercent > lastSyncedPercent.current) {
+                updateVideoProgress(activity.id, finalPercent);
+            }
+        };
+    }, [activity.id]);
 
     const handleTimeUpdate = () => {
-        if (!videoRef.current || !videoRef.current.duration) return;
+        if (!videoRef.current || !videoRef.current.duration || !metadataLoadedRef.current) return;
         const current = videoRef.current.currentTime;
         const totalDuration = videoRef.current.duration;
 
-        // Only update deepest if we are actually progressing linearly
+        // Allow progress if current time is advancing past the furthest watched point
+        // The < 3 gap check prevents jump-skipping being counted as progress
         if (current > furthestWatchedRef.current && current - furthestWatchedRef.current < 3) {
             furthestWatchedRef.current = current;
 
             const newPercent = Math.min(100, Math.round((furthestWatchedRef.current / totalDuration) * 100));
-            if (newPercent !== percent) {
-                setPercent(newPercent);
-                updateVideoProgress(activity.id, newPercent);
+            if (newPercent > percentRef.current) {
+                percentRef.current = newPercent;
+                setDisplayPercent(newPercent);
+                scheduleSyncToBackend(activity.id, newPercent);
 
                 if (newPercent >= 80 && !isCompleted) {
                     markDone(activity.id);
@@ -46,10 +79,10 @@ export default function VideoActivity({ activity }: Props) {
     };
 
     const handleSeeking = () => {
-        if (!videoRef.current) return;
+        if (!videoRef.current || !metadataLoadedRef.current) return;
         if (videoRef.current.currentTime > furthestWatchedRef.current + 1) {
             videoRef.current.currentTime = furthestWatchedRef.current;
-            setWarning('Skipping forward is disabled for this module.');
+            setWarning('Fast forwarding is disabled for this lecture.');
             setTimeout(() => setWarning(''), 3000);
         }
     };
@@ -60,6 +93,15 @@ export default function VideoActivity({ activity }: Props) {
             videoRef.current.playbackRate = 1;
             setWarning('Playback speed must remain at 1x.');
             setTimeout(() => setWarning(''), 3000);
+        }
+    };
+
+    const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLVideoElement>) => {
+        const target = e.target as HTMLVideoElement;
+        if (target.duration > 0) {
+            const savedPercent = percentRef.current;
+            furthestWatchedRef.current = (savedPercent / 100) * target.duration;
+            metadataLoadedRef.current = true;
         }
     };
 
@@ -88,6 +130,7 @@ export default function VideoActivity({ activity }: Props) {
                     onTimeUpdate={handleTimeUpdate}
                     onSeeking={handleSeeking}
                     onRateChange={handleRateChange}
+                    onLoadedMetadata={handleLoadedMetadata}
                     className="w-full h-full object-contain"
                 >
                     Your browser does not support the video tag.
@@ -96,7 +139,7 @@ export default function VideoActivity({ activity }: Props) {
 
             <div className="mt-6 px-4">
                 <div className="flex justify-between text-sm font-bold text-navy mb-2">
-                    <span>{percent}% watched</span>
+                    <span>{displayPercent}% watched</span>
                     {isCompleted ? (
                         <span className="text-success">Requirement Met ✓</span>
                     ) : (
@@ -107,7 +150,7 @@ export default function VideoActivity({ activity }: Props) {
                 <div className="w-full h-2.5 bg-border rounded-full overflow-hidden">
                     <div
                         className="h-full bg-primary transition-all duration-300 ease-linear"
-                        style={{ width: `${percent}%` }}
+                        style={{ width: `${displayPercent}%` }}
                     />
                 </div>
 

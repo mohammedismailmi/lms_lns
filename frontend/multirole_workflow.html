@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en" style="height:auto;">
+<head>
+<meta charset="UTF-8">
+<title>Multi-Role Operational Workflow</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 18px;
+    background: #fff;
+    color: #1a1a2e;
+    padding: 32px 28px 36px 28px;
+    width: 1300px;
+  }
+  h1 {
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 28px;
+    text-align: center;
+    margin-bottom: 5px;
+    font-weight: bold;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 18px;
+    color: #555;
+    margin-bottom: 28px;
+    font-style: italic;
+  }
+
+  /* Three-column role layout */
+  .roles-container {
+    display: flex;
+    gap: 0;
+    width: 100%;
+    border: 2.5px solid #555;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .role-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border-right: 2.5px solid #555;
+  }
+  .role-column:last-child { border-right: none; }
+
+  .role-header {
+    width: 100%;
+    text-align: center;
+    padding: 14px 10px;
+    font-weight: bold;
+    font-size: 18px;
+    border-bottom: 2.5px solid #555;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .role-icon {
+    font-size: 28px;
+    margin-bottom: 2px;
+  }
+  .role-name {
+    font-size: 20px;
+    font-weight: bold;
+  }
+  .role-desc {
+    font-size: 18px;
+    font-weight: normal;
+    color: #555;
+    font-style: italic;
+  }
+
+  /* Admin colors */
+  .role-admin .role-header { background: #1a1a2e; color: #fff; }
+  .role-admin .role-desc { color: #bbb; }
+  .role-admin .wf-box { border-color: #1a1a2e; background: #f0f1f5; }
+  .role-admin .wf-box b { color: #1a1a2e; }
+
+  /* Instructor colors */
+  .role-instructor .role-header { background: #7d3c98; color: #fff; }
+  .role-instructor .role-desc { color: #d7bde2; }
+  .role-instructor .wf-box { border-color: #7d3c98; background: #f4ecf7; }
+  .role-instructor .wf-box b { color: #7d3c98; }
+
+  /* Learner colors */
+  .role-learner .role-header { background: #1e8449; color: #fff; }
+  .role-learner .role-desc { color: #a9dfbf; }
+  .role-learner .wf-box { border-color: #1e8449; background: #eafaf1; }
+  .role-learner .wf-box b { color: #1e8449; }
+
+  /* Workflow content area */
+  .role-body {
+    padding: 16px 12px 20px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    width: 100%;
+  }
+
+  .wf-box {
+    border: 2px solid #444;
+    border-radius: 6px;
+    padding: 10px 14px;
+    text-align: center;
+    font-size: 18px;
+    width: 90%;
+    background: #fff;
+  }
+  .wf-box b {
+    display: block;
+    font-size: 18px;
+    margin-bottom: 2px;
+  }
+  .wf-box .det {
+    color: #444;
+    font-size: 18px;
+  }
+
+  /* Arrow */
+  .arrow-down {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .arrow-line { width: 2.5px; height: 16px; background: #444; }
+  .arrow-head {
+    width: 0; height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-top: 9px solid #444;
+  }
+
+  /* Shared interaction row */
+  .shared-row {
+    width: 100%;
+    display: flex;
+    border-top: 2.5px solid #555;
+    margin-top: 0;
+  }
+  .shared-cell {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 8px;
+    border-right: 2.5px solid #555;
+    text-align: center;
+    font-size: 18px;
+  }
+  .shared-cell:last-child { border-right: none; }
+
+  /* Cross-role interaction markers */
+  .interaction-band {
+    width: 100%;
+    background: #fef9e7;
+    border-top: 2.5px solid #b7950b;
+    border-bottom: 2.5px solid #b7950b;
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 18px;
+  }
+  .interaction-label {
+    font-size: 18px;
+    font-weight: bold;
+    color: #7d6608;
+  }
+  .interaction-item {
+    border: 2px solid #b7950b;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 18px;
+    background: #fff;
+    text-align: center;
+  }
+  .interaction-item b { color: #7d6608; font-size: 18px; }
+
+  /* Step numbers */
+  .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    font-size: 13px;
+    font-weight: bold;
+    color: #fff;
+    margin-right: 4px;
+    flex-shrink: 0;
+    vertical-align: middle;
+  }
+  .role-admin .step-num { background: #1a1a2e; }
+  .role-instructor .step-num { background: #7d3c98; }
+  .role-learner .step-num { background: #1e8449; }
+
+  .caption {
+    font-size: 18px;
+    color: #666;
+    text-align: center;
+    margin-top: 20px;
+    border-top: 1px solid #ccc;
+    padding-top: 10px;
+  }
+
+  /* Shared data store section */
+  .data-section {
+    width: 100%;
+    margin-top: 20px;
+    border: 2.5px solid #2c3e50;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .data-header {
+    background: #2c3e50;
+    color: #fff;
+    text-align: center;
+    padding: 10px;
+    font-weight: bold;
+    font-size: 18px;
+  }
+  .data-body {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    padding: 16px 20px;
+    background: #eaf2f8;
+    flex-wrap: wrap;
+  }
+  .data-item {
+    border: 2px solid #2c3e50;
+    border-radius: 6px;
+    padding: 10px 18px;
+    background: #fff;
+    text-align: center;
+    font-size: 18px;
+  }
+  .data-item b { color: #2c3e50; display: block; font-size: 18px; margin-bottom: 2px; }
+  .data-item .det { font-size: 18px; color: #444; }
+</style>
+</head>
+<body>
+
+<h1>Multi-Role Operational Workflow Diagram</h1>
+<p class="subtitle">Role-Based Workflows and Cross-Role Interactions in the Academia LMS</p>
+
+<!-- Three Role Columns -->
+<div class="roles-container">
+
+  <!-- ADMIN Column -->
+  <div class="role-column role-admin">
+    <div class="role-header">
+      <div class="role-icon">🛡️</div>
+      <div class="role-name">Administrator</div>
+      <div class="role-desc">System &amp; Tenant Management</div>
+    </div>
+    <div class="role-body">
+      <div class="wf-box">
+        <b><span class="step-num">1</span> Tenant Configuration</b>
+        <div class="det">Create organization, set branding and domain preferences</div>
+      </div>
+      <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+      <div class="wf-box">
+        <b><span class="step-num">2</span> User Management</b>
+        <div class="det">Register users, assign roles (Admin / Instructor / Learner)</div>
+      </div>
+      <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+      <div class="wf-box">
+        <b><span class="step-num">3</span> Course Oversight</b>
+        <div class="det">Create course shells, assign instructors to courses</div>
+      </div>
+      <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+      <div class="wf-box">
+        <b><span class="step-num">4</span> Enrollment Control</b>
+        <div class="det">Enroll learners into courses, manage access permissions</div>
+      </div>
+      <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+      <div class="wf-box">
+        <b><span class="step-num">5</span> Analytics &amp; Reports</b>
+        <div class="det">View system-wide analytics, monitor completion rates</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INSTRUCTOR Column -->
+  <div class="role-column role-instructor">
+    <div class="role-header">
+      <div class="role-icon">👨‍🏫</div>
+      <div class="role-name">Instructor</div>
+      <div class="role-desc">Course Creation &amp; Assessment</div>
+    </div>
+    <div class="role-body">
+      <div class="wf-box">
+        <b><span class="step-num">1</span> Course Design</b>
+        <div class="det">Structure modules, define learning objectives and sequence</div>
+      </div>
+      <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+      <div class="wf-box">
+        <b><span class="step-num">2</span> Content Upload</b>
+        <div class="det">Upload video lectures, documents, and blog-style lessons</div>
+      </div>
+      <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+      <div class="wf-box">
+        <b><span class="step-num">3</span> Quiz &amp; Exam Creation</b>
+        <div class="det">Build question banks, set time limits, enable AI proctoring</div>
+      </div>
+      <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+      <div class="wf-box">
+        <b><span class="step-num">4</span> Grading &amp; Feedback</b>
+        <div class="det">Review submissions, grade assignments, provide feedback</div>
+      </div>
+      <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+      <div class="wf-box">
+        <b><span class="step-num">5</span> Proctoring Review</b>
+        <div class="det">Examine AI proctoring logs, review violation summaries</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEARNER Column -->
+  <div class="role-column role-learner">
+    <div class="role-header">
+      <div class="role-icon">🎓</div>
+      <div class="role-name">Learner</div>
+      <div class="role-desc">Course Consumption &amp; Assessment</div>
+    </div>
+    <div class="role-body">
+      <div class="wf-box">
+        <b><span class="step-num">1</span> Dashboard Access</b>
+        <div class="det">View enrolled courses, track overall progress and deadlines</div>
+      </div>
+      <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+      <div class="wf-box">
+        <b><span class="step-num">2</span> Video Lectures</b>
+        <div class="det">Watch tracked videos (anti-skip, 80% completion required)</div>
+      </div>
+      <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+      <div class="wf-box">
+        <b><span class="step-num">3</span> Exam Participation</b>
+        <div class="det">Pre-exam camera check, take AI-proctored quizzes and exams</div>
+      </div>
+      <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+      <div class="wf-box">
+        <b><span class="step-num">4</span> Assignment Submission</b>
+        <div class="det">Upload documents, view grades and instructor feedback</div>
+      </div>
+      <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+      <div class="wf-box">
+        <b><span class="step-num">5</span> Certificate Download</b>
+        <div class="det">Earn and download completion certificates upon finishing</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Cross-Role Interaction Band -->
+<div class="interaction-band">
+  <div class="interaction-label">Cross-Role<br>Interactions ⇄</div>
+  <div class="interaction-item">
+    <b>Admin → Instructor</b>
+    Course assignment,<br>role delegation
+  </div>
+  <div class="interaction-item">
+    <b>Instructor → Learner</b>
+    Content delivery, grading,<br>proctoring enforcement
+  </div>
+  <div class="interaction-item">
+    <b>Learner → Instructor</b>
+    Quiz attempts, submissions,<br>Q&amp;A participation
+  </div>
+  <div class="interaction-item">
+    <b>Admin → Learner</b>
+    Enrollment management,<br>progress monitoring
+  </div>
+</div>
+
+<!-- Shared Data Layer -->
+<div class="data-section">
+  <div class="data-header">Shared Data Layer (Cloudflare D1 + R2 + KV) &mdash; Tenant-Isolated</div>
+  <div class="data-body">
+    <div class="data-item">
+      <b>Users &amp; Roles</b>
+      <div class="det">Credentials, profiles,<br>role assignments</div>
+    </div>
+    <div class="data-item">
+      <b>Courses &amp; Modules</b>
+      <div class="det">Structure, sequences,<br>activity definitions</div>
+    </div>
+    <div class="data-item">
+      <b>Media Files (R2)</b>
+      <div class="det">Videos, documents,<br>submission uploads</div>
+    </div>
+    <div class="data-item">
+      <b>Quiz Attempts</b>
+      <div class="det">Answers, scores,<br>proctoring logs (JSON)</div>
+    </div>
+    <div class="data-item">
+      <b>Progress Records</b>
+      <div class="det">Video tracking,<br>completion status</div>
+    </div>
+    <div class="data-item">
+      <b>Certificates</b>
+      <div class="det">Completion records,<br>downloadable PDFs</div>
+    </div>
+  </div>
+</div>
+
+<p class="caption">
+  Figure 4: Multi-role operational workflow diagram. Each role follows a distinct operational pipeline within the
+  tenant-isolated environment. Cross-role interactions are mediated through the shared data layer, ensuring
+  that Administrators manage infrastructure, Instructors manage content and assessment, and Learners
+  consume content and earn credentials.
+</p>
+
+</body>
+</html>

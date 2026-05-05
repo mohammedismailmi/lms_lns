@@ -16,6 +16,9 @@ type Bindings = {
 	JWT_SECRET: string;
 	GROQ_API_KEY?: string;
 	R2: R2Bucket;
+	LMS_CACHE: KVNamespace;
+	CLOUDFLARE_ACCOUNT_ID: string;
+	CLOUDFLARE_STREAM_TOKEN?: string;
 };
 
 type Variables = {
@@ -96,10 +99,21 @@ app.get('/', (c) => c.text('LMS Auth API'));
 
 app.get('/api/tenants', async (c) => {
 	try {
+		// KV Cache: check for cached tenants first
+		const cacheKey = 'tenants:list';
+		const cached = await c.env.LMS_CACHE.get(cacheKey, 'json');
+		if (cached) {
+			return c.json({ success: true, tenants: cached, source: 'kv_cache' });
+		}
+
 		const db = getDb(c.env);
 		const allTenants = await db.select({
 			id: tenants.id, name: tenants.name, slug: tenants.slug, logoUrl: tenants.logo_url,
 		}).from(tenants).where(ne(tenants.id, 'system')).orderBy(tenants.name);
+
+		// Store in KV with 5 minute TTL
+		await c.env.LMS_CACHE.put(cacheKey, JSON.stringify(allTenants), { expirationTtl: 300 });
+
 		return c.json({ success: true, tenants: allTenants });
 	} catch (e: any) {
 		return c.json({ success: false, message: e.message }, 500);
@@ -291,7 +305,8 @@ app.post('/api/progress', async (c) => {
 	const existing = await c.env.DB.prepare('SELECT id FROM progress WHERE user_id = ? AND course_id = ? AND lesson_id = ?').bind(payload.userId, body.course_id, body.lesson_id).first();
 
 	if (existing) {
-		await c.env.DB.prepare('UPDATE progress SET percent_complete = ?, updated_at = ? WHERE id = ?').bind(percent, Math.floor(Date.now() / 1000), existing.id).run();
+		// Only update if new percent is higher (prevents race conditions from overwriting with stale values)
+		await c.env.DB.prepare('UPDATE progress SET percent_complete = MAX(percent_complete, ?), updated_at = ? WHERE id = ?').bind(percent, Math.floor(Date.now() / 1000), existing.id).run();
 	} else {
 		await c.env.DB.prepare('INSERT INTO progress (id, user_id, course_id, lesson_id, percent_complete, tenant_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
 			.bind(crypto.randomUUID(), payload.userId, body.course_id, body.lesson_id, percent, payload.tenant_id || body.tenant_id, Math.floor(Date.now() / 1000), Math.floor(Date.now() / 1000)).run();
@@ -727,6 +742,67 @@ app.put('/api/courses/:courseId', jwtMiddleware, requireRole('instructor', 'admi
 	}
 });
 
+// ── DELETE /api/courses/:courseId ──────────────────────────────────────
+app.delete('/api/courses/:courseId', jwtMiddleware, requireRole('admin', 'super_admin'), async (c) => {
+	const { courseId } = c.req.param();
+	const user = c.get('user');
+	const db = getDb(c.env);
+
+	try {
+		// Verify the course exists and belongs to this tenant
+		const course = await db.select().from(courses)
+			.where(and(eq(courses.id, courseId), eq(courses.tenant_id, user.tenant_id)))
+			.get();
+
+		if (!course) {
+			return c.json({ success: false, error: 'Course not found' }, 404);
+		}
+
+		// Get all activity IDs for this course (needed for cascading deletes)
+		const courseActivities = await db.select({ id: activities.id })
+			.from(activities)
+			.where(eq(activities.course_id, courseId))
+			.all();
+		const activityIds = courseActivities.map(a => a.id);
+
+		// Cascade delete in dependency order:
+		if (activityIds.length > 0) {
+			// 1. Delete questions & answer options for quiz/exam activities
+			await db.delete(questions).where(inArray(questions.activity_id, activityIds)).run();
+
+			// 2. Delete quiz attempts
+			await db.delete(quizAttempts).where(inArray(quizAttempts.activity_id, activityIds)).run();
+
+			// 3. Delete progress records
+			await db.delete(progress).where(inArray(progress.lesson_id, activityIds)).run();
+
+			// 4. Delete submissions
+			await db.delete(submissions).where(inArray(submissions.activity_id, activityIds)).run();
+		}
+
+		// 5. Delete all activities
+		await db.delete(activities).where(eq(activities.course_id, courseId)).run();
+
+		// 6. Delete all modules
+		await db.delete(modules).where(eq(modules.course_id, courseId)).run();
+
+		// 7. Delete enrollments
+		await db.delete(enrollments).where(eq(enrollments.course_id, courseId)).run();
+
+		// 8. Delete live sessions
+		await db.delete(liveSessions).where(eq(liveSessions.course_id, courseId)).run();
+
+		// 9. Finally delete the course itself
+		await db.delete(courses)
+			.where(and(eq(courses.id, courseId), eq(courses.tenant_id, user.tenant_id)))
+			.run();
+
+		return c.json({ success: true });
+	} catch (err: any) {
+		console.error('DELETE /api/courses/:courseId error:', err);
+		return c.json({ success: false, error: String(err) }, 500);
+	}
+});
 
 app.post('/api/courses/:courseId/modules', jwtMiddleware, requireRole('instructor', 'admin'), async (c) => {
 	const { courseId } = c.req.param();
@@ -1532,6 +1608,7 @@ app.post('/api/quizzes/:quizId/submit', jwtMiddleware, requireRole('learner'), a
 			max_score: maxScore,
 			answers_json: JSON.stringify(body.answers || {}),
 			is_published: 0,
+			proctoring_logs_json: body.proctoringLogs ? JSON.stringify(body.proctoringLogs) : null,
 			created_at: now,
 			updated_at: now,
 	});
@@ -1554,6 +1631,7 @@ app.get('/api/quizzes/:quizId/attempts', jwtMiddleware, requireRole('instructor'
 					instructorNote: quizAttempts.instructor_note,
 					isPublished: quizAttempts.is_published,
 					submittedAt: quizAttempts.created_at,
+					proctoringLogsJson: quizAttempts.proctoring_logs_json,
 			}).from(quizAttempts)
 			.innerJoin(users, eq(quizAttempts.user_id, users.id))
 			.where(and(eq(quizAttempts.activity_id, quizId), eq(quizAttempts.tenant_id, user.tenant_id)));
@@ -2361,6 +2439,304 @@ app.post('/api/questions/:questionId/answers', jwtMiddleware, async (c) => {
 		return c.json({ success: true, id });
 	} catch (err: any) {
 		return c.json({ success: false, error: err.message }, 500);
+	}
+});
+
+// =============================
+// CLOUDFLARE STREAM — VIDEO MANAGEMENT
+// =============================
+
+// Upload video to Cloudflare Stream (via TUS or direct upload URL)
+app.post('/api/stream/upload', jwtMiddleware, requireRole('instructor', 'admin', 'super_admin'), async (c) => {
+	const user = c.get('user');
+	const accountId = c.env.CLOUDFLARE_ACCOUNT_ID;
+	const streamToken = c.env.CLOUDFLARE_STREAM_TOKEN;
+
+	if (!streamToken) {
+		return c.json({ success: false, message: 'Stream API token not configured. Set CLOUDFLARE_STREAM_TOKEN as a secret.' }, 500);
+	}
+
+	try {
+		const formData = await c.req.formData();
+		const file = formData.get('file') as File;
+		const title = (formData.get('title') as string) || file?.name || 'Untitled Video';
+
+		if (!file) return c.json({ success: false, message: 'No file provided' }, 400);
+		if (file.size > 200 * 1024 * 1024) return c.json({ success: false, message: 'Max video size is 200MB' }, 413);
+
+		// Use Cloudflare Stream direct creator upload API
+		const streamForm = new FormData();
+		streamForm.append('file', file);
+		streamForm.append('meta', JSON.stringify({
+			name: title,
+			tenant_id: user.tenant_id,
+			uploaded_by: user.userId,
+		}));
+
+		const response = await fetch(
+			`https://api.cloudflare.com/client/v4/accounts/${accountId}/stream`,
+			{
+				method: 'POST',
+				headers: { 'Authorization': `Bearer ${streamToken}` },
+				body: streamForm,
+			}
+		);
+
+		const result = await response.json() as any;
+
+		if (!result.success) {
+			return c.json({ success: false, message: 'Stream upload failed', errors: result.errors }, 500);
+		}
+
+		const video = result.result;
+
+		// Cache the video metadata in KV for quick lookups
+		await c.env.LMS_CACHE.put(
+			`stream:video:${video.uid}`,
+			JSON.stringify({
+				uid: video.uid,
+				title: title,
+				thumbnail: video.thumbnail,
+				playback: video.playback,
+				duration: video.duration,
+				status: video.status,
+				tenant_id: user.tenant_id,
+				uploaded_by: user.userId,
+				uploaded_at: new Date().toISOString(),
+			}),
+			{ expirationTtl: 86400 } // 24hr cache
+		);
+
+		return c.json({
+			success: true,
+			video: {
+				uid: video.uid,
+				playbackUrl: `https://customer-${accountId}.cloudflarestream.com/${video.uid}/manifest/video.m3u8`,
+				iframeUrl: `https://customer-${accountId}.cloudflarestream.com/${video.uid}/iframe`,
+				dashUrl: video.playback?.dash,
+				hlsUrl: video.playback?.hls,
+				thumbnail: video.thumbnail,
+				duration: video.duration,
+				status: video.status,
+			}
+		});
+	} catch (err: any) {
+		return c.json({ success: false, message: err.message }, 500);
+	}
+});
+
+// Get a direct-upload URL for large videos (TUS resumable upload from frontend)
+app.post('/api/stream/direct-upload', jwtMiddleware, requireRole('instructor', 'admin', 'super_admin'), async (c) => {
+	const user = c.get('user');
+	const accountId = c.env.CLOUDFLARE_ACCOUNT_ID;
+	const streamToken = c.env.CLOUDFLARE_STREAM_TOKEN;
+
+	if (!streamToken) {
+		return c.json({ success: false, message: 'Stream API token not configured' }, 500);
+	}
+
+	try {
+		const body = await c.req.json();
+		const maxDuration = body.maxDurationSeconds || 3600;
+
+		const response = await fetch(
+			`https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/direct_upload`,
+			{
+				method: 'POST',
+				headers: {
+					'Authorization': `Bearer ${streamToken}`,
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({
+					maxDurationSeconds: maxDuration,
+					meta: {
+						tenant_id: user.tenant_id,
+						uploaded_by: user.userId,
+						name: body.title || 'Untitled',
+					},
+				}),
+			}
+		);
+
+		const result = await response.json() as any;
+
+		if (!result.success) {
+			return c.json({ success: false, message: 'Failed to create upload URL', errors: result.errors }, 500);
+		}
+
+		return c.json({
+			success: true,
+			uploadURL: result.result.uploadURL,
+			uid: result.result.uid,
+		});
+	} catch (err: any) {
+		return c.json({ success: false, message: err.message }, 500);
+	}
+});
+
+// List all Stream videos for the tenant
+app.get('/api/stream/videos', jwtMiddleware, requireRole('instructor', 'admin', 'super_admin'), async (c) => {
+	const user = c.get('user');
+	const accountId = c.env.CLOUDFLARE_ACCOUNT_ID;
+	const streamToken = c.env.CLOUDFLARE_STREAM_TOKEN;
+
+	if (!streamToken) {
+		return c.json({ success: false, message: 'Stream API token not configured' }, 500);
+	}
+
+	try {
+		// Check KV cache first
+		const cacheKey = `stream:list:${user.tenant_id}`;
+		const cached = await c.env.LMS_CACHE.get(cacheKey, 'json');
+		if (cached) {
+			return c.json({ success: true, videos: cached, source: 'kv_cache' });
+		}
+
+		const response = await fetch(
+			`https://api.cloudflare.com/client/v4/accounts/${accountId}/stream?search=${encodeURIComponent(user.tenant_id)}`,
+			{
+				headers: { 'Authorization': `Bearer ${streamToken}` },
+			}
+		);
+
+		const result = await response.json() as any;
+
+		if (!result.success) {
+			return c.json({ success: false, message: 'Failed to list videos' }, 500);
+		}
+
+		const videos = (result.result || []).map((v: any) => ({
+			uid: v.uid,
+			title: v.meta?.name || 'Untitled',
+			thumbnail: v.thumbnail,
+			duration: v.duration,
+			hlsUrl: v.playback?.hls,
+			dashUrl: v.playback?.dash,
+			status: v.status,
+			created: v.created,
+			size: v.size,
+		}));
+
+		// Cache for 2 minutes
+		await c.env.LMS_CACHE.put(cacheKey, JSON.stringify(videos), { expirationTtl: 120 });
+
+		return c.json({ success: true, videos });
+	} catch (err: any) {
+		return c.json({ success: false, message: err.message }, 500);
+	}
+});
+
+// Delete a Stream video
+app.delete('/api/stream/videos/:videoId', jwtMiddleware, requireRole('instructor', 'admin', 'super_admin'), async (c) => {
+	const user = c.get('user');
+	const videoId = c.req.param('videoId');
+	const accountId = c.env.CLOUDFLARE_ACCOUNT_ID;
+	const streamToken = c.env.CLOUDFLARE_STREAM_TOKEN;
+
+	if (!streamToken) {
+		return c.json({ success: false, message: 'Stream API token not configured' }, 500);
+	}
+
+	try {
+		const response = await fetch(
+			`https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${videoId}`,
+			{
+				method: 'DELETE',
+				headers: { 'Authorization': `Bearer ${streamToken}` },
+			}
+		);
+
+		// Invalidate KV caches
+		await c.env.LMS_CACHE.delete(`stream:video:${videoId}`);
+		await c.env.LMS_CACHE.delete(`stream:list:${user.tenant_id}`);
+
+		return c.json({ success: true, message: 'Video deleted' });
+	} catch (err: any) {
+		return c.json({ success: false, message: err.message }, 500);
+	}
+});
+
+// Get Stream video details (with KV cache)
+app.get('/api/stream/videos/:videoId', jwtMiddleware, async (c) => {
+	const videoId = c.req.param('videoId');
+	const accountId = c.env.CLOUDFLARE_ACCOUNT_ID;
+	const streamToken = c.env.CLOUDFLARE_STREAM_TOKEN;
+
+	if (!streamToken) {
+		return c.json({ success: false, message: 'Stream API token not configured' }, 500);
+	}
+
+	try {
+		// Check KV first
+		const cached = await c.env.LMS_CACHE.get(`stream:video:${videoId}`, 'json');
+		if (cached) {
+			return c.json({ success: true, video: cached, source: 'kv_cache' });
+		}
+
+		const response = await fetch(
+			`https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${videoId}`,
+			{
+				headers: { 'Authorization': `Bearer ${streamToken}` },
+			}
+		);
+
+		const result = await response.json() as any;
+
+		if (!result.success) {
+			return c.json({ success: false, message: 'Video not found' }, 404);
+		}
+
+		const v = result.result;
+		const video = {
+			uid: v.uid,
+			title: v.meta?.name || 'Untitled',
+			thumbnail: v.thumbnail,
+			duration: v.duration,
+			hlsUrl: v.playback?.hls,
+			dashUrl: v.playback?.dash,
+			status: v.status,
+			created: v.created,
+			size: v.size,
+		};
+
+		// Cache for 24hrs
+		await c.env.LMS_CACHE.put(`stream:video:${videoId}`, JSON.stringify(video), { expirationTtl: 86400 });
+
+		return c.json({ success: true, video });
+	} catch (err: any) {
+		return c.json({ success: false, message: err.message }, 500);
+	}
+});
+
+// =============================
+// KV CACHE MANAGEMENT
+// =============================
+
+// Flush specific KV cache key (admin utility)
+app.delete('/api/cache/:key', jwtMiddleware, requireRole('admin', 'super_admin'), async (c) => {
+	const key = decodeURIComponent(c.req.param('key'));
+	try {
+		await c.env.LMS_CACHE.delete(key);
+		return c.json({ success: true, message: `Cache key "${key}" deleted` });
+	} catch (err: any) {
+		return c.json({ success: false, message: err.message }, 500);
+	}
+});
+
+// Get KV cache stats
+app.get('/api/cache/health', jwtMiddleware, requireRole('admin', 'super_admin'), async (c) => {
+	try {
+		// List a sample of keys to verify KV is working
+		const list = await c.env.LMS_CACHE.list({ limit: 20 });
+		return c.json({
+			success: true,
+			cacheStatus: 'operational',
+			keysFound: list.keys.length,
+			keys: list.keys.map(k => ({ name: k.name, expiration: k.expiration })),
+			listComplete: list.list_complete,
+		});
+	} catch (err: any) {
+		return c.json({ success: false, message: err.message }, 500);
 	}
 });
 

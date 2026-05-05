@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en" style="height:auto;">
+<head>
+<meta charset="UTF-8">
+<title>Multi-Tenant Request Flow</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 18px;
+    background: #fff;
+    color: #1a1a2e;
+    padding: 36px 30px 40px 30px;
+    width: 1200px;
+  }
+  h1 {
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 28px;
+    text-align: center;
+    margin-bottom: 6px;
+    font-weight: bold;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 18px;
+    color: #555;
+    margin-bottom: 30px;
+    font-style: italic;
+  }
+
+  .flow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  /* Shapes */
+  .terminal {
+    border: 2.5px solid #1a1a2e;
+    border-radius: 40px;
+    padding: 13px 44px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 18px;
+    background: #e8e8e8;
+    min-width: 240px;
+  }
+  .process {
+    border: 2.5px solid #1a1a2e;
+    border-radius: 4px;
+    padding: 14px 24px;
+    text-align: center;
+    font-size: 18px;
+    background: #fff;
+    min-width: 380px;
+    max-width: 520px;
+  }
+  .process b { font-size: 18px; }
+  .process .desc { color: #444; font-size: 18px; margin-top: 2px; }
+
+  .diamond-box {
+    width: 310px;
+    height: 115px;
+    background: #fff;
+    border: 2.5px solid #1a1a2e;
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+  }
+
+  /* Arrows */
+  .arrow-down {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .arrow-line { width: 2.5px; height: 20px; background: #1a1a2e; }
+  .arrow-line-long { width: 2.5px; height: 28px; background: #1a1a2e; }
+  .arrow-head {
+    width: 0; height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 10px solid #1a1a2e;
+  }
+  .arrow-label {
+    font-size: 18px;
+    color: #555;
+    font-style: italic;
+    margin: 0 0 0 0;
+  }
+
+  /* Horizontal swim lane layout */
+  .swim-lanes {
+    display: flex;
+    width: 100%;
+    gap: 0;
+    border: 2px solid #888;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-top: 0;
+  }
+  .swim-lane {
+    flex: 1;
+    border-right: 2px dashed #aaa;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 8px;
+  }
+  .swim-lane:last-child { border-right: none; }
+  .lane-header {
+    font-weight: bold;
+    font-size: 18px;
+    text-align: center;
+    padding: 12px 8px;
+    width: 100%;
+    border-bottom: 2px solid #888;
+    margin-bottom: 16px;
+  }
+  .lane-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    padding: 0 6px 20px 6px;
+    width: 100%;
+  }
+
+  /* Lane-specific colors */
+  .lane-browser .lane-header { background: #eaf2f8; color: #2c3e50; }
+  .lane-api .lane-header { background: #f4ecf7; color: #7d3c98; }
+  .lane-db .lane-header { background: #eafaf1; color: #1e8449; }
+
+  .lane-box {
+    border: 2px solid #444;
+    border-radius: 5px;
+    padding: 12px 14px;
+    text-align: center;
+    font-size: 18px;
+    width: 92%;
+    background: #fff;
+  }
+  .lane-box b { font-size: 18px; display: block; margin-bottom: 2px; }
+  .lane-box .detail { color: #444; font-size: 18px; }
+
+  .lane-diamond {
+    width: 220px;
+    height: 90px;
+    background: #fff;
+    border: 2px solid #444;
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+  }
+
+  /* Highlight boxes */
+  .highlight-blue { border-color: #2c3e50; background: #eaf2f8; }
+  .highlight-purple { border-color: #7d3c98; background: #f4ecf7; }
+  .highlight-green { border-color: #1e8449; background: #eafaf1; }
+  .highlight-red { border-color: #c0392b; background: #fdedec; }
+  .highlight-gold { border-color: #b7950b; background: #fef9e7; }
+
+  /* Cross-lane arrow (horizontal) */
+  .h-arrow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin: 12px 0;
+    width: 100%;
+    justify-content: center;
+  }
+  .h-arrow-line { height: 2.5px; flex: 1; background: #1a1a2e; }
+  .h-arrow-head-right {
+    width: 0; height: 0;
+    border-top: 8px solid transparent;
+    border-bottom: 8px solid transparent;
+    border-left: 10px solid #1a1a2e;
+  }
+  .h-arrow-head-left {
+    width: 0; height: 0;
+    border-top: 8px solid transparent;
+    border-bottom: 8px solid transparent;
+    border-right: 10px solid #1a1a2e;
+  }
+
+  /* Numbered steps */
+  .step-row {
+    display: flex;
+    width: 100%;
+    align-items: stretch;
+    min-height: 72px;
+  }
+  .step-cell {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 6px;
+    position: relative;
+  }
+  .step-cell .lane-box { width: 88%; }
+
+  .step-num {
+    position: absolute;
+    top: 6px;
+    left: 12px;
+    background: #1a1a2e;
+    color: #fff;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+    z-index: 5;
+  }
+
+  /* Flow arrow between rows */
+  .row-connector {
+    display: flex;
+    width: 100%;
+    min-height: 28px;
+  }
+  .row-conn-cell {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .row-conn-cell .arrow-down {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* Horizontal flow arrow spanning columns */
+  .cross-arrow {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 30px;
+  }
+  .cross-line {
+    height: 2.5px;
+    background: #1a1a2e;
+    flex: 1;
+  }
+  .cross-label {
+    font-size: 18px;
+    font-style: italic;
+    color: #555;
+    padding: 0 8px;
+    white-space: nowrap;
+  }
+
+  .caption {
+    font-size: 18px;
+    color: #666;
+    text-align: center;
+    margin-top: 20px;
+    border-top: 1px solid #ccc;
+    padding-top: 10px;
+  }
+
+  /* Tenant isolation callout */
+  .callout {
+    border: 2px solid #c0392b;
+    border-radius: 6px;
+    background: #fdedec;
+    padding: 10px 16px;
+    font-size: 18px;
+    text-align: center;
+    width: 88%;
+  }
+  .callout b { color: #c0392b; }
+</style>
+</head>
+<body>
+
+<h1>Multi-Tenant Request Flow Diagram</h1>
+<p class="subtitle">End-to-End Request Lifecycle with Tenant Isolation in the Academia LMS</p>
+
+<!-- Swim Lane Diagram -->
+<div class="swim-lanes">
+
+  <!-- Headers -->
+  <div class="swim-lane lane-browser" style="flex:1.1;">
+    <div class="lane-header">Client (Browser)</div>
+    <div class="lane-content" id="col1"></div>
+  </div>
+  <div class="swim-lane lane-api" style="flex:1.3;">
+    <div class="lane-header">Backend API (Cloudflare Workers)</div>
+    <div class="lane-content" id="col2"></div>
+  </div>
+  <div class="swim-lane lane-db" style="flex:1.1;">
+    <div class="lane-header">Data Layer (D1 / R2 / KV)</div>
+    <div class="lane-content" id="col3"></div>
+  </div>
+
+</div>
+
+<!-- Replace swim lane content with a table-like approach -->
+<style>
+  .swim-lanes { display: none; } /* hide the broken swim lane */
+  .flow-table {
+    width: 100%;
+    border: 2px solid #888;
+    border-radius: 8px;
+    overflow: hidden;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  .flow-table th {
+    font-size: 18px;
+    font-weight: bold;
+    padding: 13px 10px;
+    border-bottom: 2px solid #888;
+    text-align: center;
+  }
+  .flow-table td {
+    padding: 8px 10px;
+    vertical-align: middle;
+    text-align: center;
+    font-size: 18px;
+    border-bottom: 1px dashed #ccc;
+    min-height: 60px;
+  }
+  .flow-table tr:last-child td { border-bottom: none; }
+  .th-browser { background: #eaf2f8; color: #2c3e50; border-right: 2px dashed #aaa; }
+  .th-api { background: #f4ecf7; color: #7d3c98; border-right: 2px dashed #aaa; }
+  .th-db { background: #eafaf1; color: #1e8449; }
+  .td-browser { border-right: 2px dashed #ddd; width: 30%; }
+  .td-api { border-right: 2px dashed #ddd; width: 40%; }
+  .td-db { width: 30%; }
+
+  .step-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #1a1a2e;
+    color: #fff;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    font-size: 15px;
+    font-weight: bold;
+    margin-right: 8px;
+    flex-shrink: 0;
+    vertical-align: middle;
+  }
+  .cell-box {
+    border: 2px solid #444;
+    border-radius: 5px;
+    padding: 10px 14px;
+    display: inline-block;
+    font-size: 18px;
+    background: #fff;
+    text-align: center;
+    max-width: 340px;
+  }
+  .cell-box b { display: block; margin-bottom: 2px; font-size: 18px; }
+  .cell-box .det { color: #444; font-size: 18px; }
+  .cell-highlight-blue { border-color: #2c3e50; background: #eaf2f8; }
+  .cell-highlight-purple { border-color: #7d3c98; background: #f4ecf7; }
+  .cell-highlight-green { border-color: #1e8449; background: #eafaf1; }
+  .cell-highlight-red { border-color: #c0392b; background: #fdedec; }
+  .cell-highlight-gold { border-color: #b7950b; background: #fef9e7; }
+
+  .flow-arrow {
+    font-size: 22px;
+    color: #1a1a2e;
+    font-weight: bold;
+    letter-spacing: 2px;
+  }
+  .step-label {
+    font-size: 18px;
+    color: #888;
+    font-style: italic;
+    padding: 4px 0;
+  }
+  .tenant-flag {
+    display: inline-block;
+    background: #c0392b;
+    color: #fff;
+    font-size: 14px;
+    font-weight: bold;
+    padding: 2px 10px;
+    border-radius: 4px;
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+  }
+</style>
+
+<table class="flow-table">
+  <thead>
+    <tr>
+      <th class="th-browser">Client (Browser)</th>
+      <th class="th-api">Backend API (Cloudflare Workers)</th>
+      <th class="th-db">Data Layer (D1 / R2 / KV)</th>
+    </tr>
+  </thead>
+  <tbody>
+
+    <!-- Step 1 -->
+    <tr>
+      <td class="td-browser">
+        <div class="cell-box cell-highlight-blue">
+          <b><span class="step-badge">1</span> Tenant Selection</b>
+          <div class="det">User selects organization<br>from the tenant list</div>
+        </div>
+      </td>
+      <td class="td-api"></td>
+      <td class="td-db"></td>
+    </tr>
+
+    <!-- Step 2 -->
+    <tr>
+      <td class="td-browser">
+        <div class="cell-box cell-highlight-blue">
+          <b><span class="step-badge">2</span> Login Request</b>
+          <div class="det">POST /api/auth/login<br>{email, password, tenant_id}</div>
+        </div>
+      </td>
+      <td class="td-api">
+        <span class="flow-arrow">&rarr;&rarr;&rarr;</span>
+      </td>
+      <td class="td-db"></td>
+    </tr>
+
+    <!-- Step 3 -->
+    <tr>
+      <td class="td-browser"></td>
+      <td class="td-api">
+        <div class="cell-box cell-highlight-purple">
+          <b><span class="step-badge">3</span> Credential Validation</b>
+          <div class="det">Verify email + password hash<br>Confirm user belongs to tenant</div>
+          <div class="tenant-flag">TENANT ISOLATION CHECK</div>
+        </div>
+      </td>
+      <td class="td-db">
+        <span class="flow-arrow">&larr;&rarr;</span>
+        <div class="cell-box cell-highlight-green" style="margin-top:6px;">
+          <div class="det">SELECT * FROM users<br>WHERE email = ?<br>AND tenant_id = ?</div>
+        </div>
+      </td>
+    </tr>
+
+    <!-- Step 4 -->
+    <tr>
+      <td class="td-browser"></td>
+      <td class="td-api">
+        <div class="cell-box cell-highlight-purple">
+          <b><span class="step-badge">4</span> JWT Token Generation</b>
+          <div class="det">Sign JWT payload containing:<br><b>{ userId, role, tenant_id }</b></div>
+          <div class="tenant-flag">TENANT ID EMBEDDED IN TOKEN</div>
+        </div>
+      </td>
+      <td class="td-db"></td>
+    </tr>
+
+    <!-- Step 5 -->
+    <tr>
+      <td class="td-browser">
+        <div class="cell-box cell-highlight-blue">
+          <b><span class="step-badge">5</span> Token Stored</b>
+          <div class="det">JWT saved in Auth Store<br>(Zustand + localStorage)</div>
+        </div>
+      </td>
+      <td class="td-api">
+        <span class="flow-arrow">&larr;&larr;&larr;</span>
+      </td>
+      <td class="td-db"></td>
+    </tr>
+
+    <!-- Separator -->
+    <tr>
+      <td colspan="3" style="padding:6px 0; border-bottom: 2.5px solid #888;">
+        <div style="text-align:center; font-weight:bold; font-size:18px; color:#7d3c98; letter-spacing:1px;">
+          AUTHENTICATED SESSION &mdash; ALL SUBSEQUENT REQUESTS
+        </div>
+      </td>
+    </tr>
+
+    <!-- Step 6 -->
+    <tr>
+      <td class="td-browser">
+        <div class="cell-box cell-highlight-blue">
+          <b><span class="step-badge">6</span> API Request</b>
+          <div class="det">Any request (e.g., GET /api/courses)<br>Header: Authorization: Bearer &lt;JWT&gt;</div>
+        </div>
+      </td>
+      <td class="td-api">
+        <span class="flow-arrow">&rarr;&rarr;&rarr;</span>
+      </td>
+      <td class="td-db"></td>
+    </tr>
+
+    <!-- Step 7 -->
+    <tr>
+      <td class="td-browser"></td>
+      <td class="td-api">
+        <div class="cell-box cell-highlight-red">
+          <b><span class="step-badge">7</span> JWT Middleware</b>
+          <div class="det">Verify token signature<br>Extract: userId, role, <b>tenant_id</b></div>
+          <div class="tenant-flag">TENANT CONTEXT ESTABLISHED</div>
+        </div>
+      </td>
+      <td class="td-db"></td>
+    </tr>
+
+    <!-- Step 8 -->
+    <tr>
+      <td class="td-browser"></td>
+      <td class="td-api">
+        <div class="cell-box cell-highlight-purple">
+          <b><span class="step-badge">8</span> Role Authorization</b>
+          <div class="det">Check if user role (admin /<br>instructor / learner) has<br>access to the endpoint</div>
+        </div>
+      </td>
+      <td class="td-db"></td>
+    </tr>
+
+    <!-- Step 9 -->
+    <tr>
+      <td class="td-browser"></td>
+      <td class="td-api">
+        <div class="cell-box cell-highlight-purple">
+          <b><span class="step-badge">9</span> Tenant-Scoped Query</b>
+          <div class="det">All database operations<br>filtered by tenant_id from JWT</div>
+          <div class="tenant-flag">DATA ISOLATION ENFORCED</div>
+        </div>
+      </td>
+      <td class="td-db">
+        <span class="flow-arrow">&rarr;&rarr;</span>
+        <div class="cell-box cell-highlight-green" style="margin-top:6px;">
+          <div class="det">SELECT * FROM courses<br>WHERE tenant_id = ?<br><i>(from JWT payload)</i></div>
+        </div>
+      </td>
+    </tr>
+
+    <!-- Step 10 -->
+    <tr>
+      <td class="td-browser">
+        <div class="cell-box cell-highlight-gold">
+          <b><span class="step-badge">10</span> Render Response</b>
+          <div class="det">Display tenant-specific<br>data in the UI</div>
+        </div>
+      </td>
+      <td class="td-api">
+        <span class="flow-arrow">&larr;&larr;&larr;</span>
+        <div class="step-label">JSON Response (tenant-scoped data only)</div>
+      </td>
+      <td class="td-db"></td>
+    </tr>
+
+  </tbody>
+</table>
+
+<p class="caption">
+  Figure 3: Multi-tenant request flow diagram. Tenant isolation is enforced at three critical points:
+  (1) during credential validation at login, (2) by embedding the tenant_id inside the signed JWT token,
+  and (3) by scoping every database query with the tenant_id extracted from the JWT middleware.
+  No cross-tenant data leakage is possible as the tenant context is cryptographically bound to the session token.
+</p>
+
+</body>
+</html>

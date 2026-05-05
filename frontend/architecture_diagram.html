@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LMS Architecture</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 18px;
+    background: #fff;
+    color: #1a1a2e;
+    padding: 40px 50px;
+    width: 1400px;
+  }
+  h1 {
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 28px;
+    text-align: center;
+    margin-bottom: 8px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 18px;
+    color: #555;
+    margin-bottom: 36px;
+    font-style: italic;
+  }
+  .diagram {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    align-items: center;
+  }
+  .layer {
+    width: 100%;
+    border: 2px solid #333;
+    border-radius: 12px;
+    padding: 20px 28px;
+    position: relative;
+    background: #fff;
+  }
+  .layer-label {
+    position: absolute;
+    top: -14px;
+    left: 24px;
+    background: #fff;
+    padding: 0 10px;
+    font-weight: bold;
+    font-size: 18px;
+    color: #1a1a2e;
+    letter-spacing: 0.3px;
+  }
+  .layer-content {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .box {
+    border: 2px solid #444;
+    border-radius: 8px;
+    padding: 14px 20px;
+    text-align: center;
+    min-width: 170px;
+    background: #f8f9fa;
+    font-size: 18px;
+    font-family: 'Times New Roman', Times, serif;
+  }
+  .box-title {
+    font-weight: bold;
+    font-size: 18px;
+    margin-bottom: 4px;
+    font-family: 'Times New Roman', Times, serif;
+  }
+  .box-desc {
+    font-size: 18px;
+    color: #555;
+    font-family: 'Times New Roman', Times, serif;
+  }
+  .arrow-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  .arrow-line {
+    width: 2px;
+    height: 18px;
+    background: #333;
+  }
+  .arrow-head {
+    width: 0; height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 10px solid #333;
+  }
+  .arrow-label {
+    font-size: 18px;
+    color: #444;
+    font-style: italic;
+    font-family: 'Times New Roman', Times, serif;
+  }
+  .double-arrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .double-arrow .arrow-up {
+    width: 0; height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 10px solid #333;
+  }
+
+  /* Color coding */
+  .layer-client { border-color: #2c3e50; }
+  .layer-client .layer-label { color: #2c3e50; }
+  .layer-client .box { border-color: #2c3e50; background: #eaf2f8; }
+
+  .layer-frontend { border-color: #1a5276; }
+  .layer-frontend .layer-label { color: #1a5276; }
+  .layer-frontend .box { border-color: #1a5276; background: #d6eaf8; }
+
+  .layer-backend { border-color: #7d3c98; }
+  .layer-backend .layer-label { color: #7d3c98; }
+  .layer-backend .box { border-color: #7d3c98; background: #f4ecf7; }
+
+  .layer-data { border-color: #1e8449; }
+  .layer-data .layer-label { color: #1e8449; }
+  .layer-data .box { border-color: #1e8449; background: #eafaf1; }
+
+  .layer-ai { border-color: #c0392b; }
+  .layer-ai .layer-label { color: #c0392b; }
+  .layer-ai .box { border-color: #c0392b; background: #fdedec; }
+
+  .connector-group {
+    display: flex;
+    justify-content: center;
+    gap: 80px;
+    width: 100%;
+  }
+  .side-note {
+    font-size: 18px;
+    font-family: 'Times New Roman', Times, serif;
+    color: #666;
+    text-align: center;
+    margin-top: 28px;
+    border-top: 1px solid #ccc;
+    padding-top: 12px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Academia LMS &mdash; System Architecture</h1>
+<p class="subtitle">Surface-Level Overview of the Multi-Tenant Learning Management System</p>
+
+<div class="diagram">
+
+  <!-- Layer 1: Client -->
+  <div class="layer layer-client">
+    <div class="layer-label">Client Layer (Browser)</div>
+    <div class="layer-content">
+      <div class="box">
+        <div class="box-title">Student Interface</div>
+        <div class="box-desc">Course Viewer, Quiz Shell,<br>Video Player, Dashboard</div>
+      </div>
+      <div class="box">
+        <div class="box-title">Instructor Interface</div>
+        <div class="box-desc">Course Builder, Grading,<br>Proctoring Reports</div>
+      </div>
+      <div class="box">
+        <div class="box-title">Admin Interface</div>
+        <div class="box-desc">User Management,<br>Tenant Configuration</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Arrow -->
+  <div class="connector-group">
+    <div class="arrow-section">
+      <div class="double-arrow"><div class="arrow-up"></div></div>
+      <div class="arrow-line"></div>
+      <div class="arrow-head"></div>
+    </div>
+    <div class="arrow-label">React Components &amp; Zustand State</div>
+  </div>
+
+  <!-- Layer 2: Frontend -->
+  <div class="layer layer-frontend">
+    <div class="layer-label">Frontend (Cloudflare Pages &mdash; React + Vite)</div>
+    <div class="layer-content">
+      <div class="box">
+        <div class="box-title">Auth Store</div>
+        <div class="box-desc">JWT Token,<br>Role-Based Routing</div>
+      </div>
+      <div class="box">
+        <div class="box-title">Course Store</div>
+        <div class="box-desc">Modules, Activities,<br>Enrollments</div>
+      </div>
+      <div class="box">
+        <div class="box-title">Quiz Store</div>
+        <div class="box-desc">Answers, Timer,<br>Proctoring Logs</div>
+      </div>
+      <div class="box">
+        <div class="box-title">Progress Store</div>
+        <div class="box-desc">Video Tracking,<br>Activity Completion</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Arrow -->
+  <div class="connector-group">
+    <div class="arrow-section">
+      <div class="double-arrow"><div class="arrow-up"></div></div>
+      <div class="arrow-line"></div>
+      <div class="arrow-head"></div>
+    </div>
+    <div class="arrow-label">REST API (HTTPS / JSON) via Axios</div>
+  </div>
+
+  <!-- Layer 3: Backend -->
+  <div class="layer layer-backend">
+    <div class="layer-label">Backend API (Cloudflare Workers &mdash; Hono.js)</div>
+    <div class="layer-content">
+      <div class="box">
+        <div class="box-title">Authentication</div>
+        <div class="box-desc">JWT Middleware,<br>Multi-Tenant Isolation</div>
+      </div>
+      <div class="box">
+        <div class="box-title">Course API</div>
+        <div class="box-desc">CRUD Courses,<br>Modules, Activities</div>
+      </div>
+      <div class="box">
+        <div class="box-title">Quiz API</div>
+        <div class="box-desc">Submission, Grading,<br>Attempt Management</div>
+      </div>
+      <div class="box">
+        <div class="box-title">Progress API</div>
+        <div class="box-desc">Lesson Tracking,<br>Certificate Generation</div>
+      </div>
+      <div class="box">
+        <div class="box-title">File API</div>
+        <div class="box-desc">Upload, Stream,<br>Signed URLs</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Arrow -->
+  <div class="connector-group">
+    <div class="arrow-section">
+      <div class="double-arrow"><div class="arrow-up"></div></div>
+      <div class="arrow-line"></div>
+      <div class="arrow-head"></div>
+    </div>
+    <div class="arrow-label">Drizzle ORM / Bindings</div>
+  </div>
+
+  <!-- Layer 4: Data -->
+  <div class="layer layer-data">
+    <div class="layer-label">Data Layer (Cloudflare Edge Services)</div>
+    <div class="layer-content">
+      <div class="box">
+        <div class="box-title">D1 Database</div>
+        <div class="box-desc">Users, Courses, Quizzes,<br>Progress, Certificates,<br>Proctoring Logs</div>
+      </div>
+      <div class="box">
+        <div class="box-title">R2 Object Storage</div>
+        <div class="box-desc">Video Files,<br>Document Uploads,<br>Submission Attachments</div>
+      </div>
+      <div class="box">
+        <div class="box-title">KV Store</div>
+        <div class="box-desc">Session Cache,<br>Tenant Configurations</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Separator -->
+  <div style="width:100%; border-top: 2px dashed #bbb; margin: 8px 0;"></div>
+
+  <!-- Layer 5: AI Proctoring (Client-Side) -->
+  <div class="layer layer-ai">
+    <div class="layer-label">AI Proctoring Engine (Client-Side &mdash; TensorFlow.js)</div>
+    <div class="layer-content">
+      <div class="box">
+        <div class="box-title">Face Detection</div>
+        <div class="box-desc">MediaPipe Face Mesh,<br>Multi-Face Tracking</div>
+      </div>
+      <div class="box">
+        <div class="box-title">Gaze Analysis</div>
+        <div class="box-desc">Iris Landmark Ratio,<br>Eye Position Tracking</div>
+      </div>
+      <div class="box">
+        <div class="box-title">Head Pose</div>
+        <div class="box-desc">Nose-Eye Midpoint<br>Deviation Detection</div>
+      </div>
+      <div class="box">
+        <div class="box-title">Audio Monitor</div>
+        <div class="box-desc">Web Audio API,<br>Ambient Noise RMS</div>
+      </div>
+      <div class="box">
+        <div class="box-title">Pre-Exam Verify</div>
+        <div class="box-desc">Identity Check,<br>Camera Validation</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<p class="side-note">
+  Figure 1: Surface-level architecture of the Academia LMS platform. The AI Proctoring Engine operates entirely
+  on the client side using TensorFlow.js and MediaPipe, with violation logs persisted to the D1 database
+  upon exam submission for instructor review.
+</p>
+
+</body>
+</html>
